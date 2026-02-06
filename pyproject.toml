@@ -1,0 +1,14 @@
+[project]
+name = "pyexpose"
+version = "1.0.0"
+description = "Static photography website generator. Python port of expose.sh"
+requires-python = ">=3.9"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (parity tests)",
+]
