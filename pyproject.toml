@@ -5,10 +5,39 @@ description = "Static photography website generator. Python port of expose.sh"
 requires-python = ">=3.9"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["pytest", "pytest-cov", "pytest-order"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow (parity tests)",
+    "final: marks tests that run only after all others pass",
 ]
+addopts = "--cov=expose --cov-report=term-missing --cov-report=html"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "theme1/*",
+    "theme2/*",
+    "Markdown_1.0.1/*",
+    "tests/*",
+    "_site/*",
+    ".pytest_cache/*",
+    "uv.lock",
+]
+branch = false
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
