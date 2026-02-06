@@ -1,13 +1,9 @@
 """Tests for edge cases and error handling paths."""
 
-import shutil
-from pathlib import Path
 from unittest import mock
 
-import pytest
-
 from expose import DEFAULT_CONFIG, ExposeGenerator
-from tests.conftest import SCRIPTDIR, make_test_image
+from tests.conftest import SCRIPTDIR
 
 
 def make_generator(tmp_path, config_overrides=None, draft=True):
@@ -64,25 +60,24 @@ class TestVideoMimeTypeDetection:
         with mock.patch.object(gen, "identify", return_value="640"):
             # Mock subprocess.run for both 'file' and 'ffmpeg' calls
             call_count = [0]
+
             def mock_subprocess(*args, **kwargs):
                 call_count[0] += 1
                 cmd = args[0] if args else kwargs.get("args", [])
                 if isinstance(cmd, list):
                     if "file" in cmd[0]:
-                        return mock.MagicMock(
-                            stdout="video/mp4; charset=binary",
-                            returncode=0
-                        )
+                        return mock.MagicMock(stdout="video/mp4; charset=binary", returncode=0)
                     elif "ffmpeg" in cmd[0]:
                         # Create temp frame for color extraction
                         (gen.scratchdir / "temp.jpg").write_text("frame")
                         return mock.MagicMock(returncode=0)
                 return mock.MagicMock(returncode=0)
 
-            with mock.patch("subprocess.run", side_effect=mock_subprocess):
-                # Mock convert for color extraction
-                with mock.patch.object(gen, "convert", return_value=mock.MagicMock(returncode=0)):
-                    gen.read_files()
+            with (
+                mock.patch("subprocess.run", side_effect=mock_subprocess),
+                mock.patch.object(gen, "convert", return_value=mock.MagicMock(returncode=0)),
+            ):
+                gen.read_files()
 
         # Should have detected video
         assert len(gen.gallery_files) >= 0  # May or may not be added depending on mocks
@@ -110,8 +105,7 @@ class TestVideoMimeTypeDetection:
 
         # Mock file command to return non-video mime type
         mock_run.return_value = mock.MagicMock(
-            stdout="application/octet-stream; charset=binary",
-            returncode=0
+            stdout="application/octet-stream; charset=binary", returncode=0
         )
 
         gen.read_files()

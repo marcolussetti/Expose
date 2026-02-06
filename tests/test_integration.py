@@ -3,13 +3,12 @@
 import json
 import re
 import shutil
-from pathlib import Path
 
 import pytest
 
-from expose import DEFAULT_CONFIG, ExposeGenerator
+from expose import DEFAULT_CONFIG
 
-from .conftest import SCRIPTDIR, make_gallery_tree, make_generator, make_test_image
+from .conftest import SCRIPTDIR, make_generator, make_test_image
 
 pytestmark = pytest.mark.skipif(
     shutil.which("convert") is None or shutil.which("identify") is None,
@@ -18,6 +17,7 @@ pytestmark = pytest.mark.skipif(
 
 
 # --- identify ---
+
 
 def test_identify_dimensions(tmp_path):
     img = tmp_path / "test.jpg"
@@ -29,6 +29,7 @@ def test_identify_dimensions(tmp_path):
 
 
 # --- scan_directories ---
+
 
 def test_scan_directories_structure(tmp_gallery):
     gen = make_generator(tmp_gallery)
@@ -86,6 +87,7 @@ def test_scan_directories_skips_empty(tmp_gallery):
 
 
 # --- read_files ---
+
 
 def _gen_with_files(tmp_gallery, config_overrides=None):
     gen = make_generator(tmp_gallery, config_overrides)
@@ -148,6 +150,7 @@ def test_read_files_color_disabled(tmp_gallery):
 
 
 # --- build_html ---
+
 
 def _gen_with_html(tmp_gallery, config_overrides=None):
     gen = make_generator(tmp_gallery, config_overrides)
@@ -242,6 +245,7 @@ def test_build_html_no_leftover_vars(tmp_gallery):
 
 # --- encode ---
 
+
 def test_encode_images(tmp_gallery):
     gen = make_generator(tmp_gallery)
     gen.scan_directories()
@@ -279,6 +283,7 @@ def test_encode_images_idempotent(tmp_gallery):
 
 # --- config override ---
 
+
 def test_config_override(tmp_gallery):
     config = {"site_title": "Custom Title"}
     (tmp_gallery / "_config.json").write_text(json.dumps(config))
@@ -292,6 +297,7 @@ def test_config_override(tmp_gallery):
 
 
 # --- full pipeline ---
+
 
 def test_full_pipeline(tmp_gallery):
     gen = make_generator(tmp_gallery)

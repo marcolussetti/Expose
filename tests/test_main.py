@@ -1,13 +1,9 @@
 """Tests for CLI entry points and main functions."""
 
 import json
-import sys
-from pathlib import Path
 from unittest import mock
 
-import pytest
-
-from expose import check_dependencies, load_config, main, DEFAULT_CONFIG
+from expose import DEFAULT_CONFIG, check_dependencies, load_config, main
 
 
 class TestCheckDependencies:
@@ -113,7 +109,9 @@ class TestMain:
     @mock.patch("expose.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
-    def test_main_sets_up_signal_handlers(self, mock_register, mock_signal, mock_generator_class, mock_check):
+    def test_main_sets_up_signal_handlers(
+        self, mock_register, mock_signal, mock_generator_class, mock_check
+    ):
         """Test main() sets up signal handlers."""
         mock_generator = mock.MagicMock()
         mock_generator_class.return_value = mock_generator

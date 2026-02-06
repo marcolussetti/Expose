@@ -47,3 +47,4 @@ __pycache__/
 *.pyc
 .venv/
 test_run/
+plans/

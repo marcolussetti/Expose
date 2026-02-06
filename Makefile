@@ -12,6 +12,7 @@ help:
 	@echo "  make install    - Install dependencies with uv"
 	@echo "  make lint       - Run linting (ruff)"
 	@echo "  make format     - Format code (ruff)"
+	@echo "  make install-hooks - Install prek hooks"
 
 # Run all tests
 test:
@@ -41,9 +42,9 @@ clean:
 install:
 	uv pip install -e ".[dev]"
 
-# Install pre-commit hooks
+# Install pre-commit hooks (via prek)
 install-hooks:
-	uv run pre-commit install
+	prek install-hooks
 
 # Run linting (requires ruff)
 lint:

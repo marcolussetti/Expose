@@ -1,10 +1,6 @@
 """Additional tests to improve coverage."""
 
-import shutil
-from pathlib import Path
 from unittest import mock
-
-import pytest
 
 from expose import DEFAULT_CONFIG, ExposeGenerator
 from tests.conftest import SCRIPTDIR, make_test_image
@@ -47,9 +43,11 @@ class TestReadFilesVideoExtraction:
                 (gen.scratchdir / "temp.jpg").write_text("frame")
             return mock.MagicMock(returncode=0)
 
-        with mock.patch("subprocess.run", side_effect=mock_ffmpeg):
-            with mock.patch.object(gen, "identify", return_value="640"):
-                gen.read_files()
+        with (
+            mock.patch("subprocess.run", side_effect=mock_ffmpeg),
+            mock.patch.object(gen, "identify", return_value="640"),
+        ):
+            gen.read_files()
 
         # Should have processed the video
         assert len(gen.gallery_files) > 0
@@ -122,7 +120,6 @@ class TestScanDirectoriesEdgeCases:
         assert "empty" not in names
 
         gen.cleanup()
-
 
 
 class TestCopyResources:

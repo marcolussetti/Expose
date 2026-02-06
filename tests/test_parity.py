@@ -7,7 +7,6 @@ Marked as slow since they invoke two full pipeline runs.
 import re
 import shutil
 import subprocess
-from pathlib import Path
 
 import pytest
 
@@ -157,6 +156,6 @@ def test_parity_image_sizes(parity_outputs):
         if sh_size == 0:
             continue
         diff_pct = abs(sh_size - py_size) / sh_size
-        assert diff_pct <= 0.05, (
-            f"Image size differs >5% for {rel}: shell={sh_size}, python={py_size}"
-        )
+        assert (
+            diff_pct <= 0.05
+        ), f"Image size differs >5% for {rel}: shell={sh_size}, python={py_size}"

@@ -5,7 +5,7 @@ description = "Static photography website generator. Python port of expose.sh"
 requires-python = ">=3.9"
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-order"]
+dev = ["pytest", "pytest-cov", "pytest-order", "ruff"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -41,3 +41,38 @@ show_missing = true
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+exclude = [
+    "theme1/",
+    "theme2/",
+    "expose.sh",
+    "Markdown_1.0.1/",
+    "_site/",
+    ".git/",
+    ".pytest_cache/",
+    "htmlcov/",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = ["E501"]  # Line too long (handled by formatter)
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

@@ -1,10 +1,6 @@
 """Tests for video encoding functionality with mocked ffmpeg."""
 
-import shutil
-from pathlib import Path
 from unittest import mock
-
-import pytest
 
 from expose import DEFAULT_CONFIG, ExposeGenerator
 from tests.conftest import SCRIPTDIR, make_test_image

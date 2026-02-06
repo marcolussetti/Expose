@@ -8,13 +8,11 @@ Marked as 'final' to ensure it runs after all other tests.
 import hashlib
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
-from tests.conftest import SCRIPTDIR, make_gallery_tree, make_test_image
+from tests.conftest import SCRIPTDIR, make_gallery_tree
 
 pytestmark = [
     pytest.mark.slow,
@@ -51,14 +49,14 @@ def normalize_html_for_comparison(content: str) -> str:
     - Timestamps in metadata
     - Absolute vs relative paths in some contexts
     """
-    lines = content.split('\n')
+    lines = content.split("\n")
     normalized = []
     for line in lines:
         # Skip lines that may differ between runs
-        if 'Generated on' in line or 'timestamp' in line.lower():
+        if "Generated on" in line or "timestamp" in line.lower():
             continue
         normalized.append(line)
-    return '\n'.join(normalized)
+    return "\n".join(normalized)
 
 
 def compare_directories(shell_dir: Path, python_dir: Path) -> list:
@@ -84,18 +82,18 @@ def compare_directories(shell_dir: Path, python_dir: Path) -> list:
         file2 = files2[rel_path]
 
         # Skip binary files for content comparison (just check existence)
-        if file1.suffix in ['.jpg', '.jpeg', '.png', '.gif', '.mp4', '.webm', '.zip']:
+        if file1.suffix in [".jpg", ".jpeg", ".png", ".gif", ".mp4", ".webm", ".zip"]:
             # For images/videos, size should match (not hash due to encoding variations)
             if file1.stat().st_size != file2.stat().st_size:
                 differences.append(f"Size mismatch: {rel_path}")
-        elif file1.suffix == '.html':
+        elif file1.suffix == ".html":
             # For HTML, normalize and compare
             content1 = normalize_html_for_comparison(file1.read_text())
             content2 = normalize_html_for_comparison(file2.read_text())
             if content1 != content2:
                 # Show first differing lines for debugging
-                lines1 = content1.split('\n')
-                lines2 = content2.split('\n')
+                lines1 = content1.split("\n")
+                lines2 = content2.split("\n")
                 for i, (l1, l2) in enumerate(zip(lines1, lines2)):
                     if l1 != l2:
                         differences.append(f"HTML content mismatch at {rel_path} line {i+1}")
@@ -158,10 +156,14 @@ class TestFinalParity:
                 shutil.copy2(item, dest)
 
         # Get directory structures
-        dirs_shell = sorted([str(d.relative_to(shell_output)) for d in shell_output.rglob("*") if d.is_dir()])
-        dirs_python = sorted([str(d.relative_to(python_output)) for d in python_output.rglob("*") if d.is_dir()])
+        dirs_shell = sorted(
+            [str(d.relative_to(shell_output)) for d in shell_output.rglob("*") if d.is_dir()]
+        )
+        dirs_python = sorted(
+            [str(d.relative_to(python_output)) for d in python_output.rglob("*") if d.is_dir()]
+        )
 
-        assert dirs_shell == dirs_python, f"Directory structure mismatch"
+        assert dirs_shell == dirs_python, "Directory structure mismatch"
 
     def test_parity_file_list(self, tmp_path_factory):
         """Test that file lists match between shell and Python versions."""
@@ -201,10 +203,16 @@ class TestFinalParity:
                 shutil.copy2(item, dest)
 
         # Get file lists
-        files_shell = sorted([str(f.relative_to(shell_output)) for f in shell_output.rglob("*") if f.is_file()])
-        files_python = sorted([str(f.relative_to(python_output)) for f in python_output.rglob("*") if f.is_file()])
+        files_shell = sorted(
+            [str(f.relative_to(shell_output)) for f in shell_output.rglob("*") if f.is_file()]
+        )
+        files_python = sorted(
+            [str(f.relative_to(python_output)) for f in python_output.rglob("*") if f.is_file()]
+        )
 
-        assert files_shell == files_python, f"File list mismatch: {set(files_shell) ^ set(files_python)}"
+        assert (
+            files_shell == files_python
+        ), f"File list mismatch: {set(files_shell) ^ set(files_python)}"
 
     def test_parity_detailed_comparison(self, tmp_path_factory):
         """Detailed comparison of shell vs Python output."""

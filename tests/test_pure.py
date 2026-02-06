@@ -1,6 +1,6 @@
 """Tests for pure functions in expose.py — no external dependencies required."""
 
-from expose import DEFAULT_CONFIG, ExposeGenerator
+from expose import ExposeGenerator
 
 
 def _gen():
@@ -12,6 +12,7 @@ def _gen():
 
 
 # --- url_safe ---
+
 
 def test_url_safe_basic():
     assert _gen().url_safe("Hello World") == "hello-world"
@@ -35,6 +36,7 @@ def test_url_safe_only_specials():
 
 # --- strip_numeric_prefix ---
 
+
 def test_strip_numeric_prefix_basic():
     assert _gen().strip_numeric_prefix("01_Mountains") == "_Mountains"
 
@@ -53,6 +55,7 @@ def test_strip_numeric_prefix_with_space():
 
 
 # --- template ---
+
 
 def test_template_simple():
     result = _gen().template("Hello {{name}}", "name", "World")
@@ -95,4 +98,4 @@ def test_template_html_content():
     result = _gen().template(snippet, "imageurl", "peak")
     result = _gen().template(result, "top", "60")
     assert 'data-url="peak"' in result
-    assert 'top: 60%' in result
+    assert "top: 60%" in result

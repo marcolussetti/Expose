@@ -1,11 +1,6 @@
 """Tests for download ZIP functionality."""
 
-import shutil
 import zipfile
-from pathlib import Path
-from unittest import mock
-
-import pytest
 
 from expose import DEFAULT_CONFIG, ExposeGenerator
 from tests.conftest import SCRIPTDIR, make_test_image
@@ -43,7 +38,9 @@ class TestDownloadZip:
         gen.gallery_type = [0]  # Image
         gen.gallery_maxwidth = [800]
         gen.gallery_maxheight = [600]
-        gen.gallery_colors = [["#000000", "#222222", "#444444", "#666666", "#999999", "#cccccc", "#ffffff"]]
+        gen.gallery_colors = [
+            ["#000000", "#222222", "#444444", "#666666", "#999999", "#cccccc", "#ffffff"]
+        ]
         gen.gallery_image_options = [""]
         gen.gallery_video_options = [""]
         gen.gallery_video_filters = [""]

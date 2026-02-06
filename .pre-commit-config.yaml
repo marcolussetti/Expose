@@ -1,0 +1,25 @@
+# Pre-commit configuration for pyexpose
+# Excludes legacy theme files and expose.sh
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(theme1/|theme2/|Markdown_1.0.1/|expose.sh)
+      - id: end-of-file-fixer
+        exclude: ^(theme1/|theme2/|Markdown_1.0.1/|expose.sh)
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=2000']
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^(theme1/|theme2/|Markdown_1.0.1/|expose.sh)
+      - id: ruff-format
+        exclude: ^(theme1/|theme2/|Markdown_1.0.1/|expose.sh)
