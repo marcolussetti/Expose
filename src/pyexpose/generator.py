@@ -14,6 +14,7 @@ from pyexpose.config import Config
 from pyexpose.encoder import MediaEncoder
 from pyexpose.media.image import ImageProcessor
 from pyexpose.scanner import Scanner
+from pyexpose.themes import resolve_theme_dir
 
 
 class ExposeGenerator:
@@ -92,7 +93,7 @@ class ExposeGenerator:
 
     def copy_resources(self):
         """Copy theme resources to _site directory."""
-        theme_dir = self.scriptdir / self.config["theme_dir"]
+        theme_dir = resolve_theme_dir(self.config["theme_dir"], self.topdir)
         site_dir = self.topdir / "_site"
         for item in theme_dir.iterdir():
             if item.name in ["template.html", "post-template.html"]:

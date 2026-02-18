@@ -39,8 +39,8 @@ def main():
     check_dependencies()
 
     topdir = Path.cwd()
-    # scriptdir should be the project root where theme directories live
-    scriptdir = Path(__file__).parent.parent.parent.resolve()
+    # scriptdir is the pyexpose package directory; themes are bundled inside it
+    scriptdir = Path(__file__).parent.resolve()
 
     config = Config.load(topdir, scriptdir)
 

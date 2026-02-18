@@ -82,9 +82,22 @@ class ImageProcessor(MediaProcessor):
         with Image.open(input_path) as img:
             if auto_orient:
                 img = ImageOps.exif_transpose(img)
-            img.thumbnail((width, width), Image.LANCZOS)
+            # Match ImageMagick -resize WxW: scale to fit within the box,
+            # upscaling if necessary (thumbnail() only shrinks).
+            orig_w, orig_h = img.size
+            ratio = min(width / orig_w, width / orig_h)
+            new_size = (round(orig_w * ratio), round(orig_h * ratio))
+            img = img.resize(new_size, Image.LANCZOS)
+            # Match ImageMagick chroma subsampling: 4:4:4 at quality>=90,
+            # 4:2:2 at quality>=80, 4:2:0 below that.
+            if quality >= 90:
+                subsampling = 0  # 4:4:4
+            elif quality >= 80:
+                subsampling = 1  # 4:2:2
+            else:
+                subsampling = 2  # 4:2:0
             # Save without any metadata (+profile * equivalent)
-            img.save(output_path, "JPEG", quality=quality, optimize=True)
+            img.save(output_path, "JPEG", quality=quality, subsampling=subsampling, optimize=True)
 
     def extract_dimensions(self, image_path: Path, handle_orientation: bool = False) -> tuple:
         """Extract image dimensions, optionally handling EXIF orientation.

@@ -7,6 +7,7 @@ Marked as slow since they invoke two full pipeline runs.
 import re
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -56,7 +57,7 @@ def parity_outputs(tmp_path_factory):
 
     # Run Python version
     subprocess.run(
-        ["python3", str(SCRIPTDIR / "expose.py"), "-d"],
+        [sys.executable, "-m", "pyexpose", "-d"],
         cwd=str(gallery),
         check=True,
         capture_output=True,
@@ -218,7 +219,7 @@ def real_gallery_parity_outputs(tmp_path_factory):
 
     # Run Python version
     result = subprocess.run(
-        ["python3", str(SCRIPTDIR / "expose.py"), "-d"],
+        [sys.executable, "-m", "pyexpose", "-d"],
         cwd=str(gallery),
         capture_output=True,
         text=True,

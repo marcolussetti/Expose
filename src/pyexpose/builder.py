@@ -10,6 +10,7 @@ from pathlib import Path
 from pyexpose.config import Config
 from pyexpose.media.markdown import MarkdownProcessor
 from pyexpose.template import TemplateEngine
+from pyexpose.themes import resolve_theme_dir
 
 
 class HTMLBuilder:
@@ -97,9 +98,9 @@ class HTMLBuilder:
         self.markdown_processor = MarkdownProcessor(scriptdir)
 
         # Load templates
-        theme_dir = self.config["theme_dir"]
-        self.template_html = (scriptdir / theme_dir / "template.html").read_text()
-        self.post_template_html = (scriptdir / theme_dir / "post-template.html").read_text()
+        theme_dir = resolve_theme_dir(self.config["theme_dir"], self.topdir)
+        self.template_html = (theme_dir / "template.html").read_text()
+        self.post_template_html = (theme_dir / "post-template.html").read_text()
 
     def build_html(self):
         """Build HTML pages for all galleries."""

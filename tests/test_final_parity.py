@@ -8,6 +8,7 @@ Marked as 'final' to ensure it runs after all other tests.
 import hashlib
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -143,7 +144,7 @@ class TestFinalParity:
 
         # Run Python version
         subprocess.run(
-            ["python3", str(SCRIPTDIR / "expose.py"), "-d"],
+            [sys.executable, "-m", "pyexpose", "-d"],
             cwd=str(gallery),
             check=True,
             capture_output=True,
@@ -190,7 +191,7 @@ class TestFinalParity:
 
         # Run Python version
         subprocess.run(
-            ["python3", str(SCRIPTDIR / "expose.py"), "-d"],
+            [sys.executable, "-m", "pyexpose", "-d"],
             cwd=str(gallery),
             check=True,
             capture_output=True,
@@ -241,7 +242,7 @@ class TestFinalParity:
 
         # Run Python version
         result = subprocess.run(
-            ["python3", str(SCRIPTDIR / "expose.py"), "-d"],
+            [sys.executable, "-m", "pyexpose", "-d"],
             cwd=str(gallery),
             capture_output=True,
             text=True,

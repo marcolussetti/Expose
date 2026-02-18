@@ -5,6 +5,8 @@ import pytest
 from pyexpose.config import DEFAULT_CONFIG, Config
 from pyexpose.generator import ExposeGenerator
 
+# Project root — passed as scriptdir for legacy compatibility; themes are now
+# resolved via resolve_theme_dir() and no longer depend on this value.
 SCRIPTDIR = Path(__file__).resolve().parent.parent
 
 
