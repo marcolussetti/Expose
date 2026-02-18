@@ -10,8 +10,8 @@ help:
 	@echo "  make test-fast  - Run tests without slow/parity tests"
 	@echo "  make clean      - Clean generated files and caches"
 	@echo "  make install    - Install dependencies with uv"
-	@echo "  make lint       - Run linting (ruff)"
-	@echo "  make format     - Format code (ruff)"
+	@echo "  make lint       - Run all pre-commit hooks (via prek)"
+	@echo "  make format     - Format code (via prek ruff-format)"
 	@echo "  make install-hooks - Install prek hooks"
 
 # Run all tests
@@ -46,13 +46,13 @@ install:
 install-hooks:
 	prek install-hooks
 
-# Run linting (requires ruff)
+# Run all pre-commit hooks on all files (via prek)
 lint:
-	uv run ruff check .
+	prek run --all-files
 
-# Format code (requires ruff)
+# Format code only (via prek ruff-format hook)
 format:
-	uv run ruff format .
+	prek run ruff-format --all-files
 
 # Run full CI checks locally
 ci: clean lint test-cov
