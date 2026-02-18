@@ -3,10 +3,10 @@
 Handles encoding of images and videos to multiple resolutions and formats.
 """
 
-import os
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 from pyexpose.config import Config
@@ -932,13 +932,10 @@ class MediaEncoder:
         # Write readme
         (zip_dir / "readme.txt").write_text(self.config["download_readme"])
 
-        os.chmod(zip_dir, 0o740)
-
-        # Create zip
-        original_dir = os.getcwd()
-        os.chdir(zip_dir)
-        subprocess.run(["zip", "-r", str(zip_path), "./"], capture_output=True)
-        os.chdir(original_dir)
+        # Create zip using stdlib (flat structure, no ./ prefix)
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for f in zip_dir.iterdir():
+                zf.write(f, f.name)
 
     def cleanup(self):
         """Clean up temporary files."""
