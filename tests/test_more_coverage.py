@@ -2,15 +2,20 @@
 
 from unittest import mock
 
-from expose import DEFAULT_CONFIG, ExposeGenerator
+from pyexpose.config import DEFAULT_CONFIG, Config
+from pyexpose.generator import ExposeGenerator
+
 from tests.conftest import SCRIPTDIR, make_test_image
 
 
 def make_generator(tmp_path, config_overrides=None, draft=True):
     """Create a basic generator."""
-    config = dict(DEFAULT_CONFIG)
+    config_dict = dict(DEFAULT_CONFIG)
     if config_overrides:
-        config.update(config_overrides)
+        config_dict.update(config_overrides)
+    config = Config(config_dict)
+    if draft:
+        config.apply_draft_mode()
     return ExposeGenerator(tmp_path, SCRIPTDIR, config, draft=draft)
 
 

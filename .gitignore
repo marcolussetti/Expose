@@ -46,5 +46,5 @@ Temporary Items
 __pycache__/
 *.pyc
 .venv/
-test_run/
+_site/
 plans/

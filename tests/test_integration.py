@@ -5,8 +5,7 @@ import re
 import shutil
 
 import pytest
-
-from expose import DEFAULT_CONFIG
+from pyexpose.config import DEFAULT_CONFIG
 
 from .conftest import SCRIPTDIR, make_generator, make_test_image
 
@@ -288,7 +287,7 @@ def test_config_override(tmp_gallery):
     config = {"site_title": "Custom Title"}
     (tmp_gallery / "_config.json").write_text(json.dumps(config))
 
-    from expose import load_config
+    from pyexpose.config import load_config
 
     loaded = load_config(tmp_gallery, SCRIPTDIR)
     assert loaded["site_title"] == "Custom Title"

@@ -3,7 +3,8 @@
 import json
 from unittest import mock
 
-from expose import DEFAULT_CONFIG, check_dependencies, load_config, main
+from pyexpose.cli import check_dependencies, main
+from pyexpose.config import DEFAULT_CONFIG, load_config
 
 
 class TestCheckDependencies:
@@ -72,8 +73,8 @@ class TestLoadConfig:
 class TestMain:
     """Tests for main() CLI entry point."""
 
-    @mock.patch("expose.check_dependencies")
-    @mock.patch("expose.ExposeGenerator")
+    @mock.patch("pyexpose.cli.check_dependencies")
+    @mock.patch("pyexpose.cli.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
     def test_main_basic(self, mock_register, mock_signal, mock_generator_class, mock_check):
@@ -88,8 +89,8 @@ class TestMain:
         mock_generator_class.assert_called_once()
         mock_generator.run.assert_called_once()
 
-    @mock.patch("expose.check_dependencies")
-    @mock.patch("expose.ExposeGenerator")
+    @mock.patch("pyexpose.cli.check_dependencies")
+    @mock.patch("pyexpose.cli.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
     def test_main_draft_mode(self, mock_register, mock_signal, mock_generator_class, mock_check):
@@ -105,8 +106,8 @@ class TestMain:
         call_kwargs = mock_generator_class.call_args[1]
         assert call_kwargs["draft"] is True
 
-    @mock.patch("expose.check_dependencies")
-    @mock.patch("expose.ExposeGenerator")
+    @mock.patch("pyexpose.cli.check_dependencies")
+    @mock.patch("pyexpose.cli.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
     def test_main_sets_up_signal_handlers(

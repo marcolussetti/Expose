@@ -298,7 +298,7 @@ wheels = [
 [[package]]
 name = "pyexpose"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 
 [package.dev-dependencies]
 dev = [

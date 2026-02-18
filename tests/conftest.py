@@ -2,8 +2,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
-from expose import DEFAULT_CONFIG, ExposeGenerator
+from pyexpose.config import DEFAULT_CONFIG, Config
+from pyexpose.generator import ExposeGenerator
 
 SCRIPTDIR = Path(__file__).resolve().parent.parent
 
@@ -52,10 +52,13 @@ def make_generator(topdir, config_overrides=None, draft=True):
 
     Uses draft=True by default (resolution=[1024], single format).
     """
-    config = dict(DEFAULT_CONFIG)
-    config["extract_colors"] = True
+    config_dict = dict(DEFAULT_CONFIG)
+    config_dict["extract_colors"] = True
     if config_overrides:
-        config.update(config_overrides)
+        config_dict.update(config_overrides)
+    config = Config(config_dict)
+    if draft:
+        config.apply_draft_mode()
     return ExposeGenerator(topdir, SCRIPTDIR, config, draft=draft)
 
 

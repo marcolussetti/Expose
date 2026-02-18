@@ -2,16 +2,19 @@
 
 from unittest import mock
 
-from expose import DEFAULT_CONFIG, ExposeGenerator
+from pyexpose.config import DEFAULT_CONFIG, Config
+from pyexpose.generator import ExposeGenerator
+
 from tests.conftest import SCRIPTDIR, make_test_image
 
 
 def make_video_enabled_generator(tmp_path):
     """Create a generator with video support enabled (mocked)."""
-    config = dict(DEFAULT_CONFIG)
-    config["video_formats"] = ["h264"]
-    config["resolution"] = [640, 320]
-    config["bitrate"] = [4, 2]
+    config_dict = dict(DEFAULT_CONFIG)
+    config_dict["video_formats"] = ["h264"]
+    config_dict["resolution"] = [640, 320]
+    config_dict["bitrate"] = [4, 2]
+    config = Config(config_dict)
     gen = ExposeGenerator(tmp_path, SCRIPTDIR, config, draft=True)
     gen.video_enabled = True  # Force enable even without ffmpeg
     return gen

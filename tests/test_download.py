@@ -2,15 +2,20 @@
 
 import zipfile
 
-from expose import DEFAULT_CONFIG, ExposeGenerator
+from pyexpose.config import DEFAULT_CONFIG, Config
+from pyexpose.generator import ExposeGenerator
+
 from tests.conftest import SCRIPTDIR, make_test_image
 
 
 def make_generator_with_download(tmp_path):
     """Create a generator with download_button enabled."""
-    config = dict(DEFAULT_CONFIG)
-    config["download_button"] = True
-    config["download_readme"] = "Test license text"
+    config_dict = dict(DEFAULT_CONFIG)
+    config_dict["download_button"] = True
+    config_dict["download_readme"] = "Test license text"
+    config = Config(config_dict)
+    config.apply_draft_mode()
+    config["download_button"] = True  # restore after draft mode disables it
     return ExposeGenerator(tmp_path, SCRIPTDIR, config, draft=True)
 
 
