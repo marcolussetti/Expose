@@ -7,6 +7,9 @@ name = "pyexpose"
 version = "1.0.0"
 description = "Static photography website generator. Python port of expose.sh"
 requires-python = ">=3.9"
+dependencies = [
+    "markdown>=3.9",
+]
 
 [project.scripts]
 expose = "pyexpose.cli:main"
