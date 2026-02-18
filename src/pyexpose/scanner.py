@@ -4,9 +4,9 @@ Scans the working directory to build navigation structures and
 process images/videos to extract metadata.
 """
 
+import mimetypes
 import re
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
@@ -265,10 +265,8 @@ class Scanner:
                         # Check if it's a video by mime type
                         if not self.video_enabled:
                             continue
-                        result = subprocess.run(
-                            ["file", "-ib", str(file_path)], capture_output=True, text=True
-                        )
-                        if "video" not in result.stdout:
+                        mime_type, _ = mimetypes.guess_type(str(file_path))
+                        if not mime_type or "video" not in mime_type:
                             continue
                         format_type = "video"
                         temp_path = self.scratchdir / "temp.jpg"
