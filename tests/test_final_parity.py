@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import SCRIPTDIR, make_gallery_tree
+from tests.conftest import REFDIR, make_gallery_tree
 
 pytestmark = [
     pytest.mark.slow,
@@ -28,7 +28,7 @@ pytestmark = [
         reason="bash not available",
     ),
     pytest.mark.skipif(
-        not (SCRIPTDIR / "expose.sh").exists(),
+        not (REFDIR / "expose.sh").exists(),
         reason="expose.sh not found",
     ),
 ]
@@ -128,7 +128,7 @@ class TestFinalParity:
 
         # Run shell version
         subprocess.run(
-            ["bash", str(SCRIPTDIR / "expose.sh"), "-d"],
+            ["bash", str(REFDIR / "expose.sh"), "-d"],
             cwd=str(gallery),
             check=True,
             capture_output=True,
@@ -176,7 +176,7 @@ class TestFinalParity:
 
         # Run shell version
         subprocess.run(
-            ["bash", str(SCRIPTDIR / "expose.sh"), "-d"],
+            ["bash", str(REFDIR / "expose.sh"), "-d"],
             cwd=str(gallery),
             check=True,
             capture_output=True,
@@ -225,7 +225,7 @@ class TestFinalParity:
 
         # Run shell version
         result = subprocess.run(
-            ["bash", str(SCRIPTDIR / "expose.sh"), "-d"],
+            ["bash", str(REFDIR / "expose.sh"), "-d"],
             cwd=str(gallery),
             capture_output=True,
             text=True,

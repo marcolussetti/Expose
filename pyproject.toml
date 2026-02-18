@@ -33,7 +33,7 @@ addopts = "--cov=src/pyexpose --cov-report=term-missing --cov-report=html"
 source = ["src/pyexpose"]
 omit = [
     "src/pyexpose/themes/*",
-    "Markdown_1.0.1/*",
+    "tests/reference/*",
     "tests/*",
     "_site/*",
     ".pytest_cache/*",
@@ -58,10 +58,10 @@ directory = "htmlcov"
 [tool.ruff]
 target-version = "py39"
 line-length = 100
+force-exclude = true
 exclude = [
     "src/pyexpose/themes/",
-    "expose.sh",
-    "Markdown_1.0.1/",
+    "tests/reference/",
     "_site/",
     ".git/",
     ".pytest_cache/",

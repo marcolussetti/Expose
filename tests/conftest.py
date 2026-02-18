@@ -5,15 +5,23 @@ import pytest
 from pyexpose.config import DEFAULT_CONFIG, Config
 from pyexpose.generator import ExposeGenerator
 
-# Project root — passed as scriptdir for legacy compatibility; themes are now
-# resolved via resolve_theme_dir() and no longer depend on this value.
+# Directory containing the bash reference implementation (expose.sh) and its
+# dependencies. Used only by parity tests.
+REFDIR = Path(__file__).resolve().parent / "reference"
+
+# Directory containing test gallery data (test_run/, etc.)
+DATADIR = Path(__file__).resolve().parent / "data"
+
+# Project root — passed as scriptdir to ExposeGenerator for legacy
+# compatibility. Themes are resolved via resolve_theme_dir() so the actual
+# value no longer affects theme loading.
 SCRIPTDIR = Path(__file__).resolve().parent.parent
 
 
 def make_test_image(path, width=640, height=480, color="blue"):
     """Create a test image using ImageMagick convert."""
     subprocess.run(
-        ["convert", "-size", f"{width}x{height}", f"xc:{color}", str(path)],
+        ["magick", "-size", f"{width}x{height}", f"xc:{color}", str(path)],
         check=True,
         capture_output=True,
     )

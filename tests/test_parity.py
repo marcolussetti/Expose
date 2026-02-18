@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-from .conftest import SCRIPTDIR, make_gallery_tree
+from .conftest import DATADIR, REFDIR, make_gallery_tree
 
 pytestmark = [
     pytest.mark.slow,
@@ -24,7 +24,7 @@ pytestmark = [
         reason="bash not available",
     ),
     pytest.mark.skipif(
-        not (SCRIPTDIR / "expose.sh").exists(),
+        not (REFDIR / "expose.sh").exists(),
         reason="expose.sh not found",
     ),
 ]
@@ -41,7 +41,7 @@ def parity_outputs(tmp_path_factory):
 
     # Run shell version
     subprocess.run(
-        ["bash", str(SCRIPTDIR / "expose.sh"), "-d"],
+        ["bash", str(REFDIR / "expose.sh"), "-d"],
         cwd=str(gallery),
         check=True,
         capture_output=True,
@@ -169,7 +169,7 @@ def real_gallery_parity_outputs(tmp_path_factory):
     This uses actual JPEG images instead of synthetic test images,
     providing a more realistic parity test.
     """
-    test_run = SCRIPTDIR / "test_run"
+    test_run = DATADIR / "test_run"
 
     # Skip if test_run doesn't exist or doesn't have source images
     if not test_run.exists():
@@ -196,7 +196,7 @@ def real_gallery_parity_outputs(tmp_path_factory):
 
     # Run shell version
     result = subprocess.run(
-        ["bash", str(SCRIPTDIR / "expose.sh"), "-d"],
+        ["bash", str(REFDIR / "expose.sh"), "-d"],
         cwd=str(gallery),
         capture_output=True,
         text=True,

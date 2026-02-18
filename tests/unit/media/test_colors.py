@@ -15,6 +15,8 @@ from pyexpose.media.colors import ColorExtractor
 from pyexpose.media.colors_imagemagick import ImageMagickColorExtractor
 from pyexpose.media.colors_pillow import PillowColorExtractor
 
+from tests.conftest import DATADIR
+
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -131,9 +133,9 @@ class TestColorExtractorFacade:
 
 # Real source images from the test gallery
 _TEST_IMAGES = [
-    Path(__file__).resolve().parents[3] / "test_run/01_Nature/02_Oceans/01_wave.jpg",
-    Path(__file__).resolve().parents[3] / "test_run/01_Nature/01_Mountains/01_peak.jpg",
-    Path(__file__).resolve().parents[3] / "test_run/02_Urban/01_city.jpg",
+    DATADIR / "test_run/01_Nature/02_Oceans/01_wave.jpg",
+    DATADIR / "test_run/01_Nature/01_Mountains/01_peak.jpg",
+    DATADIR / "test_run/02_Urban/01_city.jpg",
 ]
 
 
