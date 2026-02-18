@@ -9,6 +9,7 @@ description = "Static photography website generator. Python port of expose.sh"
 requires-python = ">=3.9"
 dependencies = [
     "markdown>=3.9",
+    "pillow>=11.3.0",
 ]
 
 [project.scripts]

@@ -79,8 +79,7 @@ class MediaEncoder:
         # Track current output URL for display
         self.output_url = None
 
-        # Setup autorotate option
-        self.autorotate_option = "-auto-orient" if config["autorotate"] else ""
+        self.autorotate = config["autorotate"]
 
     def encode_media(self):
         """Encode all images and videos."""
@@ -864,12 +863,6 @@ class MediaEncoder:
         width_str = self.image_processor.identify(image, "%w")
         width = int(width_str) if width_str else 0
 
-        options = self.gallery_image_options[index]
-
-        # Don't apply image options to videos
-        if self.gallery_type[index] == 1:
-            options = ""
-
         resolutions = self.config["resolution"]
 
         for count, res in enumerate(resolutions, 1):
@@ -880,27 +873,13 @@ class MediaEncoder:
 
             # Only downscale or use smallest resolution
             if width >= res or count == len(resolutions):
-                cmd = ["convert"]
-                if self.autorotate_option.strip():
-                    cmd.append("-auto-orient")
-                cmd.extend(
-                    [
-                        "-size",
-                        f"{res}x{res}",
-                        str(image),
-                        "-resize",
-                        f"{res}x{res}",
-                        "-quality",
-                        str(self.config["jpeg_quality"]),
-                        "+profile",
-                        "*",
-                    ]
+                self.image_processor.resize(
+                    image,
+                    output_path,
+                    width=res,
+                    quality=self.config["jpeg_quality"],
+                    auto_orient=self.autorotate,
                 )
-                if options:
-                    cmd.extend(options.split())
-                cmd.append(str(output_path))
-
-                subprocess.run(cmd)
 
     def _create_download_zip(self, file_path: Path, url: str, index: int):
         """Create ZIP file for download.

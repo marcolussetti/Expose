@@ -10,28 +10,10 @@ from pyexpose.config import DEFAULT_CONFIG, load_config
 class TestCheckDependencies:
     """Tests for check_dependencies function."""
 
-    def test_check_dependencies_success(self):
-        """Test check_dependencies when all dependencies are present."""
-        with mock.patch("shutil.which") as mock_which:
-            mock_which.side_effect = lambda cmd: f"/usr/bin/{cmd}"
-            # Should not raise or exit
-            check_dependencies()
-
-    def test_check_dependencies_missing_convert(self):
-        """Test check_dependencies when convert is missing."""
-        with mock.patch("shutil.which") as mock_which:
-            mock_which.side_effect = lambda cmd: None if cmd == "convert" else f"/usr/bin/{cmd}"
-            with mock.patch("sys.exit") as mock_exit:
-                check_dependencies()
-                mock_exit.assert_called_once_with(1)
-
-    def test_check_dependencies_missing_identify(self):
-        """Test check_dependencies when identify is missing."""
-        with mock.patch("shutil.which") as mock_which:
-            mock_which.side_effect = lambda cmd: None if cmd == "identify" else f"/usr/bin/{cmd}"
-            with mock.patch("sys.exit") as mock_exit:
-                check_dependencies()
-                mock_exit.assert_called_once_with(1)
+    def test_check_dependencies_always_passes(self):
+        """check_dependencies is a no-op — ImageMagick replaced by Pillow."""
+        # Should never raise or exit regardless of environment
+        check_dependencies()
 
 
 class TestLoadConfig:

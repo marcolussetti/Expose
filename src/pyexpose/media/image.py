@@ -1,20 +1,17 @@
-"""Image processing using ImageMagick.
+"""Image processing using Pillow.
 
-Provides abstraction layer for ImageMagick commands (convert, identify).
+Provides abstraction layer for image operations (resize, identify dimensions).
 """
 
-import subprocess
 from pathlib import Path
+
+from PIL import Image, ImageOps
 
 from pyexpose.media.base import MediaProcessor
 
 
 class ImageProcessor(MediaProcessor):
-    """ImageMagick wrapper for image processing.
-
-    Currently wraps ImageMagick subprocess calls. Can be replaced with
-    Pillow or other image libraries in the future.
-    """
+    """Pillow-based image processor."""
 
     def process(self, input_path: Path, output_path: Path, **kwargs) -> None:
         """Process an image (generic interface).
@@ -27,30 +24,39 @@ class ImageProcessor(MediaProcessor):
         raise NotImplementedError("Use specific methods like resize(), identify(), etc.")
 
     def identify(self, image_path: Path, format_str: str) -> str:
-        """Run ImageMagick identify command.
+        """Return image metadata matching ImageMagick identify format strings.
+
+        Supported format strings: %w (width), %h (height),
+        %[EXIF:Orientation] (EXIF orientation tag).
 
         Args:
             image_path: Image file path.
-            format_str: Format string for identify (e.g., "%w" for width).
+            format_str: Format string.
 
         Returns:
-            Identify output.
+            String value, or "" on error.
         """
-        cmd = ["identify", "-format", format_str, str(image_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        return result.stdout.strip() if result.returncode == 0 else ""
+        try:
+            with Image.open(image_path) as img:
+                if format_str == "%w":
+                    return str(img.width)
+                elif format_str == "%h":
+                    return str(img.height)
+                elif format_str == "%[EXIF:Orientation]":
+                    exif = img.getexif()
+                    val = exif.get(0x0112)  # Tag 274 = Orientation
+                    return str(val) if val is not None else ""
+        except Exception:
+            pass
+        return ""
 
-    def convert(self, args: list) -> subprocess.CompletedProcess:
-        """Run ImageMagick convert command.
+    def convert(self, args: list) -> None:
+        """No-op stub kept for interface compatibility.
 
         Args:
-            args: Arguments for convert command.
-
-        Returns:
-            CompletedProcess result.
+            args: Ignored.
         """
-        cmd = ["convert"] + args
-        return subprocess.run(cmd, capture_output=True, text=True)
+        raise NotImplementedError("convert() is not supported with the Pillow backend")
 
     def resize(
         self,
@@ -61,41 +67,26 @@ class ImageProcessor(MediaProcessor):
         auto_orient: bool = True,
         additional_args: list = None,
     ) -> None:
-        """Resize an image.
+        """Resize an image to fit within a width×width box.
+
+        Matches ImageMagick: -auto-orient -resize WxW -quality Q +profile *
 
         Args:
             input_path: Input image path.
             output_path: Output image path.
-            width: Target width (height calculated from aspect ratio).
+            width: Maximum width/height (aspect ratio preserved).
             quality: JPEG quality (0-100).
-            auto_orient: Apply EXIF auto-orientation.
-            additional_args: Additional convert arguments.
+            auto_orient: Apply EXIF orientation before resizing.
+            additional_args: Unused; kept for interface compatibility.
         """
-        cmd = ["convert"]
-        if auto_orient:
-            cmd.append("-auto-orient")
-        cmd.extend(
-            [
-                "-size",
-                f"{width}x{width}",
-                str(input_path),
-                "-resize",
-                f"{width}x{width}",
-                "-quality",
-                str(quality),
-                "+profile",
-                "*",
-            ]
-        )
-        if additional_args:
-            cmd.extend(additional_args)
-        cmd.append(str(output_path))
+        with Image.open(input_path) as img:
+            if auto_orient:
+                img = ImageOps.exif_transpose(img)
+            img.thumbnail((width, width), Image.LANCZOS)
+            # Save without any metadata (+profile * equivalent)
+            img.save(output_path, "JPEG", quality=quality, optimize=True)
 
-        subprocess.run(cmd)
-
-    def extract_dimensions(
-        self, image_path: Path, handle_orientation: bool = False
-    ) -> tuple[int, int]:
+    def extract_dimensions(self, image_path: Path, handle_orientation: bool = False) -> tuple:
         """Extract image dimensions, optionally handling EXIF orientation.
 
         Args:
@@ -105,16 +96,14 @@ class ImageProcessor(MediaProcessor):
         Returns:
             Tuple of (width, height).
         """
-        width_str = self.identify(image_path, "%w")
-        height_str = self.identify(image_path, "%h")
-
-        width = int(width_str) if width_str else 0
-        height = int(height_str) if height_str else 0
-
-        if handle_orientation:
-            orientation = self.identify(image_path, "%[EXIF:Orientation]")
-            if orientation and orientation.isdigit() and 5 <= int(orientation) <= 8:
-                # Swap dimensions for rotated images
-                width, height = height, width
-
-        return width, height
+        try:
+            with Image.open(image_path) as img:
+                width, height = img.size
+                if handle_orientation:
+                    exif = img.getexif()
+                    orientation = exif.get(0x0112)
+                    if orientation and 5 <= orientation <= 8:
+                        width, height = height, width
+                return width, height
+        except Exception:
+            return 0, 0

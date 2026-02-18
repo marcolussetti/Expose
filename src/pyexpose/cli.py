@@ -6,7 +6,6 @@ and orchestrates the generation process.
 
 import argparse
 import atexit
-import shutil
 import signal
 import sys
 from pathlib import Path
@@ -21,12 +20,9 @@ def check_dependencies():
     Raises:
         SystemExit: If required dependencies are missing.
     """
-    if not shutil.which("convert"):
-        print("ImageMagick is a required dependency, aborting...", file=sys.stderr)
-        sys.exit(1)
-    if not shutil.which("identify"):
-        print("ImageMagick is a required dependency, aborting...", file=sys.stderr)
-        sys.exit(1)
+    # ImageMagick (convert/identify) no longer required — using Pillow.
+    # FFmpeg still required for video encoding.
+    pass
 
 
 def main():
