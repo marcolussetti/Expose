@@ -1,0 +1,3 @@
+title: Mountain Peak
+---
+A beautiful **mountain** peak.
