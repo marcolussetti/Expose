@@ -48,3 +48,8 @@ __pycache__/
 .venv/
 _site/
 plans/
+
+# Personal gallery (local test data, not part of the project)
+knowneuropean-photos/
+.coverage
+htmlcov/
