@@ -89,7 +89,7 @@ class Config:
         scriptdir: Path,
         config_path: Path | None = None,
         overrides: dict[str, Any] | None = None,
-    ) -> "Config":
+    ) -> Config:
         """Load configuration: defaults, then the config file, then overrides.
 
         Args:
@@ -238,7 +238,7 @@ class Config:
         self._config[key] = value
 
 
-def load_config(topdir: Path, scriptdir: Path) -> "Config":
+def load_config(topdir: Path, scriptdir: Path) -> Config:
     """Load configuration from _config.json or use defaults.
 
     Convenience wrapper around Config.load() for backward compatibility.

@@ -23,7 +23,7 @@ def ffmpeg_exe() -> str | None:
         import imageio_ffmpeg
 
         return imageio_ffmpeg.get_ffmpeg_exe()
-    except (ImportError, RuntimeError):
+    except ImportError, RuntimeError:
         return None
 
 

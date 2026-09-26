@@ -1,6 +1,10 @@
 # Pre-commit configuration for pyexpose
 # Excludes legacy theme files and expose.sh
 
+# Hooks that parse Python (debug-statements) must run on the project's minimum version (3.14)
+default_language_version:
+  python: python3.14
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
