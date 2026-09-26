@@ -5,9 +5,11 @@ process images/videos to extract metadata.
 """
 
 import mimetypes
+import os
 import re
 import shutil
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from pyexpose.config import Config
@@ -109,10 +111,14 @@ class Scanner:
         root_depth = len(self.topdir.parts)
         sequence_keyword = self.config.get("sequence_keyword", "")
 
-        # Find all directories, sorted
-        all_dirs = sorted([d for d in self.topdir.rglob("*") if d.is_dir()])
+        # Find all directories, sorted. Prune _* (incl. _site) and hidden dirs while walking
+        # so large output trees are never traversed; they'd be filtered out below anyway.
+        found = []
+        for root, dirs, _files in os.walk(self.topdir):
+            dirs[:] = [d for d in dirs if not d.startswith(("_", "."))]
+            found.extend(Path(root) / d for d in dirs)
         # Include topdir itself
-        all_dirs = [self.topdir] + all_dirs
+        all_dirs = [self.topdir] + sorted(found)
 
         for node in all_dirs:
             print(".", end="", flush=True)
@@ -201,10 +207,15 @@ class Scanner:
         print()
 
     def read_files(self):
-        """Read files to populate gallery structures."""
+        """Read files to populate gallery structures.
+
+        Files are discovered sequentially (ordering matters for parity), then colour
+        palettes and dimensions are extracted in parallel with order preserved.
+        """
         print("Reading files", end="", flush=True)
 
         sequence_keyword = self.config.get("sequence_keyword", "")
+        entries = []  # (nav index, file path, url, gallery type, analysis source, is video)
 
         for i, path in enumerate(self.paths):
             self.nav_count.append(-1)
@@ -212,119 +223,122 @@ class Scanner:
             if self.nav_type[i] < 1:
                 continue
 
-            dir_path = path
-            url = self.nav_url[i]
-
-            (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
-
-            index = 0
+            (self.topdir / "_site" / self.nav_url[i]).mkdir(parents=True, exist_ok=True)
 
             # Get files in directory, sorted
-            files = sorted([f for f in dir_path.iterdir() if not f.name.startswith("_")])
+            files = sorted([f for f in path.iterdir() if not f.name.startswith("_")])
 
             for file_path in files:
                 print(".", end="", flush=True)
+                entry = self._classify(i, file_path, sequence_keyword)
+                if entry:
+                    entries.append(entry)
 
-                filename = file_path.name
-                trimmed = re.sub(r"^[\s0-9]*", "", file_path.stem).strip()
-                if not trimmed:
-                    trimmed = file_path.stem
+        jobs = self.config.worker_count()
+        if jobs > 1 and len(entries) > 1:
+            pool = ThreadPoolExecutor(max_workers=jobs)
+            try:
+                results = list(pool.map(self._analyze, range(len(entries)), entries))
+            finally:
+                pool.shutdown(wait=True, cancel_futures=True)
+        else:
+            results = [self._analyze(k, e) for k, e in enumerate(entries)]
 
-                image_url = url_safe(trimmed)
+        counts = {}
+        for (nav_index, file_path, image_url, gtype, _src, _video), result in zip(
+            entries, results, strict=True
+        ):
+            palette, maxwidth, maxheight = result
+            counts[nav_index] = counts.get(nav_index, 0) + 1
 
-                # Check if this is a sequence directory
-                if file_path.is_dir() and sequence_keyword and sequence_keyword in filename:
-                    format_type = "sequence"
-                    # Find first image in sequence
-                    seq_images = sorted(
-                        [
-                            f
-                            for f in file_path.iterdir()
-                            if f.suffix.lower() in [".jpg", ".jpeg", ".gif", ".png"]
-                        ]
-                    )
-                    if seq_images:
-                        image = seq_images[0]
-                    else:
-                        continue
-                elif file_path.is_file():
-                    extension = file_path.suffix.lower().lstrip(".")
+            self.gallery_files.append(file_path)
+            self.gallery_nav.append(nav_index)
+            self.gallery_url.append(image_url)
+            self.gallery_type.append(gtype)
+            self.gallery_maxwidth.append(maxwidth)
+            self.gallery_maxheight.append(maxheight)
+            self.gallery_colors.append(palette)
+            self.gallery_image_options.append("")
+            self.gallery_video_options.append("")
+            self.gallery_video_filters.append("")
 
-                    if extension in ["jpg", "jpeg", "png", "gif"]:
-                        format_type = extension
-                        image = file_path
-                    elif extension in VIDEO_EXTENSIONS:
-                        if not self.video_enabled:
-                            continue
-                        format_type = "video"
-                        # Extract frame from video
-                        temp_path = self.scratchdir / "temp.jpg"
-                        self.video_processor.extract_frame(file_path, temp_path)
-                        image = temp_path
-                    else:
-                        # Check if it's a video by mime type
-                        if not self.video_enabled:
-                            continue
-                        mime_type, _ = mimetypes.guess_type(str(file_path))
-                        if not mime_type or "video" not in mime_type:
-                            continue
-                        format_type = "video"
-                        temp_path = self.scratchdir / "temp.jpg"
-                        self.video_processor.extract_frame(file_path, temp_path)
-                        image = temp_path
-                else:
-                    continue
-
-                # Extract color palette
-                if self.config["extract_colors"]:
-                    palette = self.color_extractor.extract_palette(image, num_colors=7)
-                else:
-                    palette = list(self.config["default_palette"])
-
-                # Get image dimensions with EXIF orientation handling
-                width, height = self.image_processor.extract_dimensions(
-                    image, handle_orientation=self.config["autorotate"]
-                )
-
-                # Calculate max dimensions
-                maxwidth = 0
-                maxheight = 0
-                resolutions = self.config["resolution"]
-
-                for count, res in enumerate(resolutions, 1):
-                    if (
-                        width >= res
-                        and res > maxwidth
-                        or maxwidth == 0
-                        and count == len(resolutions)
-                    ):
-                        maxwidth = res
-                        maxheight = res * height // width if width else 0
-
-                index += 1
-
-                # Store file info
-                self.gallery_files.append(file_path)
-                self.gallery_nav.append(i)
-                self.gallery_url.append(image_url)
-
-                if format_type == "sequence":
-                    self.gallery_type.append(2)
-                elif format_type == "video":
-                    self.gallery_type.append(1)
-                else:
-                    self.gallery_type.append(0)
-
-                self.gallery_maxwidth.append(maxwidth)
-                self.gallery_maxheight.append(maxheight)
-                self.gallery_colors.append(palette)
-                self.gallery_image_options.append("")
-                self.gallery_video_options.append("")
-                self.gallery_video_filters.append("")
-
-            self.nav_count[i] = index
+        for i in range(len(self.paths)):
+            if self.nav_type[i] >= 1:
+                self.nav_count[i] = counts.get(i, 0)
 
         print()
+
+    def _classify(self, nav_index: int, file_path: Path, sequence_keyword: str):
+        """Decide whether a gallery directory entry is an image, video or sequence.
+
+        Returns:
+            Entry tuple for ``read_files``, or None if the file isn't gallery media.
+        """
+        filename = file_path.name
+        trimmed = re.sub(r"^[\s0-9]*", "", file_path.stem).strip()
+        if not trimmed:
+            trimmed = file_path.stem
+        image_url = url_safe(trimmed)
+
+        if file_path.is_dir() and sequence_keyword and sequence_keyword in filename:
+            # Use the first image of the sequence for colours/dimensions
+            seq_images = sorted(
+                f
+                for f in file_path.iterdir()
+                if f.suffix.lower() in [".jpg", ".jpeg", ".gif", ".png"]
+            )
+            if not seq_images:
+                return None
+            return (nav_index, file_path, image_url, 2, seq_images[0], False)
+
+        if not file_path.is_file():
+            return None
+
+        extension = file_path.suffix.lower().lstrip(".")
+        if extension in ["jpg", "jpeg", "png", "gif"]:
+            return (nav_index, file_path, image_url, 0, file_path, False)
+
+        if not self.video_enabled:
+            return None
+        if extension not in VIDEO_EXTENSIONS:
+            # Fall back to mime type detection
+            mime_type, _ = mimetypes.guess_type(str(file_path))
+            if not mime_type or "video" not in mime_type:
+                return None
+        return (nav_index, file_path, image_url, 1, file_path, True)
+
+    def _analyze(self, k: int, entry) -> tuple[list, int, int]:
+        """Extract (palette, maxwidth, maxheight) for one entry. Safe to run in threads."""
+        _nav, _file, _url, _gtype, image, is_video = entry
+
+        if is_video:
+            # Each entry gets its own frame file so parallel extraction can't collide
+            frame = self.scratchdir / f"frame-{k}.jpg"
+            self.video_processor.extract_frame(image, frame)
+            image = frame
+
+        # Extract color palette
+        if self.config["extract_colors"]:
+            palette = self.color_extractor.extract_palette(image, num_colors=7)
+        else:
+            palette = list(self.config["default_palette"])
+
+        # Get image dimensions with EXIF orientation handling
+        width, height = self.image_processor.extract_dimensions(
+            image, handle_orientation=self.config["autorotate"]
+        )
+
+        # Calculate max dimensions
+        maxwidth = 0
+        maxheight = 0
+        resolutions = self.config["resolution"]
+
+        for count, res in enumerate(resolutions, 1):
+            if width >= res and res > maxwidth or maxwidth == 0 and count == len(resolutions):
+                maxwidth = res
+                maxheight = res * height // width if width else 0
+
+        return palette, maxwidth, maxheight
 
     def cleanup(self):
         """Clean up temporary files."""

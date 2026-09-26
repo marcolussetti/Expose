@@ -3,8 +3,12 @@
 Tests the ImageProcessor class that uses Pillow.
 """
 
+import shutil
+import subprocess
+
 import pytest
-from PIL import Image
+from PIL import Image, JpegImagePlugin
+
 from pyexpose.media.image import ImageProcessor
 
 
@@ -64,3 +68,79 @@ class TestImageProcessorEdgeCases:
         width, height = image_processor.extract_dimensions(tmp_path / "invalid.jpg")
         assert width == 0
         assert height == 0
+
+
+def _noisy_source(path, **save_kwargs):
+    """A detailed 800x600 image so subsampling actually affects the output."""
+    # Independent noise per channel: grey noise would be saved as a 1-channel JPEG by ImageMagick
+    bands = [Image.effect_noise((800, 600), 80 + 10 * i) for i in range(3)]
+    Image.merge("RGB", bands).save(path, **save_kwargs)
+
+
+def _sampling(path):
+    with Image.open(path) as img:
+        return JpegImagePlugin.get_sampling(img)
+
+
+class TestChromaSubsampling:
+    """Resized JPEGs use the chroma subsampling ImageMagick 7 would pick."""
+
+    @pytest.mark.parametrize("source_sub", [0, 2])
+    def test_jpeg_source_keeps_its_subsampling(self, image_processor, tmp_path, source_sub):
+        src = tmp_path / "src.jpg"
+        _noisy_source(src, quality=95, subsampling=source_sub)
+        out = tmp_path / "out.jpg"
+        image_processor.resize(src, out, width=400, quality=92)
+        assert _sampling(out) == source_sub
+
+    @pytest.mark.parametrize("quality,expected", [(92, 0), (90, 0), (89, 2), (60, 2)])
+    def test_non_jpeg_source_depends_on_quality(self, image_processor, tmp_path, quality, expected):
+        src = tmp_path / "src.png"
+        _noisy_source(src)
+        out = tmp_path / "out.jpg"
+        image_processor.resize(src, out, width=400, quality=quality)
+        assert _sampling(out) == expected
+
+    def test_camera_style_jpeg_not_inflated(self, image_processor, tmp_path):
+        """A 4:2:0 source must not be re-encoded as 4:4:4 (the old ~25% size penalty)."""
+        src = tmp_path / "src.jpg"
+        _noisy_source(src, quality=95, subsampling=2)
+        out = tmp_path / "out.jpg"
+        forced_444 = tmp_path / "444.jpg"
+        image_processor.resize(src, out, width=400, quality=92)
+        with Image.open(out) as img:
+            img.save(forced_444, "JPEG", quality=92, subsampling=0, optimize=True)
+        assert out.stat().st_size < forced_444.stat().st_size
+
+    @pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick not installed")
+    @pytest.mark.parametrize(
+        "name,save_kwargs,quality",
+        [
+            ("src.jpg", {"quality": 95, "subsampling": 2}, 92),
+            ("src.jpg", {"quality": 95, "subsampling": 0}, 92),
+            ("src.png", {}, 92),
+            ("src.png", {}, 80),
+        ],
+    )
+    def test_matches_imagemagick(self, image_processor, tmp_path, name, save_kwargs, quality):
+        src = tmp_path / name
+        _noisy_source(src, **save_kwargs)
+        ours, theirs = tmp_path / "ours.jpg", tmp_path / "im.jpg"
+        image_processor.resize(src, ours, width=400, quality=quality)
+        subprocess.run(
+            ["convert", str(src), "-resize", "400x400", "-quality", str(quality), str(theirs)],
+            check=True,
+            capture_output=True,
+        )
+        assert _sampling(ours) == _sampling(theirs)
+
+
+def test_resize_survives_optimize_buffer_overflow(image_processor, tmp_path):
+    """Grainy 4:4:4 output can overflow Pillow's optimize buffer; resize must still succeed."""
+    src = tmp_path / "grain.png"
+    _noisy_source(src)
+    out = tmp_path / "out.jpg"
+    image_processor.resize(src, out, width=800, quality=92)
+    assert _sampling(out) == 0
+    with Image.open(out) as img:
+        assert img.size == (800, 600)

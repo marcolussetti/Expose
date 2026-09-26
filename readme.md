@@ -16,13 +16,13 @@ tested on Windows/Cygwin, OSX, and should be fine on Linux
 
 ### Installation
 
-The only dependency is Imagemagick. For videos FFmpeg is also required.
+This is the Python port (PyExpose). Everything it needs, including an ffmpeg binary, is installed
+from `pyproject.toml`, so no system packages are required:
 
-Download the repo and alias the script
+	uv tool install /path/to/this/repo     # or: pipx install /path/to/this/repo
 
-	alias expose=/script/location/expose.sh
-
-for permanent use add this line to your ~/.profiles, ~/.bashrc etc depending on system
+A system `ffmpeg` on your PATH is used in preference to the bundled one. ImageMagick is optional:
+when installed it's used for colour extraction and for per-image `image-options`.
 
 ### Basic usage
 
@@ -48,6 +48,15 @@ backgroundcolor="#ffffff"
 	expose -d
 
 The -d flag enables draft mode, where only a single low resolution is encoded. This can be used for a quick preview or for layout purposes.
+
+Other flags (PyExpose):
+
+	expose --config other.json          # use a different config file than ./_config.json
+	expose --set jpeg_quality=85 --set 'resolution=[1920,640]'   # override config values
+	expose -j 4                         # parallel workers for images (default: one per CPU)
+	expose --version
+
+Images whose source file is newer than the generated output are re-encoded automatically.
 
 Generated images and videos are not overwritten, to do a completely clean build delete the existing _site directory first.
 

@@ -95,9 +95,9 @@ def compare_directories(shell_dir: Path, python_dir: Path) -> list:
                 # Show first differing lines for debugging
                 lines1 = content1.split("\n")
                 lines2 = content2.split("\n")
-                for i, (l1, l2) in enumerate(zip(lines1, lines2)):
+                for i, (l1, l2) in enumerate(zip(lines1, lines2, strict=False)):
                     if l1 != l2:
-                        differences.append(f"HTML content mismatch at {rel_path} line {i+1}")
+                        differences.append(f"HTML content mismatch at {rel_path} line {i + 1}")
                         break
                 else:
                     if len(lines1) != len(lines2):
@@ -211,9 +211,9 @@ class TestFinalParity:
             [str(f.relative_to(python_output)) for f in python_output.rglob("*") if f.is_file()]
         )
 
-        assert (
-            files_shell == files_python
-        ), f"File list mismatch: {set(files_shell) ^ set(files_python)}"
+        assert files_shell == files_python, (
+            f"File list mismatch: {set(files_shell) ^ set(files_python)}"
+        )
 
     def test_parity_detailed_comparison(self, tmp_path_factory):
         """Detailed comparison of shell vs Python output."""

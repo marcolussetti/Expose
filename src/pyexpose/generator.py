@@ -50,7 +50,6 @@ class ExposeGenerator:
 
         self.scanner = Scanner(topdir, scriptdir, config)
         self._image_processor = ImageProcessor()
-        self.output_url: str | None = None
 
     # --- Pipeline stages ---
 
@@ -116,23 +115,20 @@ class ExposeGenerator:
         self.cleanup()
 
     def cleanup(self):
-        """Clean up temporary files. Removes output_url if interrupted."""
-        if self.output_url:
-            with contextlib.suppress(FileNotFoundError):
-                Path(self.output_url).unlink()
-            self.output_url = None
+        """Clean up temporary files, including partial outputs left by an interrupted run."""
+        site = self.topdir / "_site"
+        if site.is_dir():
+            for part in site.rglob("*.part.*"):
+                with contextlib.suppress(OSError):
+                    part.unlink()
         if hasattr(self, "scanner"):
             self.scanner.cleanup()
 
-    # --- ImageMagick proxy methods ---
+    # --- Image helpers ---
 
     def identify(self, image, format_str):
-        """Run ImageMagick identify."""
+        """Return image metadata for an ImageMagick-style format string (e.g. "%w")."""
         return self._image_processor.identify(image, format_str)
-
-    def convert(self, args):
-        """Run ImageMagick convert."""
-        return self._image_processor.convert(args)
 
     # --- Encoder proxy methods ---
 
@@ -151,6 +147,7 @@ class ExposeGenerator:
             self.scanner.gallery_video_filters,
             self.scanner.nav_url,
             scratchdir=self.scanner.scratchdir,
+            gallery_video_options=self.scanner.gallery_video_options,
         )
 
     def _encode_video(self, filepath, url, index):

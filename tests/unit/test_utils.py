@@ -3,7 +3,6 @@
 Tests the pure utility functions url_safe() and strip_numeric_prefix().
 """
 
-
 from pyexpose.utils import strip_numeric_prefix, url_safe
 
 

@@ -1,10 +1,10 @@
 """Additional tests to improve coverage."""
 
+from pathlib import Path
 from unittest import mock
 
 from pyexpose.config import DEFAULT_CONFIG, Config
 from pyexpose.generator import ExposeGenerator
-
 from tests.conftest import SCRIPTDIR, make_test_image
 
 
@@ -44,8 +44,8 @@ class TestReadFilesVideoExtraction:
         def mock_ffmpeg(*args, **kwargs):
             cmd = args[0] if args else []
             if isinstance(cmd, list) and "ffmpeg" in cmd[0]:
-                # Create the temp file that ffmpeg would create
-                (gen.scratchdir / "temp.jpg").write_text("frame")
+                # Create the frame file ffmpeg would write (last argument)
+                Path(cmd[-1]).write_text("frame")
             return mock.MagicMock(returncode=0)
 
         with (

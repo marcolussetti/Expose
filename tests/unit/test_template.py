@@ -3,7 +3,6 @@
 Tests the TemplateEngine class that provides sed-like template substitution.
 """
 
-
 from pyexpose.template import TemplateEngine
 
 

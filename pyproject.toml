@@ -7,10 +7,11 @@ packages = ["src/pyexpose"]
 
 [project]
 name = "pyexpose"
-version = "1.0.0"
+version = "2.0.0"
 description = "Static photography website generator. Python port of expose.sh"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
+    "imageio-ffmpeg>=0.6",
     "markdown>=3.9",
     "pillow>=11.3.0",
 ]
@@ -19,7 +20,7 @@ dependencies = [
 expose = "pyexpose.cli:main"
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-order", "ruff"]
+dev = ["pytest", "pytest-cov", "pytest-order", "ruff==0.16.9"]  # keep in sync with .pre-commit-config.yaml
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -56,7 +57,7 @@ show_missing = true
 directory = "htmlcov"
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 force-exclude = true
 exclude = [

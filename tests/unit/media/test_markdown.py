@@ -6,6 +6,7 @@ Tests the MarkdownProcessor class.
 from pathlib import Path
 
 import pytest
+
 from pyexpose.media.markdown import MarkdownProcessor
 
 

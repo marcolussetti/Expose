@@ -1,7 +1,10 @@
+import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from PIL import Image
+
 from pyexpose.config import DEFAULT_CONFIG, Config
 from pyexpose.generator import ExposeGenerator
 
@@ -19,12 +22,19 @@ SCRIPTDIR = Path(__file__).resolve().parent.parent
 
 
 def make_test_image(path, width=640, height=480, color="blue"):
-    """Create a test image using ImageMagick convert."""
-    subprocess.run(
-        ["magick", "-size", f"{width}x{height}", f"xc:{color}", str(path)],
-        check=True,
-        capture_output=True,
-    )
+    """Create a solid-colour test image.
+
+    Uses ImageMagick when installed: the parity tests' expected output depends on the exact
+    input bytes. Falls back to Pillow so the rest of the suite runs without system packages.
+    """
+    if shutil.which("magick"):
+        subprocess.run(
+            ["magick", "-size", f"{width}x{height}", f"xc:{color}", str(path)],
+            check=True,
+            capture_output=True,
+        )
+    else:
+        Image.new("RGB", (width, height), color).save(path)
 
 
 def make_gallery_tree(base_dir):

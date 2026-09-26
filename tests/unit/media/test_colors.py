@@ -11,10 +11,10 @@ from unittest import mock
 
 import pytest
 from PIL import Image
+
 from pyexpose.media.colors import ColorExtractor
 from pyexpose.media.colors_imagemagick import ImageMagickColorExtractor
 from pyexpose.media.colors_pillow import PillowColorExtractor
-
 from tests.conftest import DATADIR
 
 # ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ def _color_distance(hex_a: str, hex_b: str) -> float:
     """Euclidean distance in RGB space between two hex colors."""
     a = tuple(int(hex_a[i : i + 2], 16) for i in (1, 3, 5))
     b = tuple(int(hex_b[i : i + 2], 16) for i in (1, 3, 5))
-    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b, strict=True)))
 
 
 def _nearest_distance(color: str, palette: list[str]) -> float:

@@ -6,7 +6,8 @@ Tests the Config class that handles configuration loading and management.
 import json
 
 import pytest
-from pyexpose.config import DEFAULT_CONFIG, Config
+
+from pyexpose.config import DEFAULT_CONFIG, Config, ConfigError
 
 
 class TestConfigDefaults:
@@ -197,8 +198,8 @@ class TestConfigEdgeCases:
         config_path = tmp_path / "_config.json"
         config_path.write_text("{ invalid json }")
 
-        # Should raise an error (not silently fail)
-        with pytest.raises(json.JSONDecodeError):
+        # Should raise a readable error naming the file (not silently fail)
+        with pytest.raises(ConfigError, match="invalid JSON"):
             Config.load(tmp_path, tmp_path)
 
     def test_config_preserves_types(self, tmp_path):

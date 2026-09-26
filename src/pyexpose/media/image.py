@@ -3,15 +3,23 @@
 Provides abstraction layer for image operations (resize, identify dimensions).
 """
 
+import shutil
+import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, JpegImagePlugin
 
 from pyexpose.media.base import MediaProcessor
 
 
 class ImageProcessor(MediaProcessor):
-    """Pillow-based image processor."""
+    """Pillow-based image processor.
+
+    Per-image ``image-options`` metadata holds raw ImageMagick arguments, which Pillow can't
+    interpret; those images are resized with ImageMagick ``convert`` when it's installed.
+    """
+
+    _warned_no_convert = False
 
     def process(self, input_path: Path, output_path: Path, **kwargs) -> None:
         """Process an image (generic interface).
@@ -50,14 +58,6 @@ class ImageProcessor(MediaProcessor):
             pass
         return ""
 
-    def convert(self, args: list) -> None:
-        """No-op stub kept for interface compatibility.
-
-        Args:
-            args: Ignored.
-        """
-        raise NotImplementedError("convert() is not supported with the Pillow backend")
-
     def resize(
         self,
         input_path: Path,
@@ -65,7 +65,7 @@ class ImageProcessor(MediaProcessor):
         width: int,
         quality: int = 92,
         auto_orient: bool = True,
-        additional_args: list = None,
+        additional_args: list | None = None,
     ) -> None:
         """Resize an image to fit within a width×width box.
 
@@ -77,9 +77,21 @@ class ImageProcessor(MediaProcessor):
             width: Maximum width/height (aspect ratio preserved).
             quality: JPEG quality (0-100).
             auto_orient: Apply EXIF orientation before resizing.
-            additional_args: Unused; kept for interface compatibility.
+            additional_args: Extra ImageMagick arguments (from ``image-options``). When given,
+                ImageMagick is used if available; otherwise they are ignored with a warning.
         """
+        if additional_args:
+            if shutil.which("convert"):
+                self._resize_imagemagick(
+                    input_path, output_path, width, quality, auto_orient, additional_args
+                )
+                return
+            if not ImageProcessor._warned_no_convert:
+                ImageProcessor._warned_no_convert = True
+                print("image-options ignored: ImageMagick 'convert' is not installed")
+
         with Image.open(input_path) as img:
+            subsampling = self.chroma_subsampling(img, quality)
             if auto_orient:
                 img = ImageOps.exif_transpose(img)
             # Match ImageMagick -resize WxW: scale to fit within the box,
@@ -88,16 +100,40 @@ class ImageProcessor(MediaProcessor):
             ratio = min(width / orig_w, width / orig_h)
             new_size = (round(orig_w * ratio), round(orig_h * ratio))
             img = img.resize(new_size, Image.LANCZOS)
-            # Match ImageMagick chroma subsampling: 4:4:4 at quality>=90,
-            # 4:2:2 at quality>=80, 4:2:0 below that.
-            if quality >= 90:
-                subsampling = 0  # 4:4:4
-            elif quality >= 80:
-                subsampling = 1  # 4:2:2
-            else:
-                subsampling = 2  # 4:2:0
             # Save without any metadata (+profile * equivalent)
-            img.save(output_path, "JPEG", quality=quality, subsampling=subsampling, optimize=True)
+            try:
+                img.save(
+                    output_path, "JPEG", quality=quality, subsampling=subsampling, optimize=True
+                )
+            except OSError:
+                # optimize=True needs the whole JPEG to fit a buffer Pillow sizes at ~1 byte per
+                # pixel; very grainy images at 4:4:4 can exceed it. Fall back to standard
+                # Huffman tables (~1-2% larger).
+                img.save(output_path, "JPEG", quality=quality, subsampling=subsampling)
+
+    @staticmethod
+    def chroma_subsampling(img: Image.Image, quality: int) -> int:
+        """Pick the JPEG chroma subsampling ImageMagick 7 would use (Pillow's 0/1/2 codes).
+
+        JPEG sources keep their own subsampling (camera files are usually 4:2:0). Other
+        sources get 4:4:4 at quality >= 90 and 4:2:0 below. Using 4:4:4 for 4:2:0 camera
+        JPEGs makes files ~25% larger with no visible gain.
+        """
+        if img.format == "JPEG":
+            source = JpegImagePlugin.get_sampling(img)
+            if source in (0, 1, 2):
+                return source
+        return 0 if quality >= 90 else 2
+
+    @staticmethod
+    def _resize_imagemagick(input_path, output_path, width, quality, auto_orient, extra_args):
+        """Resize with ImageMagick exactly as expose.sh does (including image-options)."""
+        cmd = ["convert"]
+        if auto_orient:
+            cmd.append("-auto-orient")
+        cmd += ["-size", f"{width}x{width}", str(input_path), "-resize", f"{width}x{width}"]
+        cmd += ["-quality", str(quality), "+profile", "*", *extra_args, str(output_path)]
+        subprocess.run(cmd, check=True, capture_output=True)
 
     def extract_dimensions(self, image_path: Path, handle_orientation: bool = False) -> tuple:
         """Extract image dimensions, optionally handling EXIF orientation.

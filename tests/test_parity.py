@@ -157,9 +157,9 @@ def test_parity_image_sizes(parity_outputs):
         if sh_size == 0:
             continue
         diff_pct = abs(sh_size - py_size) / sh_size
-        assert (
-            diff_pct <= 0.05
-        ), f"Image size differs >5% for {rel}: shell={sh_size}, python={py_size}"
+        assert diff_pct <= 0.05, (
+            f"Image size differs >5% for {rel}: shell={sh_size}, python={py_size}"
+        )
 
 
 @pytest.fixture(scope="session")
@@ -295,9 +295,9 @@ class TestRealGalleryParity:
                 continue
 
             diff_pct = abs(sh_size - py_size) / sh_size
-            assert (
-                diff_pct <= 0.05
-            ), f"Image size differs >5% for {rel}: shell={sh_size}, python={py_size}, diff={diff_pct*100:.1f}%"
+            assert diff_pct <= 0.05, (
+                f"Image size differs >5% for {rel}: shell={sh_size}, python={py_size}, diff={diff_pct * 100:.1f}%"
+            )
 
     def test_real_gallery_css_js_exact(self, real_gallery_parity_outputs):
         """CSS and JS files must match exactly (byte-for-byte)."""

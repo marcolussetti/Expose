@@ -1,10 +1,10 @@
 """Tests for edge cases and error handling paths."""
 
+from pathlib import Path
 from unittest import mock
 
 from pyexpose.config import DEFAULT_CONFIG, Config
 from pyexpose.generator import ExposeGenerator
-
 from tests.conftest import SCRIPTDIR
 
 
@@ -22,19 +22,21 @@ def make_generator(tmp_path, config_overrides=None, draft=True):
 class TestErrorHandling:
     """Tests for error handling paths."""
 
-    def test_cleanup_with_output_url(self, tmp_path):
-        """Test cleanup removes output_url file."""
+    def test_cleanup_removes_partial_outputs(self, tmp_path):
+        """Cleanup removes .part files an interrupted encode left in _site."""
         gen = make_generator(tmp_path)
 
-        # Create a file to simulate output_url
-        output_file = tmp_path / "output.mp4"
-        output_file.write_text("video data")
-        gen.output_url = str(output_file)
+        out_dir = tmp_path / "_site" / "gallery" / "photo"
+        out_dir.mkdir(parents=True)
+        partial = out_dir / "1024-h264.part.mp4"
+        partial.write_text("half a video")
+        finished = out_dir / "1024.jpg"
+        finished.write_text("jpeg")
 
         gen.cleanup()
 
-        # File should be removed
-        assert not output_file.exists()
+        assert not partial.exists()
+        assert finished.exists()
 
 
 class TestVideoMimeTypeDetection:
@@ -73,15 +75,12 @@ class TestVideoMimeTypeDetection:
                     if "file" in cmd[0]:
                         return mock.MagicMock(stdout="video/mp4; charset=binary", returncode=0)
                     elif "ffmpeg" in cmd[0]:
-                        # Create temp frame for color extraction
-                        (gen.scratchdir / "temp.jpg").write_text("frame")
+                        # Create the frame ffmpeg would write (last argument)
+                        Path(cmd[-1]).write_text("frame")
                         return mock.MagicMock(returncode=0)
                 return mock.MagicMock(returncode=0)
 
-            with (
-                mock.patch("subprocess.run", side_effect=mock_subprocess),
-                mock.patch.object(gen, "convert", return_value=mock.MagicMock(returncode=0)),
-            ):
+            with mock.patch("subprocess.run", side_effect=mock_subprocess):
                 gen.read_files()
 
         # Should have detected video

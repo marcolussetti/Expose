@@ -1,11 +1,13 @@
 """Tests for video encoding functionality with mocked ffmpeg."""
 
+from pathlib import Path
 from unittest import mock
 
 from pyexpose.config import DEFAULT_CONFIG, Config
 from pyexpose.generator import ExposeGenerator
-
 from tests.conftest import SCRIPTDIR, make_test_image
+
+PROBE_640x480 = "  Stream #0:0: Video: h264 (High), yuv420p(progressive), 640x480, 24 fps\n"
 
 
 def make_video_enabled_generator(tmp_path):
@@ -39,15 +41,15 @@ class TestVideoEncoding:
         gen.gallery_video_options = [""]
         gen.gallery_video_filters = [""]
 
-        # Mock ffprobe output for dimensions
+        # Mock `ffmpeg -i` probe output for dimensions
         mock_run.side_effect = [
-            mock.MagicMock(stdout="width=640\nheight=480\n", returncode=0),  # ffprobe
+            mock.MagicMock(stderr=PROBE_640x480, returncode=1),  # probe
             mock.MagicMock(returncode=0),  # ffmpeg
         ]
 
         gen._encode_video(video_path, "test-video", 0)
 
-        # Should call ffprobe then ffmpeg
+        # Should probe then encode
         assert mock_run.call_count == 2
 
         # Check ffmpeg was called with draft mode settings
@@ -77,11 +79,11 @@ class TestVideoEncoding:
         output_dir.mkdir(parents=True)
         (output_dir / "640-h264.mp4").write_text("existing")
 
-        mock_run.return_value = mock.MagicMock(stdout="width=640\nheight=480\n", returncode=0)
+        mock_run.return_value = mock.MagicMock(stderr=PROBE_640x480, returncode=1)
 
         gen._encode_video(video_path, "test-video", 0)
 
-        # Should only call ffprobe, not ffmpeg (early return)
+        # Should only probe, not encode (early return)
         assert mock_run.call_count == 1
 
         gen.cleanup()
@@ -111,9 +113,14 @@ class TestVideoEncoding:
         first_call = mock_run.call_args_list[0][0][0]
         assert "/dev/null" in first_call
 
-        # Second pass should output to actual file
+        # Second pass writes a .part file that is renamed into place on success
         second_call = mock_run.call_args_list[1][0][0]
-        assert str(output_path) in second_call
+        assert str(tmp_path / "output.part.mp4") in second_call
+
+        # Both passes share a pass log in the scratch dir, not the current directory
+        for call in (first_call, second_call):
+            logfile = call[call.index("-passlogfile") + 1]
+            assert logfile.startswith(str(gen.scratchdir))
 
         gen.cleanup()
 
@@ -215,6 +222,93 @@ class TestVideoEncoding:
         call_args = mock_run.call_args[0][0]
         assert "libtheora" in call_args
 
+        gen.cleanup()
+
+    @mock.patch("subprocess.run")
+    def test_second_pass_failure_leaves_no_output(self, mock_run, tmp_path):
+        """A failed pass 2 must not leave an output (or .part) file behind."""
+        gen = make_video_enabled_generator(tmp_path)
+        video_path = tmp_path / "test.mp4"
+        output_path = tmp_path / "output.mp4"
+
+        def fake_run(cmd, **kwargs):
+            if "2" in cmd and cmd[cmd.index("-pass") + 1] == "2":
+                Path(cmd[-1]).write_text("partial")  # ffmpeg dies mid-write
+                return mock.MagicMock(returncode=1, stderr="encode failed")
+            return mock.MagicMock(returncode=0, stderr="")
+
+        mock_run.side_effect = fake_run
+        success = gen._encode_h264(
+            video_path, output_path, 640, 4, 8, "", [], ["-an"], firstpass=False
+        )
+
+        assert success is False
+        assert not output_path.exists()
+        assert not (tmp_path / "output.part.mp4").exists()
+        gen.cleanup()
+
+    @mock.patch("subprocess.run")
+    def test_second_pass_success_renames_part(self, mock_run, tmp_path):
+        """A successful pass 2 moves the .part file into place."""
+        gen = make_video_enabled_generator(tmp_path)
+        output_path = tmp_path / "output.mp4"
+
+        def fake_run(cmd, **kwargs):
+            if cmd[-1].endswith(".part.mp4"):
+                Path(cmd[-1]).write_text("video")
+            return mock.MagicMock(returncode=0, stderr="")
+
+        mock_run.side_effect = fake_run
+        assert gen._encode_h264(
+            tmp_path / "in.mp4", output_path, 640, 4, 8, "", [], ["-an"], firstpass=False
+        )
+        assert output_path.read_text() == "video"
+        assert not (tmp_path / "output.part.mp4").exists()
+        gen.cleanup()
+
+    @mock.patch("subprocess.run")
+    def test_video_options_passed_to_ffmpeg(self, mock_run, tmp_path):
+        """video-options metadata is inserted after -threads, as in expose.sh."""
+        gen = make_video_enabled_generator(tmp_path)
+        gen.config["resolution"] = [640]
+        video_path = tmp_path / "test.mp4"
+        video_path.write_text("fake video")
+        gen.gallery_video_options = ["-ss 00:00:02 -t 5"]
+        gen.gallery_video_filters = [""]
+
+        mock_run.side_effect = [
+            mock.MagicMock(stderr=PROBE_640x480, returncode=1),
+            mock.MagicMock(returncode=0, stderr=""),
+        ]
+        gen._encode_video(video_path, "test-video", 0)
+
+        cmd = mock_run.call_args_list[1][0][0]
+        t = cmd.index("-threads")
+        assert cmd[t + 2 : t + 6] == ["-ss", "00:00:02", "-t", "5"]
+        gen.cleanup()
+
+    @mock.patch("subprocess.run")
+    def test_stale_output_is_reencoded(self, mock_run, tmp_path):
+        """An output older than its source is re-encoded; a newer one is skipped."""
+        import os
+
+        gen = make_video_enabled_generator(tmp_path)
+        gen.draft = True
+        gen.config["resolution"] = [640]
+        video_path = tmp_path / "test.mp4"
+        video_path.write_text("fake video")
+        gen.gallery_files = [video_path]
+        gen.gallery_video_options = [""]
+        gen.gallery_video_filters = [""]
+
+        out = tmp_path / "_site" / "test-video" / "640-h264.mp4"
+        out.parent.mkdir(parents=True)
+        out.write_text("old encode")
+        os.utime(out, (1, 1))  # older than the source
+
+        mock_run.return_value = mock.MagicMock(stderr=PROBE_640x480, returncode=0)
+        gen._encode_video(video_path, "test-video", 0)
+        assert mock_run.call_count == 2  # probe + re-encode
         gen.cleanup()
 
 

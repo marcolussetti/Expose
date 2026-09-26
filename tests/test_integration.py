@@ -5,6 +5,7 @@ import re
 import shutil
 
 import pytest
+
 from pyexpose.config import DEFAULT_CONFIG
 
 from .conftest import SCRIPTDIR, make_generator, make_test_image
