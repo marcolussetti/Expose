@@ -39,6 +39,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/marcolussetti/dorothea"
+Documentation = "https://dorothea.readthedocs.io/"
+Changelog = "https://dorothea.readthedocs.io/changelog/"
 
 [project.scripts]
 dorothea = "dorothea.cli:main"
@@ -53,6 +55,9 @@ dev = [
     "ruff==0.16.9",
     "ty==0.0.84",
 ]  # keep in sync with .pre-commit-config.yaml
+docs = [
+    "zensical==0.0.65",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

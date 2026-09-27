@@ -1,0 +1,50 @@
+# Docs site (#25), built with Zensical (`make docs`, `make docs-serve`) and hosted on Read the Docs
+# (.readthedocs.yaml). Material for MkDocs reads the same file.
+site_name: Dorothea
+site_description: Turn folders of photos and videos into a photo essay website.
+site_url: https://dorothea.readthedocs.io/
+repo_url: https://github.com/marcolussetti/dorothea
+repo_name: marcolussetti/dorothea
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: .sandbox/docs
+
+nav:
+  - Getting started: index.md
+  - Galleries and captions: galleries.md
+  - Configuration: configuration.md
+  - Themes: themes.md
+  - Migrating from expose.sh: migrating.md
+  - Changelog: changelog.md
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.top
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: lucide/moon
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: lucide/sun
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true

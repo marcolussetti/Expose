@@ -31,6 +31,16 @@ jobs:
       - run: uv sync
       - run: uvx prek run --all-files --show-diff-on-failure
 
+  docs:
+    # The docs site (mkdocs.yml, built with Zensical like Read the Docs does): broken links or
+    # anchors fail the build
+    name: Docs (strict build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: make docs
+
   test-full:
     # Everything installed, including expose.sh's own dependencies, so the parity tests
     # run. Arch ships ImageMagick 7 and ffmpeg with x264 (like the dev machine); Ubuntu's
