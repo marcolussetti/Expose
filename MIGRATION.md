@@ -8,9 +8,11 @@ Dorothea deliberately behaves differently.
 
 ## Keeping expose.sh's output: `--legacy`
 
-A few of Dorothea's default settings differ from expose.sh's: natural sort order (`1, 2, 10`),
-vp9 instead of vp8 video, a faster h264 preset, no share menu, wide-gamut photos converted to
-sRGB, and camera information (but never location) kept in the resized photos. To keep exactly what expose.sh
+A few of Dorothea's default settings differ from expose.sh's: the `photoessay` theme (theme1
+plus keyboard navigation; `theme1` and `theme2` are still bundled, unchanged), natural sort
+order (`1, 2, 10`), vp9 instead of vp8 video, a faster h264 preset, no share menu, wide-gamut
+photos converted to sRGB, and camera information (but never location) kept in the resized
+photos. To keep exactly what expose.sh
 made, run `dorothea --legacy`, or add `"legacy": true` to `_config.json`. Settings you set
 explicitly win either way. The full list is in
 [CONFIG.md](CONFIG.md#legacy-exposesh-defaults).

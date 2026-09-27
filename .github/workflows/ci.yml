@@ -25,14 +25,15 @@ jobs:
     # Everything installed, including expose.sh's own dependencies, so the parity tests
     # run. Arch ships ImageMagick 7 and ffmpeg with x264 (like the dev machine); Ubuntu's
     # ImageMagick 6 picks different JPEG chroma subsampling than the one we match.
-    name: Tests + parity (ImageMagick, ffmpeg, perl)
+    # nodejs runs the themes' keyboard.js tests (tests/js/).
+    name: Tests + parity (ImageMagick, ffmpeg, perl, node)
     runs-on: ubuntu-latest
     container: archlinux:latest
     steps:
       - name: Install system packages
         run: >-
           pacman -Syu --noconfirm --needed
-          git make bash which file rsync perl imagemagick ffmpeg uv
+          git make bash which file rsync perl imagemagick ffmpeg nodejs uv
       - uses: actions/checkout@v7
       - run: uv sync
       - run: make test-cov

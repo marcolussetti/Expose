@@ -65,6 +65,7 @@ EXPOSE_DEFAULTS = {
 
 # Where Dorothea's own defaults differ from expose.sh's (#24)
 DOROTHEA_CHANGES = {
+    "theme_dir": "photoessay",  # theme1 + improvements (keyboard navigation, #16); #5
     "sort": "natural",  # 1, 2, 10 without zero-padding
     "video_formats": ["h264", "vp9"],  # vp9: much smaller than vp8, supported by every browser
     "h264_encodespeed": "slow",  # ~2-3x faster than veryslow for a few percent larger files

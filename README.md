@@ -21,19 +21,23 @@ If you're a photographer, you probably come back home from a trip and end up wit
 This tool (and the original Exposé) are designed to turn those folders into websites, including resizing and adjusting the files!
 
 
-Two themes are currently included, though I am aiming to add more to the original ones:
+Two themes are included, each in two versions: Dorothea's (`photoessay` and `medium`), which get new features such as keyboard navigation, and Exposé's originals (`theme1` and `theme2`), kept exactly as they were. Pick one with `theme_dir` in `_config.json`; the default is `photoessay`.
 
-### theme1 example
+### photoessay (and the original theme1)
+
+Full-screen photos with the text laid over them. Examples made with the original:
 
 - [Jack Qiao's work blog](https://web.archive.org/web/20260607123708/http://jack.works/)
 - [Jack Qiao's photography site](https://jack.ventures/)
 
 
-### theme2 example
+### medium (and the original theme2)
 
-This is an alternative Medium-style theme, called `theme2`:
+An alternative Medium-style theme, with text in a column between the photos:
 
 - [Jack Qiao's Inner Mongolia](http://jack.ventures/sample/inner-mongolia)
+
+In `photoessay` and `medium`, visitors can move between photos with the keyboard: ↓, Page Down, →, Space or j for the next photo; ↑, Page Up, ←, Shift+Space or k for the previous one; Home and End for the first and last.
 
 ## How to run it
 

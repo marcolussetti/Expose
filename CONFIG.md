@@ -27,13 +27,14 @@ to delete `_site`.
 
 ## Legacy (expose.sh) defaults
 
-Dorothea's defaults improve on expose.sh's in six places. With `--legacy` (or `"legacy": true`
+Dorothea's defaults improve on expose.sh's in seven places. With `--legacy` (or `"legacy": true`
 in `_config.json`) the defaults are exactly expose.sh's, so a gallery builds the same site as
 expose.sh would. Anything you set explicitly still wins in both modes; `--no-legacy` overrides
 `"legacy": true` in the config file.
 
 | Key | Dorothea default | `--legacy` (expose.sh) |
 |---|---|---|
+| `theme_dir` | `"photoessay"` | `"theme1"` |
 | `sort` | `"natural"` (`1, 2, 10`) | `"name"` (`1, 10, 2`) |
 | `video_formats` | `["h264", "vp9"]` | `["h264", "vp8"]` |
 | `h264_encodespeed` | `"slow"` | `"veryslow"` |
@@ -50,7 +51,7 @@ Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both mo
 | Key | Default | Description |
 |---|---|---|
 | `site_title` | `"My Awesome Photos"` | Site name shown in every page. |
-| `theme_dir` | `"theme1"` | Theme: a bundled one (`theme1`, `theme2`), a folder of that name in the gallery, or an absolute path. |
+| `theme_dir` | `"photoessay"` (legacy: `"theme1"`) | Theme: a bundled one, a folder of that name in the gallery, or an absolute path. Bundled: `photoessay` (full-screen photo essay) and `medium` (Medium-style column), which add keyboard navigation between photos (↓ / PageDown / → / Space / j for next, ↑ / PageUp / ← / Shift+Space / k for previous, Home / End for first / last); and expose.sh's original `theme1` and `theme2`, which they're based on and which stay unchanged. |
 | `text_toggle` | `true` | Show a button to hide/show the text. |
 | `social_button` | `false` (legacy: `true`) | Show the social sharing button. |
 | `disqus_shortname` | `""` | Disqus forum name for comments; empty disables them. |
