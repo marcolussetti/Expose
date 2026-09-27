@@ -72,7 +72,21 @@ def ffmpeg_exe(choice: str | None = None) -> str | None:
     if choice == "bundled":
         return _bundled_ffmpeg()
     path = Path(choice).expanduser()
-    return str(path) if path.is_file() and os.access(path, os.X_OK) else None
+    return str(path) if is_executable(path) else None
+
+
+def is_executable(path: Path, windows: bool = os.name == "nt") -> bool:
+    """True for a file that can be run as a program.
+
+    On Windows every existing file passes ``os.access(X_OK)``; what makes a file runnable there
+    is an extension listed in ``PATHEXT`` (``.exe``, ``.bat``…).
+    """
+    if not path.is_file():
+        return False
+    if windows:
+        extensions = os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").lower().split(";")
+        return path.suffix.lower() in extensions
+    return os.access(path, os.X_OK)
 
 
 def ffmpeg_kind(exe: str) -> str:

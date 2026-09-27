@@ -3,6 +3,7 @@
 Tests the VideoProcessor class that wraps FFmpeg.
 """
 
+import os
 import shutil
 from unittest import mock
 
@@ -176,9 +177,9 @@ class TestFfmpegChoice:
             assert ffmpeg.ffmpeg_exe("system") is None
 
     def test_custom_path(self, tmp_path):
-        exe = tmp_path / "my-ffmpeg"
+        exe = tmp_path / "my-ffmpeg.exe"  # runnable on Windows by its extension
         exe.write_text("#!/bin/sh\n")
-        exe.chmod(0o755)
+        exe.chmod(0o755)  # and on POSIX by its mode
         assert ffmpeg.ffmpeg_exe(str(exe)) == str(exe)
         assert ffmpeg.ffmpeg_kind(str(exe)) == "custom"
 
@@ -187,6 +188,26 @@ class TestFfmpegChoice:
         plain.write_text("x")
         assert ffmpeg.ffmpeg_exe(str(plain)) is None
         assert ffmpeg.ffmpeg_exe(str(tmp_path / "missing")) is None
+
+    def test_is_executable_on_posix(self, tmp_path):
+        exe, plain = tmp_path / "ffmpeg", tmp_path / "ffmpeg.exe"
+        exe.write_text("x")
+        plain.write_text("x")
+        exe.chmod(0o755)
+        plain.chmod(0o644)
+        if os.name != "nt":  # Windows has no execute bits to check
+            assert ffmpeg.is_executable(exe, windows=False)
+            assert not ffmpeg.is_executable(plain, windows=False)
+        assert not ffmpeg.is_executable(tmp_path, windows=False)  # a directory
+
+    def test_is_executable_on_windows(self, tmp_path, monkeypatch):
+        """Every file passes os.access(X_OK) on Windows; the extension decides (#19)."""
+        monkeypatch.setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+        for name, runnable in [("ffmpeg.exe", True), ("FFMPEG.EXE", True), ("ffmpeg", False)]:
+            path = tmp_path / name
+            path.write_text("x")
+            assert ffmpeg.is_executable(path, windows=True) is runnable, name
+            path.unlink()  # FFMPEG.EXE and ffmpeg.exe are the same file on Windows
 
     def test_set_ffmpeg_changes_default(self):
         with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):

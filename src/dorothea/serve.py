@@ -10,6 +10,7 @@ browsers can't seek) and ``Cache-Control: no-cache`` so a rebuilt page is picked
 import os
 import re
 import shutil
+import socket
 from functools import partial
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -86,10 +87,26 @@ class PreviewHandler(SimpleHTTPRequestHandler):
             super().log_request(code, size)
 
 
-def make_server(site: Path, bind: str = "127.0.0.1", port: int = 8000) -> ThreadingHTTPServer:
+class PreviewServer(ThreadingHTTPServer):
+    """``ThreadingHTTPServer`` that refuses a port already in use, on Windows too.
+
+    ``HTTPServer`` sets SO_REUSEADDR, which on POSIX only allows rebinding a port left in
+    TIME_WAIT, but on Windows lets a second server bind a port another one is listening on
+    (and take its connections). Windows gets SO_EXCLUSIVEADDRUSE instead.
+    """
+
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self) -> None:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def make_server(site: Path, bind: str = "127.0.0.1", port: int = 8000) -> PreviewServer:
     """A server for ``site`` (port 0 picks a free port). Raises OSError if the port is taken."""
     handler = partial(PreviewHandler, directory=str(site))
-    return ThreadingHTTPServer((bind, port), handler)
+    return PreviewServer((bind, port), handler)
 
 
 def run(server: ThreadingHTTPServer, site: Path) -> None:

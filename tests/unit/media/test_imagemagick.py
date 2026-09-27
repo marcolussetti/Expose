@@ -10,7 +10,7 @@ import pytest
 
 from dorothea.encoder import MediaEncoder
 from dorothea.media.image import ImageProcessor
-from dorothea.media.imagemagick import imagemagick_command
+from dorothea.media.imagemagick import _is_imagemagick, imagemagick_command
 from tests.conftest import DATADIR, HAS_IMAGEMAGICK, make_generator
 
 
@@ -66,7 +66,10 @@ def test_result_is_cached():
 
 
 @pytest.mark.skipif(
-    not (shutil.which("magick") and shutil.which("convert")), reason="needs ImageMagick 7"
+    not (shutil.which("magick") and shutil.which("convert"))
+    # Windows runners can have `magick` while `convert` is System32's disk tool
+    or not _is_imagemagick(shutil.which("convert") or ""),
+    reason="needs ImageMagick 7 with its convert command",
 )
 def test_magick_resize_matches_expose_sh_convert(tmp_path):
     """`magick` needs -auto-orient after the input; the bytes match expose.sh's `convert`."""

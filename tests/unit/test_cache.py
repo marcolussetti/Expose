@@ -21,7 +21,7 @@ def build(topdir, dry_run=False, **overrides):
 
 def site_mtimes(topdir):
     site = topdir / "_site"
-    return {p.relative_to(site): p.stat().st_mtime_ns for p in site.rglob("*.jpg")}
+    return {p.relative_to(site).as_posix(): p.stat().st_mtime_ns for p in site.rglob("*.jpg")}
 
 
 class TestBuildCache:

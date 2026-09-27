@@ -1,5 +1,6 @@
 """Tests for video encoding functionality with mocked ffmpeg."""
 
+import os
 from pathlib import Path
 from unittest import mock
 
@@ -109,9 +110,9 @@ class TestVideoEncoding:
         # Should call ffmpeg twice (2 passes)
         assert mock_run.call_count == 2
 
-        # First pass should output to /dev/null
+        # First pass should output to the null device (/dev/null, NUL on Windows)
         first_call = mock_run.call_args_list[0][0][0]
-        assert "/dev/null" in first_call
+        assert os.devnull in first_call
 
         # Second pass writes a .part file that is renamed into place on success
         second_call = mock_run.call_args_list[1][0][0]
