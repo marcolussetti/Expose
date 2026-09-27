@@ -49,6 +49,7 @@ expose = "dorothea.cli:main"  # familiar name for expose.sh users
 [dependency-groups]
 dev = [
     "feedparser>=6.0.14",
+    "jsonschema>=4.26.0",
     "pytest",
     "pytest-cov",
     "pytest-order",

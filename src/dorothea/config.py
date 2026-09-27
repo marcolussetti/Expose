@@ -89,6 +89,38 @@ DOROTHEA_CHANGES = {
 # exif_display (#20): nothing, an ⓘ with a details panel on each photo, or a line under its text
 EXIF_DISPLAY_MODES = ("off", "icon", "caption")
 
+# x264/x265 presets, fastest to slowest (h264_encodespeed)
+H264_PRESETS = (
+    "ultrafast", "superfast", "veryfast", "faster", "fast",
+    "medium", "slow", "slower", "veryslow", "placebo",
+)  # fmt: skip
+
+# What a setting's default doesn't say about it, for the JSON Schema that editors and the docs'
+# configurator use (scripts/build_schema.py; types, defaults and descriptions come from
+# DOROTHEA_DEFAULTS / EXPOSE_DEFAULTS and docs/configuration.md). JSON Schema keywords, plus
+# "x-input": "color" for CSS colours. Choices defined elsewhere (sort, keep_metadata, ffmpeg,
+# themes, video formats) are added by the script.
+SETTING_HINTS: dict[str, dict[str, Any]] = {
+    "resolution": {"minItems": 1, "items": {"minimum": 1}},
+    "jpeg_quality": {"minimum": 1, "maximum": 100},
+    # whole-number defaults, but any positive number works
+    "bitrate": {"minItems": 1, "items": {"type": "number", "exclusiveMinimum": 0}},
+    "bitrate_maxratio": {"minimum": 1},
+    "backgroundcolor": {"x-input": "color"},
+    "textcolor": {"x-input": "color"},
+    "default_palette": {"items": {"x-input": "color"}},
+    "h264_encodespeed": {"enum": list(H264_PRESETS)},
+    "vp9_encodespeed": {"minimum": 0, "maximum": 4},
+    "ffmpeg_threads": {"minimum": 0},
+    "jobs": {"minimum": 0},
+    "sequence_framerate": {"exclusiveMinimum": 0},
+    "exif_display": {"enum": list(EXIF_DISPLAY_MODES)},
+    "site_url": {"pattern": r'^(https?://[^\s"<>]+)?$'},
+}
+
+# Keys a config file may have that aren't settings: "$schema" points editors at the JSON Schema
+NON_SETTING_KEYS = {"$schema"}
+
 DOROTHEA_DEFAULTS = {**EXPOSE_DEFAULTS, **DOROTHEA_CHANGES}
 
 # The defaults (Dorothea's); `--legacy` / "legacy": true switches to EXPOSE_DEFAULTS
@@ -413,7 +445,11 @@ class Config:
         if errors:
             raise ConfigError("Invalid configuration:\n  - " + "\n  - ".join(errors))
 
-        return warnings + [f"Unknown config key ignored: {k}" for k in c if k not in DEFAULT_CONFIG]
+        return warnings + [
+            f"Unknown config key ignored: {k}"
+            for k in c
+            if k not in DEFAULT_CONFIG and k not in NON_SETTING_KEYS
+        ]
 
     def worker_count(self) -> int:
         """Number of parallel workers to use (``jobs`` config, 0 = one per CPU)."""

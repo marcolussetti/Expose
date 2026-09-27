@@ -8,7 +8,7 @@ build:
     python: "3.14"
   commands:
     - pip install uv
-    - uv sync --only-group docs
-    - uv run --only-group docs zensical build --strict
+    # the configurator's schema, then the site (strict), into .sandbox/docs
+    - make docs
     - mkdir -p $READTHEDOCS_OUTPUT/html
     - cp -r .sandbox/docs/. $READTHEDOCS_OUTPUT/html/

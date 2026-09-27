@@ -1,0 +1,161 @@
+/* The configurator (configurator.js), on the Configuration page. Colours come from the docs
+   theme's variables, so it follows light and dark mode. */
+
+#configurator {
+	margin: 1.5em 0 2.5em;
+}
+
+.cfg-start {
+	border: none;
+	padding: 0;
+	margin: 0 0 1em;
+}
+
+.cfg-start legend {
+	font-weight: 700;
+	padding: 0;
+}
+
+.cfg-start label {
+	margin-right: 1.5em;
+	white-space: nowrap;
+}
+
+.cfg-import textarea {
+	width: 100%;
+	font-family: var(--md-code-font-family);
+	font-size: 0.85em;
+	margin: 0.5em 0;
+}
+
+.cfg-layout {
+	display: grid;
+	/* minmax(0, …): the column may shrink below its widest line, so phones don't scroll sideways */
+	grid-template-columns: minmax(0, 1fr);
+	gap: 1.5em;
+	margin-top: 1em;
+}
+
+/* Side by side when there's room, with the result staying in view while scrolling the form */
+@media screen and (min-width: 60em) {
+	.cfg-layout {
+		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+		align-items: start;
+	}
+
+	.cfg-output {
+		position: sticky;
+		top: 3.6rem;
+	}
+}
+
+.md-typeset .cfg-section h3 {
+	margin: 1.2em 0 0.2em;
+	padding-bottom: 0.3em;
+	border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .cfg-section:first-child h3 {
+	margin-top: 0;
+}
+
+.cfg-field {
+	padding: 0.7em 0 0.7em 0.8em;
+	border-left: 3px solid transparent;
+}
+
+.cfg-field.cfg-changed {
+	border-left-color: var(--md-accent-fg-color);
+}
+
+.cfg-label {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5em;
+	margin-bottom: 0.3em;
+}
+
+.cfg-field input[type="text"],
+.cfg-field input[type="number"],
+.cfg-field select {
+	width: 100%;
+	max-width: 28em;
+	padding: 0.3em 0.4em;
+	font: inherit;
+	color: var(--md-default-fg-color);
+	background: var(--md-default-bg-color);
+	border: 1px solid var(--md-default-fg-color--lighter);
+	border-radius: 0.2em;
+}
+
+.cfg-control {
+	display: flex;
+	gap: 0.4em;
+	max-width: 28em;
+}
+
+.cfg-control input[type="color"] {
+	width: 2.4em;
+	flex: none;
+	padding: 0;
+	border: none;
+	background: none;
+}
+
+.cfg-reset {
+	padding: 0;
+	font-size: 0.8em;
+	color: var(--md-typeset-a-color);
+	background: none;
+	border: none;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.cfg-default,
+.cfg-description,
+.cfg-message {
+	font-size: 0.85em;
+	margin: 0.3em 0 0;
+	color: var(--md-default-fg-color--light);
+}
+
+.cfg-error {
+	font-size: 0.85em;
+	margin: 0.3em 0 0;
+	color: #e53935;
+}
+
+.cfg-error:empty {
+	display: none;
+}
+
+.cfg-output {
+	padding: 0.8em 1em;
+	border-radius: 0.2em;
+	background: var(--md-code-bg-color);
+}
+
+.cfg-output-title {
+	margin: 0;
+	font-weight: 700;
+}
+
+.cfg-output pre {
+	margin: 0.5em 0 1em;
+	max-height: 60vh;
+	overflow: auto;
+}
+
+/* wrap long lines (the $schema URL) rather than hiding them */
+.md-typeset .cfg-output pre code {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	padding: 0;
+	background: none;
+}
+
+.cfg-output .md-button {
+	margin: 0 0.4em 0.4em 0;
+	font-size: 0.8em;
+}

@@ -7,6 +7,12 @@ All notable changes to Dorothea are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Documentation site at [dorothea.readthedocs.io](https://dorothea.readthedocs.io/) (#25), with a
+  configurator (#30): pick settings in a form and copy or download a `_config.json` that holds
+  only what differs from the defaults (from Dorothea's or expose.sh's), or paste an existing one
+  to edit it. Values are checked as you type. The settings are also published as a JSON Schema,
+  so a `"$schema": "https://dorothea.readthedocs.io/schema/config.json"` line in `_config.json`
+  gives completion and checks in editors like VS Code; Dorothea accepts that line.
 - Photo details (#20): the new `exif_display` setting shows each photo's camera, lens, focal
   length, aperture, shutter speed and ISO, read from its EXIF (never its location). `"icon"`
   (the default; `"off"` with `--legacy`) puts an ⓘ in a corner of the photo, in its colours,

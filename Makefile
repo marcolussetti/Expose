@@ -1,7 +1,7 @@
 # Dorothea Makefile
 # Common development tasks using uv
 
-.PHONY: help test test-cov test-fast stats report clean install lint format typecheck try compare package-check ci-local docs docs-serve
+.PHONY: help test test-cov test-fast stats report clean install lint format typecheck try compare package-check ci-local docs docs-serve docs-schema
 
 help:
 	@echo "Available commands:"
@@ -131,11 +131,16 @@ package-check:
 
 # Docs site (docs/, mkdocs.yml): build it like Read the Docs does, failing on broken links and
 # other warnings, into $(SANDBOX)/docs; or serve it with live reload at http://localhost:8000/
-docs:
+docs: docs-schema
 	uv run --only-group docs zensical build --strict
 
-docs-serve:
+docs-serve: docs-schema
 	uv run --only-group docs zensical serve
+
+# The configurator's JSON Schema (docs/schema/config.json, not committed), from config.py and
+# docs/configuration.md
+docs-schema:
+	uv run --no-dev python scripts/build_schema.py
 
 # Run every CI job locally with act (needs docker)
 ci-local:
