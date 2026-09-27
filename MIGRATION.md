@@ -94,6 +94,7 @@ These are places where expose.sh has a bug or a platform quirk that Dorothea doe
 | Unknown video extensions are checked with `file -ib`, using a path relative to the wrong directory, so effectively never. | Detected from the file extension's MIME type. |
 | With `disable_audio=false`, always copies the audio track, so AAC audio (most phone/camera videos) makes every WebM and Ogg encode fail. | Copies audio where the format allows it and re-encodes otherwise (Opus for WebM, Vorbis for Ogg, AAC for MP4). |
 | Leaves `ffmpeg2pass-*.log` in the current folder while encoding. | Keeps 2-pass logs in a temporary folder. |
+| A caption separator must be exactly `---`: with trailing spaces, the metadata shows up in the caption. Text before the metadata block silently disappears. | `---` with trailing whitespace is a separator too. Text before the metadata block is still dropped, but with a warning naming the file. |
 | A non-text or non-UTF-8 caption file is skipped (`file` check). | Same, with a warning. Captions are always read and written as UTF-8. |
 | Requires ImageMagick and `zip`; video needs ffmpeg and ffprobe. | Needs nothing beyond `pip`/`uv`; ffprobe isn't used. |
 | Reads JPEG, PNG and GIF photos only. | Also reads WebP, AVIF, HEIC/HEIF (iPhone) and TIFF, with or without `--legacy`. |

@@ -79,6 +79,16 @@ Photos can be JPEG, PNG, GIF, WebP, AVIF, HEIC/HEIF (iPhone) or TIFF; they're pu
 
 To add text, you simply have to create a `.txt` or `.md` file whose name matches the image: if your image is called `DSC0001.jpg`, you can put the text in `DSC0001.txt` or `DSC0001.md` (if both exist, the `.txt` wins). The text is Markdown either way.
 
+A text file can start with a metadata section: `key: value` lines between two `---` lines. Everything after the second `---` is the caption:
+
+	---
+	title: Chimborazo
+	top: 60
+	---
+	The summit at dawn, **6,263 m** up.
+
+Without `---` lines the whole file is the caption. With a single `---`, the lines above it are metadata. The caption must come *after* the metadata: text placed before the first `---` counts as metadata and isn't shown, so Dorothea warns about it and names the file. Windows line endings and a byte-order mark (as Notepad saves) are fine.
+
 If the text is hard to read over a photo, give it a background with a `textbackground` line in the metadata section (any CSS colour):
 
 	---

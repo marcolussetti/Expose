@@ -21,12 +21,42 @@ def _read_text_file(path: Path) -> str:
     ``.txt`` is skipped rather than aborting the build.
     """
     try:
-        return path.read_text(encoding="utf-8")
+        # utf-8-sig drops the byte-order mark Windows editors (Notepad) often add
+        return path.read_text(encoding="utf-8-sig")
     except FileNotFoundError:
         return ""
     except UnicodeDecodeError, OSError:
         print(f"\n\tSkipping {path.name}: not a UTF-8 text file")
         return ""
+
+
+# A metadata/caption separator; expose.sh only accepts "---" exactly, so "--- " (trailing
+# spaces, invisible in most editors) used to leak the metadata into the caption (#17)
+_SEPARATOR = re.compile(r"---[ \t]*")
+# A "key: value" metadata line (keys like title, image-options, color1, polygon)
+_METADATA_LINE = re.compile(r"\s*[\w-]+\s*:")
+
+
+def split_caption(text: str) -> tuple[str, str, list[str]]:
+    """Split a caption file into (metadata, Markdown caption, ignored lines), like expose.sh.
+
+    Lines up to and including the second ``---`` (or the only one) are metadata, the rest is
+    the caption. ``ignored`` lists non-blank metadata lines that aren't ``key: value``, which
+    are dropped: usually caption text put before the metadata block by mistake.
+    """
+    text = text.removeprefix("﻿").replace("\r", "").rstrip("\n")
+    lines = text.split("\n")
+    separators = [idx for idx, line in enumerate(lines) if _SEPARATOR.fullmatch(line)]
+    if not separators:
+        return "", text, []
+    end = separators[1] if len(separators) >= 2 else separators[0]
+    head = lines[: end + 1]
+    ignored = [
+        line
+        for line in head
+        if line.strip() and not _SEPARATOR.fullmatch(line) and not _METADATA_LINE.match(line)
+    ]
+    return "\n".join(head), "\n".join(lines[end + 1 :]), ignored
 
 
 # Characters that could end the style attribute/tag or add further CSS declarations
@@ -190,21 +220,14 @@ class HTMLBuilder:
                 content = ""
 
                 text = _read_text_file(textfile) if textfile else ""
-                if text:
-                    text = text.replace("\r", "").rstrip("\n")
-                    lines = text.split("\n")
-                    dash_lines = [idx for idx, line in enumerate(lines) if line == "---"]
-
-                    if len(dash_lines) >= 2:
-                        metaline = dash_lines[1]
-                        item_metadata = "\n".join(lines[: metaline + 1])
-                        content = "\n".join(lines[metaline + 1 :])
-                    elif len(dash_lines) == 1:
-                        metaline = dash_lines[0]
-                        item_metadata = "\n".join(lines[: metaline + 1])
-                        content = "\n".join(lines[metaline + 1 :])
-                    else:
-                        content = text
+                if text and textfile:
+                    item_metadata, content, ignored = split_caption(text)
+                    if ignored:
+                        print(
+                            f"\n\tWarning: {textfile.name}: ignoring {len(ignored)} line(s) in the "
+                            f"metadata section that aren't 'key: value' (first: {ignored[0]!r}); "
+                            "put the caption after the second '---'"
+                        )
 
                 # Combine metadata: item + gallery + colors
                 metadata = item_metadata + "\n" + gallery_metadata + "\n"
