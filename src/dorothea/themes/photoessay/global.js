@@ -19,6 +19,12 @@ var video_formats={
 	ogv: { extension: "ogv", type: "video/ogg"}
 };
 
+// Phones and narrow windows (#5): the stylesheet's small-screen layout, where the sidebar is a
+// bar across the top and captions sit below their photo
+function narrow(){
+	return window.matchMedia ? window.matchMedia('(max-width: 700px)').matches : false;
+}
+
 function drawtext(){
 	var screen_width = $(window).width();
 
@@ -34,11 +40,20 @@ function drawtext(){
 		lineheight = 14;
 	}
 
+	// below the photo there's room for text at a size people read on a phone
+	if(narrow()){
+		fontsize = 16;
+		lineheight = 25;
+	}
+
 	$('body').css('font-size',fontsize+'px');
 	$('body').css('line-height',lineheight+'px');
 
-	// polygon boundary feature
+	// polygon boundary feature (shapes text over the photo, so not below it)
 	$('.slide').each(function(){
+		if(narrow()){
+			return;
+		}
 		var polygon = $(this).data('polygon');
 
 		if(polygon && $.isArray(polygon) && polygon.length >= 3){
@@ -155,7 +170,8 @@ $(document).ready(function(){
 	else{
 		// assume large->small order
 		var found = false;
-		var sidebar_width = $('#marker').width() + $('#sidebar').width();
+		// (on small screens the sidebar is a bar across the top, taking no width)
+		var sidebar_width = narrow() ? 0 : $('#marker').width() + $('#sidebar').width();
 		// account for pixel density and sidebar width
 		var device_ratio = window.devicePixelRatio ? window.devicePixelRatio : 1;
 		var adjusted_screen_width = ($(window).width() - sidebar_width) * device_ratio;
@@ -227,6 +243,13 @@ $(document).ready(function(){
 			$('#resolution').addClass('active');
 		}
 		$('#share').removeClass('active');
+		return false;
+	});
+
+	// small screens: the top bar's button opens the galleries and controls
+	$('#menubutton').click(function(){
+		$('#sidebar').toggleClass('open');
+		$('#share, #resolution').removeClass('active');
 		return false;
 	});
 

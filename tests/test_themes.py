@@ -50,12 +50,35 @@ def test_medium_navigates_between_items(tmp_path):
     assert html.count('<div class="item ') == 2
 
 
+SMALL_SCREENS = "@media only screen and (max-width: 700px) {"
+
+
+@pytest.mark.parametrize("theme", ["photoessay", "medium"])
+def test_enhanced_themes_fit_small_screens(tmp_path, theme):
+    """#5: phones lay the page out at their own width, and nothing forces it wider."""
+    html = build(tmp_path, theme_dir=theme)
+    assert '<meta name="viewport" content="width=device-width, initial-scale=1" />' in html
+    css = (BUNDLED_THEMES_DIR / theme / "global.css").read_text(encoding="utf-8")
+    small = css.split(SMALL_SCREENS, 1)[1]
+    assert "min-width: 0;" in small
+
+
+def test_photoessay_menu_button_only_on_small_screens(tmp_path):
+    html = build(tmp_path)
+    assert '<a href="#" id="menubutton" title="Galleries and settings">' in html
+    css = (BUNDLED_THEMES_DIR / "photoessay" / "global.css").read_text(encoding="utf-8")
+    desktop, small = css.split(SMALL_SCREENS, 1)
+    assert "#menubutton{\ndisplay: none;\n}" in desktop
+    assert "#menubutton{ display: block;" in small
+
+
 @pytest.mark.parametrize("theme", ["theme1", "theme2"])
 def test_original_themes_are_untouched(tmp_path, theme):
-    """theme1/theme2 stay expose.sh-compatible: no keyboard script."""
+    """theme1/theme2 stay expose.sh-compatible: no keyboard script, no mobile layout (#5)."""
     html = build(tmp_path, theme_dir=theme)
     assert "keyboard.js" not in html
     assert not (BUNDLED_THEMES_DIR / theme / "keyboard.js").exists()
+    assert 'name="viewport"' not in html
 
 
 def test_legacy_uses_theme1():

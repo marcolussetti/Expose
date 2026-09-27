@@ -15,7 +15,9 @@ $(document).ready(function(){
 	// set slide heights to prevent reflow
 	var mainwidth = $('#main').width();
 
-	$('.image.index1').css('width','125%'); // first image is masthead, do not allow content override
+	// first image is masthead, do not allow content override: drop a width from its metadata so
+	// the stylesheet's full-window width applies (which differs on small screens, #5)
+	$('.image.index1').css('width','');
 
 	$('.image').each(function(){
 		$(this).css('padding-top', (100*$(this).data('maxheight')/$(this).data('maxwidth'))*($(this).width()/mainwidth) + '%');

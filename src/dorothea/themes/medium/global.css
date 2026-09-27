@@ -454,3 +454,21 @@ width: 100%;
 }
 .textafter .wrapper {order: 2}
 .textafter .image {order: 1}
+
+/* Phones and narrow windows (#5): no minimum width (it scrolled sideways), a wider column,
+   a smaller masthead title, and icon-only header links (their titles still name them) */
+@media only screen and (max-width: 700px) {
+   .wrapper{ width: 92%; min-width: 0; }
+   /* full window width again, relative to the 92% column */
+   .image.index1, .fullwidth{ width: 108.7%; left: -4.35%; }
+   h1{ font-size: 3em; }
+   .post.index1{ top: 5em; }
+   .index1 p{ margin-right: 1em; margin-left: 1em; }
+   #top .feedtext, #top .moretext{ display: none; }
+   .arrow_circle{ margin-right: 0; }
+   #nav{ width: 92%; padding: 0 4%; }
+   #top.active #nav{ padding: 20px 4%; }
+   #nav li.gallery{ width: 100%; height: 10em; margin-right: 0; }
+   #nav li a{ padding: 4em 5%; }
+   #nav li img{ width: 100%; object-fit: cover; }
+}
