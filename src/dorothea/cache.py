@@ -5,6 +5,7 @@ never scanned or published). It holds:
 
 - **analysis**: colour palette and dimensions per source file, so unchanged photos skip
   palette extraction (the slowest part of reading a gallery).
+- **details**: shooting details (camera, lens, exposure) read from each photo's EXIF (#20).
 - **outputs**: a fingerprint per generated file: the source file's stat plus a hash of every
   setting that affects the bytes (resolution, quality, per-post options...). A changed
   fingerprint means the output is rebuilt even if it already exists.
@@ -65,6 +66,7 @@ class BuildCache:
         self._lock = threading.Lock()
         self._dirty = False
         self._analysis: dict[str, dict[str, Any]] = {}
+        self._details: dict[str, dict[str, Any]] = {}
         self._outputs: dict[str, dict[str, Any]] = {}
         self._load()
 
@@ -76,10 +78,11 @@ class BuildCache:
             if data.get("version") != CACHE_VERSION:
                 raise ValueError(f"unsupported version {data.get('version')!r}")
             self._analysis = dict(data.get("analysis", {}))
+            self._details = dict(data.get("details", {}))
             self._outputs = dict(data.get("outputs", {}))
         except (OSError, ValueError, AttributeError) as e:
             print(f"Ignoring unreadable build cache {self.path.name}: {e}")
-            self._analysis, self._outputs = {}, {}
+            self._analysis, self._details, self._outputs = {}, {}, {}
 
     def key(self, path: Path) -> str:
         """Cache key for a path: relative to the gallery root when possible."""
@@ -105,6 +108,22 @@ class BuildCache:
         entry = {"stat": stat, "key": key, "palette": palette, "width": width, "height": height}
         with self._lock:
             self._analysis[self.key(path)] = entry
+            self._dirty = True
+
+    # --- shooting details ---
+
+    def get_details(self, path: Path, stat: list[int]) -> dict[str, str] | None:
+        """Return a photo's cached shooting details if the file is unchanged."""
+        with self._lock:
+            entry = self._details.get(self.key(path))
+        if not entry or entry.get("stat") != stat:
+            return None
+        return dict(entry["details"])
+
+    def put_details(self, path: Path, stat: list[int], details: dict[str, str]) -> None:
+        """Record a photo's shooting details (empty when it has no EXIF)."""
+        with self._lock:
+            self._details[self.key(path)] = {"stat": stat, "details": details}
             self._dirty = True
 
     # --- outputs ---
@@ -140,6 +159,7 @@ class BuildCache:
             data = {
                 "version": CACHE_VERSION,
                 "analysis": self._analysis,
+                "details": self._details,
                 "outputs": self._outputs,
             }
             tmp = self.path.with_name(self.path.name + ".tmp")

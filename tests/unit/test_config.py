@@ -201,8 +201,11 @@ class TestLegacyDefaults:
             "social_button",
             "convert_to_srgb",
             "keep_metadata",
+            "exif_display",
             "legacy",
         }
+        assert DOROTHEA_DEFAULTS["exif_display"] == "icon"
+        assert EXPOSE_DEFAULTS["exif_display"] == "off"
         assert DOROTHEA_DEFAULTS["theme_dir"] == "photoessay"
         assert EXPOSE_DEFAULTS["theme_dir"] == "theme1"
         assert DOROTHEA_DEFAULTS["convert_to_srgb"] is True

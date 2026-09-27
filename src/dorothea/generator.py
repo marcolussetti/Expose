@@ -132,6 +132,7 @@ class ExposeGenerator:
             self.scanner.gallery_video_options,
             self.scanner.gallery_video_filters,
             draft=self.draft,
+            gallery_details=self.scanner.gallery_details,
         )
         self.planned_pages = builder.build_html(
             write=not self.dry_run, dots=not self.progress.active
@@ -288,6 +289,7 @@ class ExposeGenerator:
     gallery_image_options = _ScannerField[list[str]]()
     gallery_video_options = _ScannerField[list[str]]()
     gallery_video_filters = _ScannerField[list[str]]()
+    gallery_details = _ScannerField[list[dict[str, str]]]()
     video_enabled = _ScannerField[bool]()
 
     @property

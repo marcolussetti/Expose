@@ -27,7 +27,7 @@ to delete `_site`.
 
 ## Legacy (expose.sh) defaults
 
-Dorothea's defaults improve on expose.sh's in seven places. With `--legacy` (or `"legacy": true`
+Dorothea's defaults improve on expose.sh's in eight places. With `--legacy` (or `"legacy": true`
 in `_config.json`) the defaults are exactly expose.sh's, so a gallery builds the same site as
 expose.sh would. Anything you set explicitly still wins in both modes; `--no-legacy` overrides
 `"legacy": true` in the config file.
@@ -41,6 +41,7 @@ expose.sh would. Anything you set explicitly still wins in both modes; `--no-leg
 | `social_button` | `false` | `true` |
 | `convert_to_srgb` | `true` | `false` |
 | `keep_metadata` | `"camera"` | `"none"` |
+| `exif_display` | `"icon"` | `"off"` |
 | `legacy` | `false` | `true` |
 
 Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both modes; see
@@ -57,6 +58,7 @@ Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both mo
 | `disqus_shortname` | `""` | Disqus forum name for comments; empty disables them. |
 | `link_index_html` | `false` | Link galleries to `…/gallery/index.html` instead of `…/gallery`. Gallery links point at folders, which a web server (or `dorothea serve`) answers with the folder's `index.html`; opened straight from disk, or on a host without directory indexes, they show a folder listing instead. Turn this on for a site browsed from disk (e.g. copied onto a USB stick). Dorothea-only. |
 | `site_url` | `""` | The site's public address, e.g. `"https://example.com/photos/"`. When set, the build also writes `feed.xml`, an Atom feed with one entry per gallery (newest first, with its first photo and text), so people can follow new galleries in a feed reader; `photoessay` and `medium` show a feed link and announce the feed to browsers and reader extensions. Feeds need absolute links, which is why this is needed; the rest of the site stays relative. See `date` and `description` under per-post metadata. Dorothea-only. |
+| `exif_display` | `"icon"` (legacy: `"off"`) | Show each photo's shooting details, read from the original's EXIF: camera, lens, focal length, aperture, shutter speed and ISO (never its location). `"icon"`: an ⓘ in a corner of the photo, in its colours; hovering or focusing it shows the details, and a click or tap keeps them open. `"caption"`: one line under the photo's text, like `Fujifilm X-T4 · 23mm · f/2 · 1/250s · ISO 160`. `"off"`: nothing. Photos without EXIF, videos and image sequences show nothing unless their caption gives details. Captions and `metadata.txt` can override it (see `exif` and `camera`… under per-post metadata). Shown by `photoessay` and `medium`; `theme1` and `theme2` are unchanged. A custom theme puts `{{exif_icon}}` / `{{exif_caption}}` in its `post-template.html`, or places `{{camera}}`, `{{lens}}`, `{{focal_length}}`, `{{aperture}}`, `{{shutter_speed}}`, `{{iso}}` and `{{exif_summary}}` (`23mm · f/2 · 1/250s · ISO 160`) itself. Works whatever `keep_metadata` is. Dorothea-only. |
 | `gallery_feeds` | `true` | With `site_url`, each gallery also gets its own `feed.xml` (e.g. `…/iceland/feed.xml`) with one entry per photo or video, for galleries that keep growing; its pages announce it next to the site feed. `false` turns them off; a gallery's `metadata.txt` can override either way with `feed: false` / `feed: true`. Dorothea-only. |
 
 ## Images
@@ -176,11 +178,13 @@ Caption in *Markdown*.
 | `download` | Only in a gallery's `metadata.txt`: `false` to not offer this gallery as one zip, or `true` to offer it when `download_album` is off. Doesn't affect the per-photo `download_button`. Dorothea-only. |
 | `description` | Only in a gallery's `metadata.txt`, for the feed (`site_url`): the gallery's text in feed readers (Markdown). Without it, the first photo's caption is used. Dorothea-only. |
 | `sort` | Only in a gallery's `metadata.txt`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. Dorothea-only. |
+| `exif` | `false` to show no details for this photo (or, in `metadata.txt`, this gallery); `icon` or `caption` to show them that way instead of the `exif_display` style. Only details the caption gives are shown where `exif_display` is `"off"`, since EXIF isn't read then. Dorothea-only. |
+| `camera`, `lens`, `focal_length`, `aperture`, `shutter_speed`, `iso` | Override (or supply) a detail shown with `exif_display`, e.g. `lens: Helios 44-2` for a manual lens that records no EXIF, or `aperture: f/2`; `-` hides it (`lens: -`). An `iso` that's just a number is shown as `ISO 400`. Dorothea-only. |
 | anything else | Available to the theme as `{{key}}`. theme1 uses `top`, `left`, `width`, `height` (percent), `polygon` and `textcolor`; theme2 uses `width` and `class`. `color1`…`color7` come from the extracted palette. |
 
 ## Build cache
 
-Dorothea keeps `.dorothea-cache.json` in the gallery folder. It holds extracted palettes, so
-unchanged photos aren't re-analysed, and a fingerprint for every generated file, so changed
+Dorothea keeps `.dorothea-cache.json` in the gallery folder. It holds extracted palettes and
+shooting details (`exif_display`), so unchanged photos aren't re-analysed, and a fingerprint for every generated file, so changed
 sources, settings or metadata rebuild exactly what they affect. It's safe to delete: the next
 run re-analyses the photos and keeps any existing output that's newer than its source.

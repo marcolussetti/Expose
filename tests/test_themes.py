@@ -11,6 +11,7 @@ from dorothea.themes import BUNDLED_THEMES_DIR
 from tests.conftest import make_generator, make_test_image
 
 KEYBOARD_TEST = Path(__file__).parent / "js" / "keyboard_test.js"
+PHOTO_INFO_TEST = Path(__file__).parent / "js" / "photo_info_test.js"
 
 
 def build(topdir, **overrides):
@@ -30,6 +31,22 @@ def test_keyboard_navigation_js(theme):
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
+def test_photo_info_js():
+    """The ⓘ of exif_display: icon (#20); both themes ship the same file."""
+    result = subprocess.run(
+        ["node", str(PHOTO_INFO_TEST), str(BUNDLED_THEMES_DIR / "photoessay" / "photo-info.js")],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_themes_share_one_photo_info_script():
+    photoessay = (BUNDLED_THEMES_DIR / "photoessay" / "photo-info.js").read_bytes()
+    assert photoessay == (BUNDLED_THEMES_DIR / "medium" / "photo-info.js").read_bytes()
 
 
 def test_themes_share_one_keyboard_script():

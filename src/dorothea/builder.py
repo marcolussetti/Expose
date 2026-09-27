@@ -13,6 +13,7 @@ from dorothea.album import album_enabled, album_members, album_zip_name, human_s
 from dorothea.captions import caption_file, metadata_values, read_text_file, split_caption
 from dorothea.config import Config
 from dorothea.feed import feed_url_for, gallery_feed_enabled
+from dorothea.media.exif import DETAIL_KEYS
 from dorothea.media.markdown import MarkdownProcessor
 from dorothea.template import TemplateEngine
 from dorothea.themes import resolve_theme_dir
@@ -45,6 +46,66 @@ def _textbackground_attr(value: str, source: Path) -> str:
         print(f"\n\tIgnoring textbackground for {source.name}: {value!r} is not a CSS colour")
         return ""
     return f'" style="background-color: {value}; padding: 0.5em 1em'
+
+
+def exif_mode(setting: str, metadata: dict[str, str], source: Path) -> str:
+    """How to show an item's details (#20): the ``exif_display`` setting, unless its caption or
+    ``metadata.txt`` says ``exif: false`` (or ``icon``/``caption``, or ``true`` for the default
+    style)."""
+    value = metadata.get("exif", "").strip().lower()
+    if not value:
+        return setting
+    if value in ("false", "no", "off"):
+        return "off"
+    if value in ("icon", "caption"):
+        return value
+    if value in ("true", "yes", "on"):
+        return setting if setting != "off" else "icon"
+    print(f"\n\tIgnoring 'exif: {value}' for {source.name}: use false, true, icon or caption")
+    return setting
+
+
+def photo_details(detected: dict[str, str], metadata: dict[str, str]) -> dict[str, str]:
+    """Details read from EXIF, overridden by the same keys in the caption or ``metadata.txt``
+    (``lens: Helios 44-2`` for a manual lens; ``lens: -`` hides it), in ``DETAIL_KEYS`` order."""
+    details = dict(detected)
+    for key in DETAIL_KEYS:
+        if value := metadata.get(key):
+            if value == "-":
+                details.pop(key, None)
+            else:
+                details[key] = value
+    return {key: details[key] for key in DETAIL_KEYS if key in details}
+
+
+def exposure_summary(details: dict[str, str]) -> str:
+    """``23mm · f/2 · 1/250s · ISO 160``, from the fields there are."""
+    iso = details.get("iso", "")
+    parts = [details.get(k, "") for k in ("focal_length", "aperture", "shutter_speed")]
+    parts.append(f"ISO {iso}" if iso.isdigit() else iso)
+    return " · ".join(p for p in parts if p)
+
+
+# Themes style these; colours come from the photo's palette, like the post's own
+_PALETTE_STYLE = 'style="color: {{textcolor}}; background-color: {{backgroundcolor}}"'
+
+
+def _exif_icon(details: dict[str, str]) -> str:
+    """``{{exif_icon}}``: an ⓘ button with a panel of the photo's details."""
+    rows = [details.get("camera", ""), details.get("lens", ""), exposure_summary(details)]
+    panel = "".join(f"<span>{html_escape(row)}</span>" for row in rows if row)
+    return (
+        f'<div class="photo-info"><button type="button" class="photo-info-button" '
+        f'aria-label="Photo details" aria-expanded="false" {_PALETTE_STYLE}>i</button>'
+        f'<div class="photo-info-panel" {_PALETTE_STYLE}>{panel}</div></div>'
+    )
+
+
+def _exif_caption(details: dict[str, str]) -> str:
+    """``{{exif_caption}}``: the details on one line, for under the caption."""
+    parts = [details.get("camera", ""), exposure_summary(details)]
+    line = " · ".join(p for p in parts if p)
+    return f'<p class="photo-info-line">{html_escape(line)}</p>'
 
 
 class HTMLBuilder:
@@ -81,6 +142,7 @@ class HTMLBuilder:
         gallery_video_options: list[str],
         gallery_video_filters: list[str],
         draft: bool = False,
+        gallery_details: list[dict[str, str]] | None = None,
     ):
         """Initialize the HTML builder.
 
@@ -105,6 +167,7 @@ class HTMLBuilder:
             gallery_video_options: Video options (updated as side effect of text file parsing).
             gallery_video_filters: Video filters (updated as side effect of text file parsing).
             draft: Draft mode, which builds no album zips, so pages don't link them.
+            gallery_details: Shooting details read from EXIF (parallel to gallery_files; #20).
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
@@ -129,6 +192,7 @@ class HTMLBuilder:
         self.gallery_image_options = gallery_image_options
         self.gallery_video_options = gallery_video_options
         self.gallery_video_filters = gallery_video_filters
+        self.gallery_details = gallery_details or []
 
         # Initialize processors
         self.markdown_processor = MarkdownProcessor(scriptdir)
@@ -261,6 +325,8 @@ class HTMLBuilder:
                     post = TemplateEngine.substitute(
                         post, "textbackground_attr", _textbackground_attr(textbackground, file_path)
                     )
+
+                post = self._apply_details(post, gallery_index, metadata, file_path)
 
                 # Set image parameters
                 post = TemplateEngine.substitute(
@@ -400,6 +466,25 @@ class HTMLBuilder:
             depth += 1
 
         return navigation
+
+    def _apply_details(self, post: str, index: int, metadata: str, source: Path) -> str:
+        """Fill an item's shooting details (#20): ``{{exif_icon}}`` or ``{{exif_caption}}`` per
+        ``exif_display``, and ``{{camera}}``, ``{{lens}}``, … ``{{exif_summary}}`` for custom
+        themes. With the setting off (or ``exif: false``) they're all left empty."""
+        values = metadata_values(metadata)
+        mode = exif_mode(self.config.get("exif_display", "off"), values, source)
+        detected = self.gallery_details[index] if index < len(self.gallery_details) else {}
+        details = photo_details(detected, values)
+        if mode == "off" or not details:
+            return post
+        post = TemplateEngine.substitute(
+            post, f"exif_{mode}", _exif_icon(details) if mode == "icon" else _exif_caption(details)
+        )
+        for key, value in details.items():
+            post = TemplateEngine.substitute(post, key, html_escape(value))
+        return TemplateEngine.substitute(
+            post, "exif_summary", html_escape(exposure_summary(details))
+        )
 
     def _page_feed_links(self, nav_idx: int, path: Path) -> str:
         """``{{feed_link}}`` for a gallery page: the site feed, then the gallery's own feed."""
