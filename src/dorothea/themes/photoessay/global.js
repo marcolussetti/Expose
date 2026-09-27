@@ -219,11 +219,6 @@ $(document).ready(function(){
 		}
 	});
 
-	// browser detect
-	if($.browser.webkit){
-		$('.icon').addClass('webkit');
-	}
-
 	$('#sharebutton').click(function(){
 		if($('#share').hasClass('active')){
 			$('#share').removeClass('active');
@@ -397,7 +392,7 @@ function scrollcheck(){
 			$('#sidebar .active a, #resolution .active a').css('color',highcolor).css('border-color', highcolor);
 		}
 
-		$('#sidebar .icon.webkit, #share .icon.webkit').css('background-color',sidecolor);
+		$('#sidebar .icon, #share .icon').css('background-color',sidecolor);
 
 		// highlight nav
 
@@ -643,34 +638,4 @@ function pad(n, width, z) {
   z = z || '0';
   n = n + '';
   return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
-}
-
-// add back browser detect
-jQuery.uaMatch = function( ua ) {
-ua = ua.toLowerCase();
-var match = /(chrome)[ \/]([\w.]+)/.exec( ua ) ||
-    /(webkit)[ \/]([\w.]+)/.exec( ua ) ||
-    /(opera)(?:.*version|)[ \/]([\w.]+)/.exec( ua ) ||
-    /(msie) ([\w.]+)/.exec( ua ) ||
-    ua.indexOf("compatible") < 0 && /(mozilla)(?:.*? rv:([\w.]+)|)/.exec( ua ) ||
-    [];
-return {
-    browser: match[ 1 ] || "",
-    version: match[ 2 ] || "0"
-};
-};
-if ( !jQuery.browser ) {
-matched = jQuery.uaMatch( navigator.userAgent );
-browser = {};
-if ( matched.browser ) {
-    browser[ matched.browser ] = true;
-    browser.version = matched.version;
-}
-// Chrome is Webkit, but Webkit is also Safari.
-if ( browser.chrome ) {
-    browser.webkit = true;
-} else if ( browser.webkit ) {
-    browser.safari = true;
-}
-jQuery.browser = browser;
 }

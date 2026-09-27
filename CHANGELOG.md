@@ -125,6 +125,12 @@ All notable changes to Dorothea are documented here. The format follows
   clearer `--help`, `-h` works too.
 
 ### Fixed
+- `photoessay`: the sidebar icons (site camera, resolution, hide text, feed, download, share)
+  showed as plain squares in browsers that no longer support the old
+  `-webkit-mask-box-image` property. They now use standard CSS masks, still tinted with the
+  photo's colours, and the browser sniffing that chose between the two is gone. The sidebar is
+  wider (200px instead of 170px) so a site title or gallery name no longer runs into its edge,
+  and a single word too long for it breaks instead. `theme1` is unchanged.
 - `photoessay`: opening a link to a particular photo (`gallery/#4`, as gallery feed entries
   use) scrolls to that photo in Firefox too; it stayed at the top, because the slides only get
   their height once the page's script runs.

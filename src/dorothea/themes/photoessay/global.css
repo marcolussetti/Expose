@@ -78,7 +78,9 @@ a.active:hover, li.active a:hover{
 position: fixed;
 left: 7px;
 top: 0;
-width: 163px;
+/* theme1's 163px left names like a one-word site title touching the edge; the resolution/share
+   panels (left) and #main (padding-left) follow this width */
+width: 193px;
 height: 100%;
 z-index: 10;
 -webkit-transition: color 1s;
@@ -129,17 +131,21 @@ z-index: 11;
 transition: background-color 1s;
 }
 
+/* Titles and gallery names wrap with about 16px to spare before the sidebar's edge (193px wide:
+   the camera icon and its margins take 54px, then the title's 5px padding). A single word too
+   long for the line breaks rather than running into the edge. */
 #sidebar h1{
 font: 300 14px/18px 'Lato',helvetica, arial, sans-serif;
 margin: 0;
 padding: 32px 0 20px 5px;
 float: left;
-width: 100px;
+width: 118px;
+overflow-wrap: anywhere;
 }
 
 #nav{
 margin: 0;
-padding: 20px 10px 0 20px;
+padding: 20px 16px 0 20px;
 float: left;
 clear: both;
 }
@@ -157,6 +163,7 @@ clear: both;
 	padding: 0;
 	overflow: hidden;
 	line-height: 24px;
+	overflow-wrap: anywhere;
 }
 
 #nav li.active a{
@@ -203,78 +210,23 @@ clear: both;
 	height: 16px;
 	margin: 5px 20px 0 15px;
 	mix-blend-mode: screen;
-}
-
-
-/* only webkit browsers support css masks, we will implement for webkit and browser detect */
-
-.icon.camera{
-	background: transparent url(img/camera.png) no-repeat;
-}
-
-.icon.camera.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/camera_mask.png);
-}
-
-.icon.monitor{
-	background: transparent url(img/monitor.png) no-repeat;
-}
-
-.icon.monitor.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/monitor_mask.png);
-}
-
-.icon.toggle{
-	background: transparent url(img/text.png) no-repeat;
-}
-
-.icon.toggle.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/text_mask.png);
-}
-
-.icon.comment{
-	background: transparent url(img/comment.png) no-repeat;
-}
-
-.icon.comment.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/comment_mask.png);
-}
-
-
-.icon.heart{
-	background: transparent url(img/heart.png) no-repeat;
-}
-
-.icon.heart.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/heart_mask.png);
-}
-
-.icon.download{
-	background: transparent url(img/download.png) no-repeat;
-}
-
-.icon.download.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/download_mask.png);
-}
-
-.icon.feed{
-	background: transparent url(img/feed.png) no-repeat;
-}
-
-.icon.feed.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/feed_mask.png);
-}
-
-.icon.webkit{
+	/* The shape comes from a mask over a solid colour, which global.js sets from the photo's
+	   palette. Standard CSS masks (with the -webkit- names older Safari needs) replace
+	   theme1's -webkit-mask-box-image, which browsers are dropping, and its browser sniffing. */
 	background-color: #ccc;
+	-webkit-mask-size: 100% 100%;
+	mask-size: 100% 100%;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
 }
+
+.icon.camera{ -webkit-mask-image: url(img/camera_mask.png); mask-image: url(img/camera_mask.png); }
+.icon.monitor{ -webkit-mask-image: url(img/monitor_mask.png); mask-image: url(img/monitor_mask.png); }
+.icon.toggle{ -webkit-mask-image: url(img/text_mask.png); mask-image: url(img/text_mask.png); }
+.icon.comment{ -webkit-mask-image: url(img/comment_mask.png); mask-image: url(img/comment_mask.png); }
+.icon.heart{ -webkit-mask-image: url(img/heart_mask.png); mask-image: url(img/heart_mask.png); }
+.icon.download{ -webkit-mask-image: url(img/download_mask.png); mask-image: url(img/download_mask.png); }
+.icon.feed{ -webkit-mask-image: url(img/feed_mask.png); mask-image: url(img/feed_mask.png); }
 
 #share .icon{
 width: 26px;
@@ -283,50 +235,11 @@ margin: 7px 10px 0 10px;
 background-color: #ddd;
 }
 
-.icon.hackernews{
-	background: transparent url(img/hackernews.png) no-repeat;
-}
-
-.icon.hackernews.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/hackernews_mask.png);
-}
-
-.icon.facebook{
-	background: transparent url(img/facebook.png) no-repeat;
-}
-
-.icon.facebook.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/facebook_mask.png);
-}
-
-.icon.twitter{
-	background: transparent url(img/twitter.png) no-repeat;
-}
-
-.icon.twitter.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/twitter_mask.png);
-}
-
-.icon.reddit{
-	background: transparent url(img/reddit.png) no-repeat;
-}
-
-.icon.reddit.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/reddit_mask.png);
-}
-
-.icon.pinterest{
-	background: transparent url(img/pinterest.png) no-repeat;
-}
-
-.icon.pinterest.webkit{
-	background-image: none;
-	-webkit-mask-box-image: url(img/pinterest_mask.png);
-}
+.icon.hackernews{ -webkit-mask-image: url(img/hackernews_mask.png); mask-image: url(img/hackernews_mask.png); }
+.icon.facebook{ -webkit-mask-image: url(img/facebook_mask.png); mask-image: url(img/facebook_mask.png); }
+.icon.twitter{ -webkit-mask-image: url(img/twitter_mask.png); mask-image: url(img/twitter_mask.png); }
+.icon.reddit{ -webkit-mask-image: url(img/reddit_mask.png); mask-image: url(img/reddit_mask.png); }
+.icon.pinterest{ -webkit-mask-image: url(img/pinterest_mask.png); mask-image: url(img/pinterest_mask.png); }
 
 #textbutton{
 cursor: pointer;
@@ -359,7 +272,7 @@ background-color: #000;
 #share, #resolution{
 	position: fixed;
 	bottom: 0;
-	left: 170px;
+	left: 200px;
 	z-index: 21;
 	height: 100%;
 	background-color: #333;
@@ -375,7 +288,7 @@ background-color: #000;
 }
 
 #share.active, #resolution.active{
-	width: 163px;
+	width: 193px;
 }
 
 #share ul, #resolution ul{
@@ -423,7 +336,7 @@ border-bottom: 1px solid #aaa;
 
 #main{
 margin: 0;
-padding: 0 0 0 170px;
+padding: 0 0 0 200px;
 min-width: 830px;
 min-height: 100%;
 overflow: hidden;
