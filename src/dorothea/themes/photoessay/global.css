@@ -677,6 +677,64 @@ height: 10px;
 min-width: 1px;
 }
 
+/* photo details (#20): an ⓘ in the photo's top right corner, in the photo's colours (inline
+   styles); hover or focus shows the panel, and photo-info.js pins it open on click or tap */
+.photo-info{
+position: absolute;
+top: 12px;
+right: 12px;
+z-index: 6;
+text-align: right;
+font: 300 13px/1.6 'Lato',helvetica, arial, sans-serif;
+}
+
+.photo-info-button{
+width: 26px;
+height: 26px;
+padding: 0;
+border: 1px solid;
+border-radius: 50%;
+background-color: #222;
+color: #fff;
+font: italic 700 14px/24px Georgia, serif;
+cursor: pointer;
+opacity: 0.7;
+transition: opacity 0.2s;
+}
+
+.photo-info-button:hover, .photo-info-button:focus, .photo-info.pinned .photo-info-button{
+opacity: 1;
+}
+
+.photo-info-panel{
+display: none;
+margin: 6px 0 0 0;
+padding: 8px 12px;
+border-radius: 4px;
+background-color: #222;
+color: #fff;
+text-align: left;
+white-space: nowrap;
+}
+
+.photo-info-panel span{
+display: block;
+}
+
+.photo-info:focus-within .photo-info-panel, .photo-info.pinned .photo-info-panel{
+display: block;
+}
+
+@media (hover: hover) {
+	.photo-info:hover .photo-info-panel{ display: block; }
+}
+
+.photo-info-line{
+margin: 0.8em 0 0 0;
+font-size: 0.85em;
+opacity: 0.8;
+}
+
 /* menu button: only on small screens */
 #menubutton{
 display: none;

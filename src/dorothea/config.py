@@ -67,6 +67,8 @@ EXPOSE_DEFAULTS = {
     "site_url": "",
     # Dorothea-only: with site_url, each gallery also gets its own feed.xml (one entry per photo)
     "gallery_feeds": True,
+    # Dorothea-only: show photos' camera/lens/exposure from EXIF (#20), see EXIF_DISPLAY_MODES
+    "exif_display": "off",
     # Dorothea-only: use these expose.sh defaults instead of DOROTHEA_DEFAULTS
     "legacy": True,
 }
@@ -80,8 +82,12 @@ DOROTHEA_CHANGES = {
     "social_button": False,  # the 2015-era share menu is opt-in
     "convert_to_srgb": True,  # Display P3 / Adobe RGB photos keep their colours (#12)
     "keep_metadata": "camera",  # copyright + camera settings; never location unless asked (#12)
+    "exif_display": "icon",  # photo details behind an ⓘ, in themes that support it (#20)
     "legacy": False,
 }
+
+# exif_display (#20): nothing, an ⓘ with a details panel on each photo, or a line under its text
+EXIF_DISPLAY_MODES = ("off", "icon", "caption")
 
 DOROTHEA_DEFAULTS = {**EXPOSE_DEFAULTS, **DOROTHEA_CHANGES}
 
@@ -372,6 +378,11 @@ class Config:
         if keep not in KEEP_METADATA_LEVELS:
             levels = ", ".join(KEEP_METADATA_LEVELS)
             errors.append(f"keep_metadata must be one of {levels}; got {keep!r}")
+
+        exif_display = c.get("exif_display", "off")
+        if exif_display not in EXIF_DISPLAY_MODES:
+            modes = ", ".join(EXIF_DISPLAY_MODES)
+            errors.append(f"exif_display must be one of {modes}; got {exif_display!r}")
 
         warnings = []
         ffmpeg = c.get("ffmpeg", "auto")

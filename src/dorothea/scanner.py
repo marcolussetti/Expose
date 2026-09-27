@@ -129,6 +129,8 @@ class Scanner:
         self.gallery_image_options: list[str] = []
         self.gallery_video_options: list[str] = []
         self.gallery_video_filters: list[str] = []
+        # Shooting details from EXIF (#20), filled only when exif_display is on
+        self.gallery_details: list[dict[str, str]] = []
 
         # Initialize media processors
         self.image_processor = ImageProcessor()
@@ -322,9 +324,9 @@ class Scanner:
         # Colours and dimensions (the slow part on a first run): a bar under progress display
         bar = self.progress.task(f"Reading {len(entries)} files", total=len(entries))
 
-        def analyze(k: int, entry: GalleryEntry) -> tuple[list[str], int, int]:
+        def analyze(k: int, entry: GalleryEntry) -> tuple[list[str], int, int, dict[str, str]]:
             try:
-                return self._analyze(k, entry)
+                return *self._analyze(k, entry), self._details(entry)
             finally:
                 bar.advance()
 
@@ -339,7 +341,7 @@ class Scanner:
             results = [analyze(k, e) for k, e in enumerate(entries)]
 
         counts: dict[int, int] = {}
-        for entry, (palette, maxwidth, maxheight) in zip(entries, results, strict=True):
+        for entry, (palette, maxwidth, maxheight, details) in zip(entries, results, strict=True):
             counts[entry.nav_index] = counts.get(entry.nav_index, 0) + 1
 
             self.gallery_files.append(entry.file_path)
@@ -352,6 +354,7 @@ class Scanner:
             self.gallery_image_options.append("")
             self.gallery_video_options.append("")
             self.gallery_video_filters.append("")
+            self.gallery_details.append(details)
 
         for i in range(len(self.paths)):
             if self.nav_type[i] >= 1:
@@ -552,6 +555,21 @@ class Scanner:
         if self.cache is not None and (width or not entry.is_video):
             self.cache.put_analysis(entry.file_path, stat, key, palette, width, height)
         return palette, width, height
+
+    def _details(self, entry: GalleryEntry) -> dict[str, str]:
+        """A photo's shooting details (#20), from the cache when unchanged. Videos and image
+        sequences have none, and nothing is read when ``exif_display`` is off."""
+        if entry.gallery_type != 0 or self.config.get("exif_display", "off") == "off":
+            return {}
+        stat = source_stat(entry.file_path)
+        if self.cache is not None:
+            hit = self.cache.get_details(entry.file_path, stat)
+            if hit is not None:
+                return hit
+        details = read_photo_info(entry.file_path).details
+        if self.cache is not None and not self.dry_run:
+            self.cache.put_details(entry.file_path, stat, details)
+        return details
 
     def _analyze(self, k: int, entry: GalleryEntry) -> tuple[list[str], int, int]:
         """Extract (palette, maxwidth, maxheight) for one entry. Safe to run in threads."""
