@@ -53,6 +53,8 @@ If both files exist, `_config.json` wins. Every setting is described in
 
 ## New in Dorothea
 
+- **Sort orders**: `sort` / `--sort` can order galleries and photos naturally (`1, 2, 10`), by
+  capture time (the site follows the trip), or in reverse. The default is expose.sh's name order.
 - **Incremental builds that notice changes.** expose.sh skips any output that already exists,
   so edits needed a manual `rm -rf _site`. Dorothea rebuilds exactly the files whose source,
   settings or per-post metadata changed. State lives in `.dorothea-cache.json` in the gallery

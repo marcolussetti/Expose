@@ -100,6 +100,12 @@ def _print_version(ctx: click.Context, value: bool) -> None:
     "only the bundled one; only the system one; or a path to an ffmpeg binary.",
 )
 @click.option(
+    "--sort",
+    metavar="MODE",
+    help="Order of galleries and photos: name (default), natural (1, 2, 10), or capture "
+    "(when taken); add -desc for the reverse, e.g. capture-desc.",
+)
+@click.option(
     "--convert-config",
     "convert",
     is_flag=True,
@@ -122,6 +128,7 @@ def main(
     overrides: tuple[str, ...],
     jobs: int | None,
     ffmpeg: str | None,
+    sort: str | None,
     convert: bool,
 ) -> None:
     """Dorothea: a static photography website generator (a port of expose.sh)."""
@@ -139,6 +146,8 @@ def main(
             settings["jobs"] = jobs
         if ffmpeg is not None:
             settings["ffmpeg"] = ffmpeg
+        if sort is not None:
+            settings["sort"] = sort
         config = Config.load(topdir, scriptdir, config_path=config_path, overrides=settings)
         for warning in config.load_warnings + config.validate(topdir):
             click.echo(f"Warning: {warning}", err=True)

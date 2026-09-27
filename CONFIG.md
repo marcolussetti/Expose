@@ -84,6 +84,7 @@ videos print which ffmpeg they use.
 | Key | Default | Description |
 |---|---|---|
 | `jobs` | `0` | Parallel workers for reading and resizing images (0 = one per CPU). Same as `-j N`. Videos always encode one at a time, since ffmpeg already uses every core. |
+| `sort` | `"name"` | Order of galleries and photos. `"name"`: by name, like expose.sh (so `10` comes before `2` unless you zero-pad). `"natural"`: numbers compare as numbers (`1, 2, 10`), ignoring case. `"capture"`: when photos were taken (EXIF capture time, else file time); galleries follow their earliest photo, so the site reads like the trip. Add `-desc` to reverse any of them (`"capture-desc"` for newest first). Same as `--sort`. A gallery's `metadata.txt` can set `sort:` for its own photos. |
 
 ## Command line
 
@@ -95,6 +96,7 @@ videos print which ffmpeg they use.
 | `-s KEY=VALUE`, `--set KEY=VALUE` | Override a setting; VALUE is JSON if it parses (`--set 'resolution=[1920,640]'`), else a string. Repeatable. |
 | `-j N`, `--jobs N` | Parallel workers (see `jobs`). |
 | `--ffmpeg auto\|bundled\|system\|PATH` | Which ffmpeg to use (see `ffmpeg`). |
+| `--sort MODE` | Order of galleries and photos (see `sort`). |
 | `--convert-config` | Write `_config.json` from `_config.sh` and exit. |
 | `--version` | Print the version. |
 | `-h`, `--help` | Show all options. |
@@ -120,6 +122,7 @@ Caption in *Markdown*.
 | `video-options` | Extra ffmpeg arguments, e.g. `-ss 10 -t 5` to cut a clip. |
 | `video-filters` | ffmpeg filters appended after scaling, e.g. `hflip`. |
 | `textbackground` | A CSS colour drawn behind the caption text (with a little padding), e.g. `rgba(0,0,0,.5)` to keep white text readable over a bright photo. Works in both bundled themes; put it in `metadata.txt` to apply it to a whole gallery. Values containing `"`, `<`, `>`, `;`, `{`, `}` or `\` are ignored with a warning. Dorothea-only. |
+| `sort` | Only in a gallery's `metadata.txt`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. Dorothea-only. |
 | anything else | Available to the theme as `{{key}}`. theme1 uses `top`, `left`, `width`, `height` (percent), `polygon` and `textcolor`; theme2 uses `width` and `class`. `color1`…`color7` come from the extracted palette. |
 
 ## Build cache

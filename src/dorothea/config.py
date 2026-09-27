@@ -53,6 +53,8 @@ DEFAULT_CONFIG = {
     "ffmpeg": "auto",
     # Dorothea-only: parallel workers for image encoding / file reading (0 = one per CPU)
     "jobs": 0,
+    # Dorothea-only: order of galleries and photos, see dorothea.sorting.SORT_MODES
+    "sort": "name",
 }
 
 
@@ -304,6 +306,12 @@ class Config:
         jobs = c.get("jobs", 0)
         if not (is_int(jobs) and jobs >= 0):
             errors.append(f"jobs must be an integer >= 0 (0 = one per CPU), got {jobs!r}")
+
+        from dorothea.sorting import SORT_MODES
+
+        sort = c.get("sort", "name")
+        if sort not in SORT_MODES:
+            errors.append(f"sort must be one of {', '.join(SORT_MODES)}; got {sort!r}")
 
         warnings = []
         ffmpeg = c.get("ffmpeg", "auto")

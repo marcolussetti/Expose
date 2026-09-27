@@ -84,6 +84,14 @@ If the text is hard to read over a photo, give it a background with a `textbackg
 
 Images are sorted by alphabetical order. If you wish to set a different order, add a numberical prefix in front of the file name (e.g. `0001_DSC0003.jpg`, `0002_DSC0002.jpg`, etc.).
 
+Other orders are available with the `sort` setting (or `--sort`):
+
+- `natural`: numbers compare as numbers, so `1`, `2`, `10` don't need zero-padding
+- `capture`: in the order the photos were taken (from the camera's EXIF data, else the file date); galleries follow their earliest photo, so the whole site reads like the trip
+- add `-desc` to reverse any order, e.g. `capture-desc` for newest first
+
+A gallery can choose its own order with a `sort:` line in its `metadata.txt`. See [CONFIG.md](CONFIG.md).
+
 ### Organization
 
 You can put images in folder to organize them. The folder can be nester arbitrarily. This generates a nested HTML menu for navigation.

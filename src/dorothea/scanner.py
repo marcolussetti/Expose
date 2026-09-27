@@ -19,6 +19,7 @@ from dorothea.media.colors import ColorExtractor
 from dorothea.media.exif import read_photo_info
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
+from dorothea.sorting import SORT_MODES, sort_items
 from dorothea.utils import (
     sequence_frames,
     site_path,
@@ -145,11 +146,17 @@ class Scanner:
         # Find all directories, sorted. Prune _* (incl. _site) and hidden dirs while walking
         # so large output trees are never traversed; they'd be filtered out below anyway.
         found = []
+        children: dict[Path, list[Path]] = {}
         for root, dirs, _files in os.walk(self.topdir):
             dirs[:] = [d for d in dirs if not d.startswith(("_", "."))]
             found.extend(Path(root) / d for d in dirs)
-        # Include topdir itself
-        all_dirs = [self.topdir] + sorted(found)
+            children[Path(root)] = sorted(Path(root) / d for d in dirs)
+        mode = self.config.get("sort", "name")
+        if mode == "name":
+            # Include topdir itself; plain path order, exactly as before (parity with expose.sh)
+            all_dirs = [self.topdir] + sorted(found)
+        else:
+            all_dirs = [self.topdir] + self._ordered_dirs(self.topdir, children, mode)
 
         for node in all_dirs:
             print(".", end="", flush=True)
@@ -283,6 +290,12 @@ class Scanner:
                 entry = self._classify(i, file_path, sequence_keyword)
                 if entry:
                     gallery.append(entry)
+            gallery = sort_items(
+                gallery,
+                self._gallery_sort(path),
+                name=lambda entry: entry.file_path.name,
+                taken_at=self._taken_at,
+            )
             entries.extend(self._unique_urls(gallery))
 
         jobs = self.config.worker_count()
@@ -315,6 +328,72 @@ class Scanner:
                 self.nav_count[i] = counts.get(i, 0)
 
         print()
+
+    def _ordered_dirs(self, top: Path, children: dict[Path, list[Path]], mode: str) -> list[Path]:
+        """All directories below ``top`` in depth-first order, siblings sorted by ``mode``."""
+        taken: dict[Path, float] = {}
+
+        def earliest(directory: Path) -> float:
+            # A folder's time is its earliest photo, including those in subfolders
+            if directory not in taken:
+                times = [self._file_taken_at(f) for f in self._media_files(directory)]
+                times += [earliest(child) for child in children.get(directory, [])]
+                taken[directory] = min(times, default=float("inf"))
+            return taken[directory]
+
+        result: list[Path] = []
+
+        def visit(directory: Path) -> None:
+            for child in sort_items(
+                children.get(directory, []), mode, name=lambda d: d.name, taken_at=earliest
+            ):
+                result.append(child)
+                visit(child)
+
+        visit(top)
+        return result
+
+    @staticmethod
+    def _media_files(directory: Path) -> list[Path]:
+        """Photos and videos directly inside ``directory`` (hidden and ``_`` files skipped)."""
+        try:
+            entries = list(directory.iterdir())
+        except OSError:
+            return []
+        media = {"jpg", "jpeg", "png", "gif", *VIDEO_EXTENSIONS}
+        return [
+            f
+            for f in entries
+            if f.is_file()
+            and not f.name.startswith(("_", "."))
+            and f.suffix.lower().lstrip(".") in media
+        ]
+
+    @staticmethod
+    def _file_taken_at(path: Path) -> float:
+        """EXIF capture time of a photo, else its file time."""
+        capture_time = read_photo_info(path).capture_time
+        if capture_time is not None:
+            return capture_time
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return float("inf")
+
+    def _gallery_sort(self, gallery: Path) -> str:
+        """Sort mode for a gallery's photos: ``sort:`` in its metadata.txt, else the setting."""
+        mode = self.config.get("sort", "name")
+        try:
+            text = (gallery / "metadata.txt").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return mode
+        for line in text.splitlines():
+            key, sep, value = line.partition(":")
+            if sep and key.strip() == "sort" and value.strip():
+                if value.strip() in SORT_MODES:
+                    return value.strip()
+                print(f"\n\tIgnoring 'sort: {value.strip()}' in {gallery.name}/metadata.txt")
+        return mode
 
     def _unique_urls(self, gallery: list[GalleryEntry]) -> list[GalleryEntry]:
         """Give items in one gallery distinct URLs (e.g. ``01 photo.jpg`` and ``02 photo.jpg``).
