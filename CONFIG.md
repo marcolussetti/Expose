@@ -27,7 +27,7 @@ to delete `_site`.
 
 ## Legacy (expose.sh) defaults
 
-Dorothea's defaults improve on expose.sh's in four places. With `--legacy` (or `"legacy": true`
+Dorothea's defaults improve on expose.sh's in six places. With `--legacy` (or `"legacy": true`
 in `_config.json`) the defaults are exactly expose.sh's, so a gallery builds the same site as
 expose.sh would. Anything you set explicitly still wins in both modes; `--no-legacy` overrides
 `"legacy": true` in the config file.
@@ -38,6 +38,8 @@ expose.sh would. Anything you set explicitly still wins in both modes; `--no-leg
 | `video_formats` | `["h264", "vp9"]` | `["h264", "vp8"]` |
 | `h264_encodespeed` | `"slow"` | `"veryslow"` |
 | `social_button` | `false` | `true` |
+| `convert_to_srgb` | `true` | `false` |
+| `keep_metadata` | `"camera"` | `"none"` |
 | `legacy` | `false` | `true` |
 
 Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both modes; see
@@ -60,6 +62,27 @@ Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both mo
 | `resolution` | `[3840, 2560, 1920, 1280, 1024, 640]` | Widths to generate (heights follow the source aspect ratio). Only sizes up to the source width are made, plus the smallest one always. |
 | `jpeg_quality` | `92` | JPEG quality (1–100) for generated images. |
 | `autorotate` | `true` | Apply EXIF orientation. |
+| `convert_to_srgb` | `true` (legacy: `false`) | Convert photos in a wide colour space (Display P3 from phones, Adobe RGB from many cameras) to sRGB. Without it the colour profile is simply removed, as expose.sh does, and those photos look duller in browsers. Photos that are already sRGB, or have no profile, are untouched. Dorothea-only. |
+| `keep_metadata` | `"camera"` (legacy: `"none"`) | Which photo metadata (EXIF) the resized images keep. See the levels below. Dorothea-only. |
+
+`keep_metadata` levels:
+
+| Level | Keeps |
+|---|---|
+| `"none"` | nothing (expose.sh's behaviour) |
+| `"copyright"` | artist and copyright |
+| `"camera"` | copyright, plus camera and lens, focal length, aperture, shutter speed, ISO, exposure settings and when the photo was taken |
+| `"location"` | copyright, plus GPS location |
+| `"cameralocation"` | copyright, camera settings and GPS location |
+| `"all"` | everything, including GPS location, the editing software, camera serial numbers, maker notes and XMP |
+
+> **Privacy:** `"location"`, `"cameralocation"` and `"all"` publish **where each photo was taken**:
+> anyone can download a photo and read its GPS coordinates. The default (`"camera"`) never does.
+
+The orientation tag is always reset, since the resized images are already rotated upright. Photos
+that use `image-options` are processed by ImageMagick, which keeps no metadata (they are still
+converted to sRGB). If `convert_to_srgb` is off and metadata is kept, a wide-gamut photo keeps its
+colour profile, so its colours stay right.
 
 ## Colours
 

@@ -118,6 +118,12 @@ To configure the name of the site and some basic settings, you need to create a 
 An expose.sh-style `_config.sh` still works (and `dorothea --convert-config` converts it). Every
 option is described in [CONFIG.md](CONFIG.md).
 
+### Photo metadata and privacy
+
+The resized photos keep the photographer's copyright and the camera information (camera, lens, aperture, shutter speed, ISO, date taken), but **not the GPS location**. To choose differently, set `keep_metadata` in `_config.json`: `"none"`, `"copyright"`, `"camera"` (the default), `"location"`, `"cameralocation"` or `"all"`. The last three publish where each photo was taken, which anyone can read from the downloaded image.
+
+Photos in a wide colour space (Display P3 from phones, Adobe RGB from many cameras) are converted to sRGB so they look the same in every browser.
+
 ## Advanced options
 
 This section is generated.

@@ -732,6 +732,8 @@ class MediaEncoder:
             "autorotate": self.autorotate,
             "options": options,
             "backend": "imagemagick" if extra_args and shutil.which("convert") else "pillow",
+            "convert_to_srgb": self.config.get("convert_to_srgb", False),
+            "keep_metadata": self.config.get("keep_metadata", "none"),
         }
         if gtype != 0:
             # Thumbnails are grabbed from the (filtered) video
@@ -760,6 +762,8 @@ class MediaEncoder:
                         quality=self.config["jpeg_quality"],
                         auto_orient=self.autorotate,
                         additional_args=extra_args,
+                        convert_to_srgb=self.config.get("convert_to_srgb", False),
+                        keep_metadata=self.config.get("keep_metadata", "none"),
                     )
                 except BaseException:
                     part.unlink(missing_ok=True)

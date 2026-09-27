@@ -7,9 +7,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageOps, JpegImagePlugin
+from PIL import Image, ImageCms, ImageOps, JpegImagePlugin
 
 from dorothea.media.base import MediaProcessor
+from dorothea.media.metadata import filtered_exif, is_srgb, srgb_profile_file, to_srgb
 
 
 class ImageProcessor(MediaProcessor):
@@ -66,10 +67,13 @@ class ImageProcessor(MediaProcessor):
         quality: int = 92,
         auto_orient: bool = True,
         additional_args: list | None = None,
+        convert_to_srgb: bool = False,
+        keep_metadata: str = "none",
     ) -> None:
         """Resize an image to fit within a width×width box.
 
-        Matches ImageMagick: -auto-orient -resize WxW -quality Q +profile *
+        With the defaults this matches expose.sh's
+        ``convert -auto-orient -resize WxW -quality Q +profile '*'``: no metadata or ICC profile.
 
         Args:
             input_path: Input image path.
@@ -79,11 +83,21 @@ class ImageProcessor(MediaProcessor):
             auto_orient: Apply EXIF orientation before resizing.
             additional_args: Extra ImageMagick arguments (from ``image-options``). When given,
                 ImageMagick is used if available; otherwise they are ignored with a warning.
+            convert_to_srgb: Convert photos with a non-sRGB ICC profile (Display P3, Adobe RGB…)
+                to sRGB, so they don't look dull once the profile is gone.
+            keep_metadata: Which EXIF to keep, one of ``KEEP_METADATA_LEVELS``. With anything but
+                ``none``, an unconverted non-sRGB ICC profile is kept too.
         """
         if additional_args:
             if shutil.which("convert"):
                 self._resize_imagemagick(
-                    input_path, output_path, width, quality, auto_orient, additional_args
+                    input_path,
+                    output_path,
+                    width,
+                    quality,
+                    auto_orient,
+                    additional_args,
+                    convert_to_srgb,
                 )
                 return
             if not ImageProcessor._warned_no_convert:
@@ -92,6 +106,9 @@ class ImageProcessor(MediaProcessor):
 
         with Image.open(input_path) as img:
             subsampling = self.chroma_subsampling(img, quality)
+            icc_profile = img.info.get("icc_profile")
+            source_exif = img.getexif() if keep_metadata != "none" else None
+            xmp = img.info.get("xmp") if keep_metadata == "all" else None
             if auto_orient:
                 img = ImageOps.exif_transpose(img)
             # Match ImageMagick -resize WxW: scale to fit within the box,
@@ -100,16 +117,40 @@ class ImageProcessor(MediaProcessor):
             ratio = min(width / orig_w, width / orig_h)
             new_size = (round(orig_w * ratio), round(orig_h * ratio))
             img = img.resize(new_size, Image.Resampling.LANCZOS)
-            # Save without any metadata (+profile * equivalent)
+
+            # Nothing extra by default (+profile * equivalent)
+            extra: dict = {}
+            if icc_profile and not is_srgb(icc_profile):
+                converted = False
+                if convert_to_srgb:
+                    try:
+                        img = to_srgb(img, icc_profile)
+                        converted = True
+                    except ImageCms.PyCMSError as e:
+                        print(f"\n\tCould not convert {input_path.name} to sRGB: {e}")
+                if not converted and keep_metadata != "none":
+                    extra["icc_profile"] = icc_profile
+            if source_exif is not None:
+                exif = filtered_exif(source_exif, keep_metadata, oriented=auto_orient)
+                if exif is not None:
+                    extra["exif"] = exif
+            if xmp:
+                extra["xmp"] = xmp
+
             try:
                 img.save(
-                    output_path, "JPEG", quality=quality, subsampling=subsampling, optimize=True
+                    output_path,
+                    "JPEG",
+                    quality=quality,
+                    subsampling=subsampling,
+                    optimize=True,
+                    **extra,
                 )
             except OSError:
                 # optimize=True needs the whole JPEG to fit a buffer Pillow sizes at ~1 byte per
                 # pixel; very grainy images at 4:4:4 can exceed it. Fall back to standard
                 # Huffman tables (~1-2% larger).
-                img.save(output_path, "JPEG", quality=quality, subsampling=subsampling)
+                img.save(output_path, "JPEG", quality=quality, subsampling=subsampling, **extra)
 
     @staticmethod
     def chroma_subsampling(img: Image.Image, quality: int) -> int:
@@ -133,12 +174,21 @@ class ImageProcessor(MediaProcessor):
         quality: int,
         auto_orient: bool,
         extra_args: list[str],
+        convert_to_srgb: bool = False,
     ) -> None:
-        """Resize with ImageMagick exactly as expose.sh does (including image-options)."""
+        """Resize with ImageMagick exactly as expose.sh does (including image-options).
+
+        With ``convert_to_srgb``, ``-profile <sRGB>`` converts from the embedded profile first
+        (it only assigns one when the image has none, so untagged images are unchanged).
+        Metadata is always stripped on this path.
+        """
         cmd = ["convert"]
         if auto_orient:
             cmd.append("-auto-orient")
-        cmd += ["-size", f"{width}x{width}", str(input_path), "-resize", f"{width}x{width}"]
+        cmd += ["-size", f"{width}x{width}", str(input_path)]
+        if convert_to_srgb:
+            cmd += ["-profile", str(srgb_profile_file())]
+        cmd += ["-resize", f"{width}x{width}"]
         cmd += ["-quality", str(quality), "+profile", "*", *extra_args, str(output_path)]
         subprocess.run(cmd, check=True, capture_output=True)
 

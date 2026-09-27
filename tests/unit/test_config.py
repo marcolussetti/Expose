@@ -193,7 +193,19 @@ class TestLegacyDefaults:
 
     def test_dorothea_defaults_differ_only_where_intended(self):
         changed = {k for k in DEFAULT_CONFIG if DEFAULT_CONFIG[k] != EXPOSE_DEFAULTS[k]}
-        assert changed == {"sort", "video_formats", "h264_encodespeed", "social_button", "legacy"}
+        assert changed == {
+            "sort",
+            "video_formats",
+            "h264_encodespeed",
+            "social_button",
+            "convert_to_srgb",
+            "keep_metadata",
+            "legacy",
+        }
+        assert DOROTHEA_DEFAULTS["convert_to_srgb"] is True
+        assert DOROTHEA_DEFAULTS["keep_metadata"] == "camera"
+        assert EXPOSE_DEFAULTS["convert_to_srgb"] is False
+        assert EXPOSE_DEFAULTS["keep_metadata"] == "none"
         assert DEFAULT_CONFIG is DOROTHEA_DEFAULTS
         assert DOROTHEA_DEFAULTS["sort"] == "natural"
         assert DOROTHEA_DEFAULTS["video_formats"] == ["h264", "vp9"]
