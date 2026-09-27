@@ -42,6 +42,8 @@ EXPOSE_DEFAULTS = {
     "social_button": True,
     "download_button": False,
     "download_readme": "All rights reserved",
+    # Dorothea-only: one zip per gallery with all its originals (#9)
+    "download_album": False,
     "disqus_shortname": "",
     "sequence_keyword": "imagesequence",
     "sequence_framerate": 24,
@@ -351,7 +353,7 @@ class Config:
         if not isinstance(legacy, bool):
             errors.append(f"legacy must be true or false, got {legacy!r}")
 
-        for key in ("convert_to_srgb", "link_index_html", "gallery_feeds"):
+        for key in ("convert_to_srgb", "link_index_html", "gallery_feeds", "download_album"):
             if not isinstance(c.get(key, False), bool):
                 errors.append(f"{key} must be true or false, got {c[key]!r}")
 
@@ -414,6 +416,7 @@ class Config:
         self._config["bitrate"] = [4]
         self._config["video_formats"] = ["h264"]
         self._config["download_button"] = False
+        self._config["download_album"] = False
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value.

@@ -7,7 +7,7 @@ Settings are read, in increasing order of precedence, from:
    `_config.json`, expose.sh's `_config.sh` is read instead (see [MIGRATION.md](MIGRATION.md))
 3. `--set KEY=VALUE`, `-j N`, `--sort`, `--ffmpeg` and `--legacy` on the command line
 4. draft mode (`-d`), which forces `resolution=[1024]`, `bitrate=[4]`, `video_formats=["h264"]`
-   and `download_button=false`
+   and `download_button=false`, `download_album=false`
 
 ```json
 {
@@ -123,6 +123,7 @@ videos print which ffmpeg they use.
 |---|---|---|
 | `download_button` | `false` | Offer each original in a zip with a readme. |
 | `download_readme` | `"All rights reserved"` | Text of the `readme.txt` in each zip. |
+| `download_album` | `false` | Also offer each gallery as one zip, `…/iceland/iceland.zip`, with all its originals (an image sequence's frames in a folder of their own) and the `readme.txt`. `photoessay` and `medium` show a "download all" link with the zip's size; a custom theme gets it by putting `{{album_download}}` in its `template.html` and the link's markup in an `album-download.html` (with `{{albumurl}}` and `{{albumsize}}`). The zip is only rebuilt when the gallery's files or the readme change, but it takes as much space as the originals. A gallery's `metadata.txt` can override this either way with `download: false` / `download: true`; a zip Dorothea built for a gallery that no longer gets one is deleted. Not built in draft mode. Dorothea-only. |
 
 ## Dorothea-only
 
@@ -172,6 +173,7 @@ Caption in *Markdown*.
 | `date` | For the feeds (`site_url`). In a gallery's `metadata.txt`: when the gallery was published, as `2022-07-14`, `2022-07-14 18:30` or full ISO 8601; without it, a gallery's date is when its newest photo was taken (EXIF), else its newest file's time. In a photo's caption: its date in the gallery's own feed, instead of when it was taken. Dorothea-only. |
 | `title` | In a photo's caption: its title in the gallery's own feed (default: the file name without its number). Themes may show it too. |
 | `feed` | Only in a gallery's `metadata.txt`: `false` to not give this gallery its own feed, or `true` to give it one when `gallery_feeds` is off. Dorothea-only. |
+| `download` | Only in a gallery's `metadata.txt`: `false` to not offer this gallery as one zip, or `true` to offer it when `download_album` is off. Doesn't affect the per-photo `download_button`. Dorothea-only. |
 | `description` | Only in a gallery's `metadata.txt`, for the feed (`site_url`): the gallery's text in feed readers (Markdown). Without it, the first photo's caption is used. Dorothea-only. |
 | `sort` | Only in a gallery's `metadata.txt`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. Dorothea-only. |
 | anything else | Available to the theme as `{{key}}`. theme1 uses `top`, `left`, `width`, `height` (percent), `polygon` and `textcolor`; theme2 uses `width` and `class`. `color1`…`color7` come from the extracted palette. |

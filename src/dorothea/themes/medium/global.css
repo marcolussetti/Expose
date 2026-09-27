@@ -385,8 +385,8 @@ float: right;
 margin-top: 0.45em;
 }
 
-/* Feed link (#11), next to "More Stories" when site_url is set */
-#feed_button{
+/* Feed link (#11), next to "More Stories" when site_url is set; the album download (#9) too */
+#feed_button, #album_button{
 color: #fff;
 margin: 25px 0 0 1em;
 float: right;
@@ -402,6 +402,16 @@ margin: 0.6em 0.5em 0 0;
 background-color: currentColor;
 -webkit-mask: url(img/feed_mask.png) no-repeat;
 mask: url(img/feed_mask.png) no-repeat;
+}
+
+.album_icon{
+float: left;
+width: 18px;
+height: 16px;
+margin: 0.6em 0.5em 0 0;
+background-color: currentColor;
+-webkit-mask: url(img/download_mask.png) no-repeat;
+mask: url(img/download_mask.png) no-repeat;
 }
 
 .feedtext{

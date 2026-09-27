@@ -20,7 +20,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dorothea import __version__
-from dorothea.captions import caption_file, metadata_values, read_text_file, split_caption
+from dorothea.captions import (
+    caption_file,
+    metadata_flag,
+    metadata_values,
+    read_text_file,
+    split_caption,
+)
 from dorothea.media.exif import read_photo_info
 from dorothea.utils import href, strip_numeric_prefix
 
@@ -36,12 +42,7 @@ def feed_url_for(page_url: str) -> str:
 
 def gallery_feed_enabled(default: bool, metadata: dict[str, str]) -> bool:
     """Whether a gallery gets its own feed: ``feed:`` in its metadata.txt, else the setting."""
-    value = metadata.get("feed", "").strip().lower()
-    if value in ("true", "yes", "on"):
-        return True
-    if value in ("false", "no", "off"):
-        return False
-    return default
+    return metadata_flag(metadata, "feed", default)
 
 
 @dataclass(frozen=True)

@@ -67,3 +67,14 @@ def metadata_values(text: str) -> dict[str, str]:
         if sep and key.strip() and value.strip():
             values.setdefault(key.strip(), value.strip())
     return values
+
+
+def metadata_flag(metadata: dict[str, str], key: str, default: bool) -> bool:
+    """A yes/no ``key:`` from metadata (``true``/``yes``/``on``, ``false``/``no``/``off``,
+    any case), else ``default``."""
+    value = metadata.get(key, "").strip().lower()
+    if value in ("true", "yes", "on"):
+        return True
+    if value in ("false", "no", "off"):
+        return False
+    return default
