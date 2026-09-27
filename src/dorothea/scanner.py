@@ -16,9 +16,16 @@ from typing import NamedTuple
 from dorothea.cache import BuildCache, settings_hash, source_stat
 from dorothea.config import Config
 from dorothea.media.colors import ColorExtractor
+from dorothea.media.exif import read_photo_info
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
-from dorothea.utils import sequence_frames, site_path, slug_or_fallback, strip_numeric_prefix
+from dorothea.utils import (
+    sequence_frames,
+    site_path,
+    slug_or_fallback,
+    strip_numeric_prefix,
+    unique_slugs,
+)
 
 # Video extensions (from expose.py)
 VIDEO_EXTENSIONS = [
@@ -205,6 +212,18 @@ class Scanner:
         if not self.dry_run:
             (self.topdir / "_site").mkdir(exist_ok=True)
 
+        # Gallery slugs, made unique among siblings (same parent folder) in sort order
+        slugs = [slug_or_fallback(name, "gallery") for name in self.nav_name]
+        siblings: dict[Path, list[int]] = {}
+        for i in range(1, len(self.paths)):
+            siblings.setdefault(self.paths[i].parent, []).append(i)
+        for members in siblings.values():
+            unique = unique_slugs([slugs[i] for i in members], list(range(len(members))))
+            for i, slug in zip(members, unique, strict=True):
+                if slug != slugs[i]:
+                    self._warn_collision(self.paths[i], slugs[i], slug)
+                    slugs[i] = slug
+
         # Build URL structure
         dir_stack = []
         url_rel = ""
@@ -225,7 +244,7 @@ class Scanner:
                             dir_stack.pop()
                         diff -= 1
 
-            url_rel = slug_or_fallback(self.nav_name[i], "gallery")
+            url_rel = slugs[i]
 
             url = "/".join(dir_stack + [url_rel]) if dir_stack else url_rel
 
@@ -253,16 +272,18 @@ class Scanner:
                 continue
 
             if not self.dry_run:
-                (self.topdir / "_site" / self.nav_url[i]).mkdir(parents=True, exist_ok=True)
+                site_path(self.topdir / "_site", self.nav_url[i]).mkdir(parents=True, exist_ok=True)
 
             # Get files in directory, sorted; skip _ and hidden files (incl. macOS ._ files)
             files = sorted(f for f in path.iterdir() if not f.name.startswith(("_", ".")))
 
+            gallery: list[GalleryEntry] = []
             for file_path in files:
                 print(".", end="", flush=True)
                 entry = self._classify(i, file_path, sequence_keyword)
                 if entry:
-                    entries.append(entry)
+                    gallery.append(entry)
+            entries.extend(self._unique_urls(gallery))
 
         jobs = self.config.worker_count()
         if jobs > 1 and len(entries) > 1:
@@ -294,6 +315,51 @@ class Scanner:
                 self.nav_count[i] = counts.get(i, 0)
 
         print()
+
+    def _unique_urls(self, gallery: list[GalleryEntry]) -> list[GalleryEntry]:
+        """Give items in one gallery distinct URLs (e.g. ``01 photo.jpg`` and ``02 photo.jpg``).
+
+        Items whose names map to the same URL would share an output folder and overwrite each
+        other. The earliest one (by capture time, else file time, then name) keeps the URL;
+        the others get ``-2``, ``-3``, … Galleries without collisions are unchanged.
+        """
+        slugs = [entry.url for entry in gallery]
+        if len(set(slugs)) == len(slugs):
+            return gallery
+        counts: dict[str, int] = {}
+        for slug in slugs:
+            counts[slug] = counts.get(slug, 0) + 1
+        # Only colliding items need their (EXIF) time read; the rest keep folder order
+        rank = [
+            (self._taken_at(entry), entry.file_path.name) if counts[entry.url] > 1 else (0.0, "")
+            for entry in gallery
+        ]
+        result = []
+        for entry, slug in zip(gallery, unique_slugs(slugs, rank), strict=True):
+            if slug != entry.url:
+                self._warn_collision(entry.file_path, entry.url, slug)
+                entry = entry._replace(url=slug)
+            result.append(entry)
+        return result
+
+    @staticmethod
+    def _taken_at(entry: GalleryEntry) -> float:
+        """When an item was taken: EXIF capture time for photos and sequences, else file time."""
+        if not entry.is_video:
+            capture_time = read_photo_info(entry.image).capture_time
+            if capture_time is not None:
+                return capture_time
+        try:
+            return entry.file_path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    def _warn_collision(self, path: Path, slug: str, new_slug: str) -> None:
+        """Tell the user an item was renamed because its URL was already taken."""
+        rel = path.relative_to(self.topdir) if path.is_relative_to(self.topdir) else path
+        print(
+            f"\n\tWarning: '{rel}' has the same URL as another item ('{slug}'); using '{new_slug}'"
+        )
 
     def _classify(
         self, nav_index: int, file_path: Path, sequence_keyword: str

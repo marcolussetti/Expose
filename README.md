@@ -83,7 +83,7 @@ You can put images in folder to organize them. The folder can be nester arbitrar
 
 To set the order, again put a numerical prefix in front of them.
 
-Files and folders whose names start with `_` or `.` are ignored, so drafts (`_unsorted/`), hidden folders (`.git`, `.thumbs`) and macOS helper files (`.DS_Store`, `._IMG_0001.jpg`) never end up on the site. Names in any language work: a folder called `Москва` or `Café Zürich` becomes `москва/` or `café-zürich/` on the site.
+Files and folders whose names start with `_` or `.` are ignored, so drafts (`_unsorted/`), hidden folders (`.git`, `.thumbs`) and macOS helper files (`.DS_Store`, `._IMG_0001.jpg`) never end up on the site. Names in any language work: a folder called `Москва` or `Café Zürich` becomes `москва/` or `café-zürich/` on the site. If two photos end up with the same name once the numbering is stripped (`01 sunset.jpg` and `02 sunset.jpg`), the one taken first keeps `sunset/` and the other becomes `sunset-2/`.
 
 ![folders](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/folders.jpg)
 

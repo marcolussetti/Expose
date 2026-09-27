@@ -74,6 +74,7 @@ These are places where expose.sh has a bug or a platform quirk that Dorothea doe
 | Skips hidden folders only at the top level (`.foo/`); a hidden folder inside a gallery (`gallery/.thumbs/`) is published as a gallery and the photos around it disappear. | Skips hidden folders at any depth without affecting the gallery around them. |
 | Publishes hidden files (`.hidden.jpg`) and macOS `._` helper files as photos. | Ignores every name starting with `.` (as well as `_`). |
 | Drops non-ASCII letters from URLs: `Москва` and `北京` become empty, `Café` becomes `caf`. | Keeps letters from any script (`москва`, `北京`, `café`); names with no letters or digits (e.g. only emoji) get a stable `gallery-…`/`item-…` name. ASCII names produce the same URLs as expose.sh. |
+| Files or galleries whose names map to the same URL (`01 photo.jpg` / `02 photo.jpg`) share one output folder and overwrite each other. | The earliest photo (EXIF capture time, else file time) keeps the URL; the others get `-2`, `-3`, … with a warning. |
 | An image sequence mixing formats (JPEG + PNG) or extensions (`.JPG` + `.jpg`) silently loses frames. | Every frame is used; mixed formats are converted to lossless PNG first. |
 | Download zips for image sequences fail (it `cp`s the folder). | The zip contains the compiled sequence video. |
 | Unknown video extensions are checked with `file -ib`, using a path relative to the wrong directory, so effectively never. | Detected from the file extension's MIME type. |

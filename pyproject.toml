@@ -29,6 +29,7 @@ classifiers = [
 ]
 dependencies = [
     "click>=8.5",
+    "exifread>=3.5",
     "imageio-ffmpeg>=0.6",
     "markdown>=3.9",
     "pillow>=11.3.0",

@@ -48,6 +48,36 @@ def slug_or_fallback(name: str, kind: str) -> str:
     return url_safe(name) or f"{kind}-{hashlib.sha1(name.encode()).hexdigest()[:8]}"
 
 
+def unique_slugs[R](slugs: list[str], rank: list[R]) -> list[str]:
+    """Make slugs unique within one folder, so items never share an output directory.
+
+    Among items with the same slug, the one with the lowest ``rank`` keeps it and the others get
+    ``-2``, ``-3``, … in rank order. Suffixes skip every slug in the folder, so an item that is
+    really named ``photo-2`` keeps its name. Slugs without duplicates are returned unchanged.
+
+    Args:
+        slugs: One slug per item, in folder order.
+        rank: One sortable key per item (e.g. capture time); ties keep folder order.
+    """
+    result = list(slugs)
+    taken = set(slugs)
+    groups: dict[str, list[int]] = {}
+    for i, slug in enumerate(slugs):
+        groups.setdefault(slug, []).append(i)
+
+    for slug, members in groups.items():
+        if len(members) < 2:
+            continue
+        ordered = sorted(members, key=lambda i: (rank[i], i))
+        n = 2
+        for i in ordered[1:]:
+            while f"{slug}-{n}" in taken:
+                n += 1
+            result[i] = f"{slug}-{n}"
+            taken.add(result[i])
+    return result
+
+
 def site_path(site: Path, url: str) -> Path:
     """Join a generated URL onto ``_site``, refusing anything that would land outside it."""
     path = (site / url).resolve()
