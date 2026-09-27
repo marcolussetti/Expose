@@ -24,6 +24,7 @@ from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
 from dorothea.media.ffmpeg import describe_ffmpeg, ffmpeg_exe, missing_encoders, run_ffmpeg
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
+from dorothea.utils import sequence_frames, site_path
 
 # Sequence frame extension -> image2 codec family (.jpg and .jpeg decode the same)
 _FRAME_KIND = {".jpg": "jpg", ".jpeg": "jpg", ".png": "png", ".gif": "gif"}
@@ -273,7 +274,7 @@ class MediaEncoder:
         url = f"{self.nav_url[self.gallery_nav[i]]}/{self.gallery_url[i]}"
         if not self.dry_run:
             print(f"[{i + 1}/{len(self.gallery_files)}] {self.gallery_url[i]}")
-            (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
+            site_path(self.topdir / "_site", url).mkdir(parents=True, exist_ok=True)
 
         scratch = self.scratchdir / f"item-{i}"
         scratch.mkdir(parents=True, exist_ok=True)
@@ -332,7 +333,7 @@ class MediaEncoder:
     def _planning_dims(self, index: int, file_path: Path) -> tuple[int, int]:
         """Source dimensions for a dry run: probe videos, read a sequence's first frame."""
         if self.gallery_type[index] == 2:
-            frames = sorted(f for f in file_path.iterdir() if f.suffix.lower() in _FRAME_KIND)
+            frames = sequence_frames(file_path)
             if not frames:
                 return 0, 0
             return self.image_processor.extract_dimensions(frames[0])
@@ -373,9 +374,7 @@ class MediaEncoder:
             Path to compiled video, or None if compilation failed.
         """
         scratch = scratch or self.scratchdir
-        images = sorted(
-            [f for f in seq_dir.iterdir() if f.suffix.lower() in [".jpg", ".jpeg", ".gif", ".png"]]
-        )
+        images = sequence_frames(seq_dir)
 
         if not images:
             return None

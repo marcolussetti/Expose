@@ -43,11 +43,18 @@ This is a Python application designed to run on Linux and macOs with Python 3.14
 
 Run it without installing, or install it as a command:
 
-	uvx dorothea                 # or: pipx run dorothea
-	uv tool install dorothea     # or: pipx install dorothea
+	uvx dorothea                 # run it once
+	uv tool install dorothea     # or install the `dorothea` command
 
 
-If you do not have `uvx/uvx`, you can install it from the [official uv website](https://docs.astral.sh/uv/getting-started/installation/) -- alternatively [`pipx`](https://github.com/pypa/pipx) is also supported.
+If you do not have `uv`/`uvx`, you can install it from the [official uv website](https://docs.astral.sh/uv/getting-started/installation/). uv picks (and if needed downloads) the Python 3.14 that Dorothea needs by itself.
+
+[`pipx`](https://github.com/pypa/pipx) works too, but it doesn't choose the Python version on its own, so ask for 3.14 (pipx downloads it if you don't have it):
+
+	pipx run --python 3.14 --fetch-python=missing dorothea
+	pipx install --python 3.14 --fetch-python=missing dorothea
+
+Plain `pipx install dorothea` only works if pipx's default Python is already 3.14 or newer.
 
 It will bring with it everything it needs including `ffmpeg`. However if you have `ffmpeg` already installed, it will use it; and if you have `ImageMagick`, it may use that for some features instead of `Pillow` for better compatibility with the original (colour extraction and image-options).
 
@@ -75,6 +82,8 @@ Images are sorted by alphabetical order. If you wish to set a different order, a
 You can put images in folder to organize them. The folder can be nester arbitrarily. This generates a nested HTML menu for navigation.
 
 To set the order, again put a numerical prefix in front of them.
+
+Files and folders whose names start with `_` or `.` are ignored, so drafts (`_unsorted/`), hidden folders (`.git`, `.thumbs`) and macOS helper files (`.DS_Store`, `._IMG_0001.jpg`) never end up on the site. Names in any language work: a folder called `Москва` or `Café Zürich` becomes `москва/` or `café-zürich/` on the site.
 
 ![folders](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/folders.jpg)
 

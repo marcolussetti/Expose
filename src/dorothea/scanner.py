@@ -18,7 +18,7 @@ from dorothea.config import Config
 from dorothea.media.colors import ColorExtractor
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
-from dorothea.utils import strip_numeric_prefix, url_safe
+from dorothea.utils import sequence_frames, site_path, slug_or_fallback, strip_numeric_prefix
 
 # Video extensions (from expose.py)
 VIDEO_EXTENSIONS = [
@@ -163,9 +163,9 @@ class Scanner:
             # Calculate depth
             node_depth = len(node.parts) - root_depth
 
-            # Skip empty directories
+            # Skip empty directories; hidden files (e.g. a leftover .DS_Store) don't count
             try:
-                if not any(node.iterdir()):
+                if not any(not entry.name.startswith(".") for entry in node.iterdir()):
                     continue
             except PermissionError:
                 continue
@@ -175,8 +175,11 @@ class Scanner:
             if not node_name:
                 node_name = node.name
 
-            # Count subdirectories (excluding _ prefixed)
-            subdirs = [d for d in node.iterdir() if d.is_dir() and not d.name.startswith("_")]
+            # Count subdirectories, ignoring _ and hidden ones: they're skipped above, so a
+            # gallery with e.g. a .thumbs folder inside must still count as a gallery (leaf)
+            subdirs = [
+                d for d in node.iterdir() if d.is_dir() and not d.name.startswith(("_", "."))
+            ]
             dircount = len(subdirs)
 
             # Count subdirs excluding sequence keyword dirs
@@ -222,12 +225,12 @@ class Scanner:
                             dir_stack.pop()
                         diff -= 1
 
-            url_rel = url_safe(self.nav_name[i])
+            url_rel = slug_or_fallback(self.nav_name[i], "gallery")
 
             url = "/".join(dir_stack + [url_rel]) if dir_stack else url_rel
 
             if not self.dry_run:
-                (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
+                site_path(self.topdir / "_site", url).mkdir(parents=True, exist_ok=True)
             self.nav_url.append(url)
 
         print()
@@ -252,8 +255,8 @@ class Scanner:
             if not self.dry_run:
                 (self.topdir / "_site" / self.nav_url[i]).mkdir(parents=True, exist_ok=True)
 
-            # Get files in directory, sorted
-            files = sorted([f for f in path.iterdir() if not f.name.startswith("_")])
+            # Get files in directory, sorted; skip _ and hidden files (incl. macOS ._ files)
+            files = sorted(f for f in path.iterdir() if not f.name.startswith(("_", ".")))
 
             for file_path in files:
                 print(".", end="", flush=True)
@@ -304,15 +307,11 @@ class Scanner:
         trimmed = re.sub(r"^[\s0-9]*", "", file_path.stem).strip()
         if not trimmed:
             trimmed = file_path.stem
-        image_url = url_safe(trimmed)
+        image_url = slug_or_fallback(trimmed, "item")
 
         if file_path.is_dir() and sequence_keyword and sequence_keyword in filename:
             # Use the first image of the sequence for colours/dimensions
-            seq_images = sorted(
-                f
-                for f in file_path.iterdir()
-                if f.suffix.lower() in [".jpg", ".jpeg", ".gif", ".png"]
-            )
+            seq_images = sequence_frames(file_path)
             if not seq_images:
                 return None
             return GalleryEntry(nav_index, file_path, image_url, 2, seq_images[0], False)

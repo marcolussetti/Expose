@@ -69,7 +69,8 @@ jobs:
           wheel=$(ls dist/*.whl)
           uvx --isolated --from "$wheel" dorothea --version
           uvx --isolated --from "$wheel" expose --version
-          uvx pipx run --no-cache --spec "$wheel" dorothea --version
+          # the pipx command the README documents (pipx doesn't pick Python from the package)
+          uvx pipx run --no-cache --python 3.14 --fetch-python=missing --spec "$wheel" dorothea --version
       - name: Build a gallery from the wheel and from the sdist
         run: |
           for dist in dist/*.whl dist/*.tar.gz; do

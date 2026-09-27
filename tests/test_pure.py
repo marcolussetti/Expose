@@ -11,7 +11,8 @@ def test_url_safe_basic():
 
 
 def test_url_safe_special_chars():
-    assert url_safe("café & bar!") == "caf--bar"
+    # Letters from any script are kept (#18); expose.sh drops the é ("caf--bar")
+    assert url_safe("café & bar!") == "café--bar"
 
 
 def test_url_safe_underscores():

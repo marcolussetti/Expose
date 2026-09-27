@@ -11,6 +11,7 @@ from dorothea.config import Config
 from dorothea.media.markdown import MarkdownProcessor
 from dorothea.template import TemplateEngine
 from dorothea.themes import resolve_theme_dir
+from dorothea.utils import href
 
 
 def _read_text_file(path: Path) -> str:
@@ -226,7 +227,9 @@ class HTMLBuilder:
                             self.gallery_video_filters[gallery_index] = value
 
                 # Set image parameters
-                post = TemplateEngine.substitute(post, "imageurl", self.gallery_url[gallery_index])
+                post = TemplateEngine.substitute(
+                    post, "imageurl", href(self.gallery_url[gallery_index])
+                )
                 post = TemplateEngine.substitute(
                     post, "imagewidth", str(self.gallery_maxwidth[gallery_index])
                 )
@@ -298,7 +301,7 @@ class HTMLBuilder:
         if firsthtml:
             root_html = TemplateEngine.substitute(firsthtml, "basepath", "./")
             root_html = TemplateEngine.substitute(root_html, "disqus_identifier", firstpath)
-            root_html = TemplateEngine.substitute(root_html, "resourcepath", firstpath + "/")
+            root_html = TemplateEngine.substitute(root_html, "resourcepath", href(firstpath) + "/")
             root_html = TemplateEngine.apply_defaults(root_html)
             root_html = TemplateEngine.clean_unused(root_html)
             root_html = root_html.replace("<ul></ul>", "")
@@ -338,14 +341,14 @@ class HTMLBuilder:
                         navigation += f'<li><span class="label">{self.nav_name[j]}</span><ul>{{{{marker{j}}}}}</ul></li>'
                     else:
                         gindex = self._find_gallery_index(j)
-                        navigation += f'<li class="gallery {active}" data-image="{self.gallery_url[gindex]}"><a href="{{{{basepath}}}}{self.nav_url[j]}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>'
+                        navigation += f'<li class="gallery {active}" data-image="{href(self.gallery_url[gindex])}"><a href="{{{{basepath}}}}{href(self.nav_url[j])}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>'
                     remaining -= 1
                 elif self.nav_depth[j] == depth:
                     if self.nav_type[j] == 0:
                         substring = f'<li><span class="label">{self.nav_name[j]}</span><ul>{{{{marker{j}}}}}</ul></li>{{{{marker{parent}}}}}'
                     else:
                         gindex = self._find_gallery_index(j)
-                        substring = f'<li class="gallery {active}" data-image="{self.gallery_url[gindex]}"><a href="{{{{basepath}}}}{self.nav_url[j]}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>{{{{marker{parent}}}}}'
+                        substring = f'<li class="gallery {active}" data-image="{href(self.gallery_url[gindex])}"><a href="{{{{basepath}}}}{href(self.nav_url[j])}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>{{{{marker{parent}}}}}'
                     navigation = TemplateEngine.substitute(navigation, f"marker{parent}", substring)
                     remaining -= 1
 

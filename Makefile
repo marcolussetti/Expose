@@ -1,7 +1,7 @@
 # Dorothea Makefile
 # Common development tasks using uv
 
-.PHONY: help test test-cov test-fast clean install lint format typecheck
+.PHONY: help test test-cov test-fast clean install lint format typecheck try compare package-check ci-local
 
 help:
 	@echo "Available commands:"
@@ -14,6 +14,12 @@ help:
 	@echo "  make typecheck  - Type-check src/ with ty"
 	@echo "  make format     - Format code (via prek ruff-format)"
 	@echo "  make install-hooks - Install prek hooks"
+	@echo ""
+	@echo "Manual checks (work in .sandbox/, which is gitignored):"
+	@echo "  make try [GALLERY=dir] [ARGS=\"-d ...\"]  - Build a fresh copy of a gallery with this checkout"
+	@echo "  make compare [GALLERY=dir]                - Build a copy with expose.sh and Dorothea (draft) and diff them"
+	@echo "  make package-check                        - Build the wheel/sdist and run them via uvx and pipx"
+	@echo "  make ci-local                             - Run every CI job locally with act"
 
 # Run all tests
 test:
@@ -61,3 +67,48 @@ format:
 
 # Run full CI checks locally
 ci: clean lint test-cov
+
+# --- Manual checks -------------------------------------------------------------------------
+# Throwaway work happens in $(SANDBOX); GALLERY defaults to the real-photo test gallery.
+SANDBOX ?= .sandbox
+GALLERY ?= tests/data/test_run
+ARGS ?= -d
+
+# Copy GALLERY into $(SANDBOX)/<name> without its _site or build cache
+define fresh_copy
+	@rm -rf $(SANDBOX)/$(1) && mkdir -p $(SANDBOX)/$(1)
+	@cp -r "$(GALLERY)"/. $(SANDBOX)/$(1)/
+	@rm -rf $(SANDBOX)/$(1)/_site $(SANDBOX)/$(1)/.dorothea-cache.json
+endef
+
+# Build a fresh copy of GALLERY with this checkout: make try ARGS="-d --ffmpeg bundled"
+try:
+	$(call fresh_copy,try)
+	cd $(SANDBOX)/try && uv run --project "$(CURDIR)" dorothea $(ARGS)
+	@echo "--- $(SANDBOX)/try/_site:"
+	@find $(SANDBOX)/try/_site -mindepth 1 -maxdepth 2 -type d ! -path '*/img*' | sort
+
+# Build GALLERY with expose.sh and with Dorothea (draft mode) and compare like the parity tests
+compare:
+	$(call fresh_copy,compare-shell)
+	$(call fresh_copy,compare-python)
+	cd $(SANDBOX)/compare-shell && bash "$(CURDIR)/tests/reference/expose.sh" -d > /dev/null
+	cd $(SANDBOX)/compare-python && uv run --project "$(CURDIR)" dorothea -d > /dev/null
+	uv run python -c "import sys; from pathlib import Path; \
+	from tests.test_final_parity import compare_directories as c; \
+	d = c(Path('$(SANDBOX)/compare-shell/_site'), Path('$(SANDBOX)/compare-python/_site')); \
+	print('\n'.join(d) or 'No differences'); sys.exit(1 if d else 0)"
+
+# Build the wheel and sdist, then run them the way users will (like the CI package job)
+package-check:
+	@rm -rf $(SANDBOX)/dist && uv build -q --out-dir $(SANDBOX)/dist
+	uvx --isolated --from "$$(ls $(SANDBOX)/dist/*.whl)" dorothea --version
+	uvx --isolated --from "$$(ls $(SANDBOX)/dist/*.whl)" expose --version
+	uvx pipx run --no-cache --python 3.14 --fetch-python=missing --spec "$$(ls $(SANDBOX)/dist/*.whl)" dorothea --version
+	$(call fresh_copy,package)
+	cd $(SANDBOX)/package && uvx --isolated --from "$$(ls $(CURDIR)/$(SANDBOX)/dist/*.whl)" dorothea -d > /dev/null
+	@test -s $(SANDBOX)/package/_site/index.html && echo "OK: built a gallery from the wheel"
+
+# Run every CI job locally with act (needs docker)
+ci-local:
+	act -P ubuntu-latest=catthehacker/ubuntu:act-latest
