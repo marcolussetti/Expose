@@ -21,7 +21,7 @@ from PIL import Image
 
 from dorothea.cache import BuildCache, Fingerprint, settings_hash, source_stat
 from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
-from dorothea.media.ffmpeg import run_ffmpeg
+from dorothea.media.ffmpeg import describe_ffmpeg, ffmpeg_exe, missing_encoders, run_ffmpeg
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
 
@@ -231,6 +231,8 @@ class MediaEncoder:
         total = len(self.gallery_files)
         images = [i for i in range(total) if self.gallery_type[i] == 0]
         videos = [i for i in range(total) if self.gallery_type[i] != 0]
+        if videos and not self.dry_run:
+            self._report_ffmpeg()
 
         jobs = self.config.worker_count()
         # A dry run only stats files; keep it sequential so the plan lists in gallery order
@@ -248,6 +250,22 @@ class MediaEncoder:
 
         for i in videos:
             self._encode_item(i)
+
+    def _report_ffmpeg(self) -> None:
+        """Say which ffmpeg encodes the videos, and warn about formats it can't produce."""
+        exe = ffmpeg_exe()
+        if exe is None:
+            print(
+                f"No ffmpeg available (ffmpeg: {self.config.get('ffmpeg', 'auto')}); videos skipped"
+            )
+            return
+        print(f"Using {describe_ffmpeg(exe)}")
+        formats = ["h264"] if self.draft else self.config["video_formats"]
+        for fmt, encoder in missing_encoders(exe, formats).items():
+            print(
+                f"\tWarning: this ffmpeg has no {encoder} encoder, so {fmt} videos will fail; "
+                "try --ffmpeg bundled or another ffmpeg"
+            )
 
     def _encode_item(self, i: int) -> None:
         """Encode one gallery item in its own scratch directory."""

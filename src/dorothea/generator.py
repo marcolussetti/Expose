@@ -14,6 +14,7 @@ from dorothea.builder import HTMLBuilder
 from dorothea.cache import BuildCache
 from dorothea.config import Config
 from dorothea.encoder import MediaEncoder
+from dorothea.media.ffmpeg import set_ffmpeg
 from dorothea.media.image import ImageProcessor
 from dorothea.scanner import Scanner
 from dorothea.themes import resolve_theme_dir
@@ -73,6 +74,9 @@ class ExposeGenerator:
         self.config = config
         self.draft = draft
         self.dry_run = dry_run
+
+        # Choose the ffmpeg binary before anything (Scanner's VideoProcessor) looks it up
+        set_ffmpeg(config.get("ffmpeg", "auto"))
 
         self.cache = BuildCache(self.topdir) if use_cache else None
         self.scanner = Scanner(topdir, scriptdir, config, cache=self.cache, dry_run=dry_run)

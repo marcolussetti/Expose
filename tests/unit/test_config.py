@@ -230,3 +230,24 @@ def test_every_setting_is_documented():
     docs = (Path(__file__).resolve().parents[2] / "CONFIG.md").read_text(encoding="utf-8")
     missing = [key for key in DEFAULT_CONFIG if f"`{key}`" not in docs]
     assert missing == []
+
+
+class TestFfmpegSetting:
+    def test_default_is_auto(self):
+        assert DEFAULT_CONFIG["ffmpeg"] == "auto"
+
+    @pytest.mark.parametrize("value", ["auto", "bundled"])
+    def test_valid_choices(self, value, tmp_path):
+        Config({**DEFAULT_CONFIG, "ffmpeg": value}).validate(tmp_path)
+
+    def test_missing_system_ffmpeg_only_warns(self, tmp_path):
+        from unittest import mock
+
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value=None):
+            warnings = Config({**DEFAULT_CONFIG, "ffmpeg": "system"}).validate(tmp_path)
+        assert any("videos will be skipped" in w for w in warnings)
+
+    @pytest.mark.parametrize("value", ["/no/such/ffmpeg", "", 5])
+    def test_invalid_values(self, value, tmp_path):
+        with pytest.raises(ConfigError, match="ffmpeg"):
+            Config({**DEFAULT_CONFIG, "ffmpeg": value}).validate(tmp_path)

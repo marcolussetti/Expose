@@ -168,6 +168,7 @@ Other flags:
 	dorothea --config other.json          # use a different config file than ./_config.json
 	dorothea --set jpeg_quality=85 --set 'resolution=[1920,640]'   # override config values
 	dorothea -j 4                         # parallel workers for images (default: one per CPU)
+	dorothea --ffmpeg bundled             # which ffmpeg: auto (default), bundled, system, or a path
 	dorothea --convert-config             # turn an expose.sh _config.sh into _config.json
 	dorothea --version
 

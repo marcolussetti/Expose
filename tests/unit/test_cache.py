@@ -4,6 +4,7 @@ import json
 from unittest import mock
 
 import pytest
+from click.testing import CliRunner
 
 from dorothea.cache import CACHE_NAME, BuildCache, Fingerprint, settings_hash, source_stat
 from dorothea.cli import main
@@ -144,12 +145,12 @@ class TestDryRun:
         assert reasons["urban/city/1024.jpg"] == "source changed"
         assert reasons["nature/oceans/wave/1024.jpg"] == "settings changed"
 
-    def test_cli_summary(self, tmp_path, monkeypatch, capsys):
+    def test_cli_summary(self, tmp_path, monkeypatch):
         make_gallery_tree(tmp_path)
         monkeypatch.chdir(tmp_path)
-        with mock.patch("sys.argv", ["expose", "-n", "-d"]):
-            main()
-        out = capsys.readouterr().out
+        result = CliRunner().invoke(main, ["-n", "-d"])
+        assert result.exit_code == 0, result.output
+        out = result.stdout
         assert "Would write 4 HTML pages; would encode 3 files (3 new)" in out
         assert "urban/city/1024.jpg  [new]" in out
         assert not (tmp_path / "_site").exists()
