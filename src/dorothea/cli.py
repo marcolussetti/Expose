@@ -1,10 +1,9 @@
 """Command-line interface for Dorothea.
 
-Handles argument parsing, configuration loading/validation, signal handlers,
+Handles option parsing (click), configuration loading/validation, signal handlers,
 and orchestrates the generation process.
 """
 
-import argparse
 import atexit
 import json
 import signal
@@ -13,59 +12,11 @@ from collections import Counter
 from pathlib import Path
 from types import FrameType
 
+import click
+
 from dorothea import __version__
 from dorothea.config import Config, ConfigError, parse_config_sh, parse_override
 from dorothea.generator import ExposeGenerator
-
-
-def build_parser() -> argparse.ArgumentParser:
-    """Build the argument parser for the ``expose`` command."""
-    parser = argparse.ArgumentParser(
-        description="Dorothea - static photography website generator (a port of expose.sh). "
-        "Run it inside a folder of images/videos; output goes to ./_site",
-    )
-    parser.add_argument(
-        "-d",
-        "--draft",
-        action="store_true",
-        help="Draft mode: single resolution, fast encoding",
-    )
-    parser.add_argument(
-        "-c",
-        "--config",
-        type=Path,
-        metavar="PATH",
-        help="Config file to use (default: ./_config.json if present)",
-    )
-    parser.add_argument(
-        "-s",
-        "--set",
-        action="append",
-        default=[],
-        metavar="KEY=VALUE",
-        help="Override a config value; VALUE is parsed as JSON when possible "
-        "(e.g. --set jpeg_quality=85 --set 'resolution=[1920,640]'). Repeatable.",
-    )
-    parser.add_argument(
-        "-j",
-        "--jobs",
-        type=int,
-        metavar="N",
-        help="Parallel workers for image processing (default: one per CPU)",
-    )
-    parser.add_argument(
-        "-n",
-        "--dry-run",
-        action="store_true",
-        help="Show what would be built without writing anything",
-    )
-    parser.add_argument(
-        "--convert-config",
-        action="store_true",
-        help="Write _config.json from an expose.sh _config.sh (or --config FILE.sh) and exit",
-    )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    return parser
 
 
 def format_plan(pages: int, planned: list[tuple[str, str]]) -> str:
@@ -84,51 +35,125 @@ def convert_config(topdir: Path, source: Path | None, prog: str = "dorothea") ->
     source = source or topdir / "_config.sh"
     target = topdir / "_config.json"
     if not source.exists():
-        print(f"{prog}: {source} not found", file=sys.stderr)
+        click.echo(f"{prog}: {source} not found", err=True)
         return 2
     if target.exists():
-        print(f"{prog}: {target} already exists; not overwriting", file=sys.stderr)
+        click.echo(f"{prog}: {target} already exists; not overwriting", err=True)
         return 2
     values, warnings = parse_config_sh(source.read_text(encoding="utf-8"))
     for warning in warnings:
-        print(f"Warning: {warning}", file=sys.stderr)
+        click.echo(f"Warning: {warning}", err=True)
     text = json.dumps(values, indent=2, ensure_ascii=False) + "\n"
     target.write_text(text, encoding="utf-8")
-    print(f"Wrote {target}:\n{text}", end="")
+    click.echo(f"Wrote {target}:\n{text}", nl=False)
     return 0
 
 
-def main() -> None:
-    """Main entry point for the CLI."""
-    parser = build_parser()
-    args = parser.parse_args()
+def _print_version(ctx: click.Context, value: bool) -> None:
+    """``--version``: print the name the command was invoked as, and the version.
 
+    (``click.version_option`` caches the program name from its first call, which goes stale when
+    the command runs more than once in a process.)
+    """
+    if value and not ctx.resilient_parsing:
+        click.echo(f"{ctx.find_root().info_name} {__version__}")
+        ctx.exit()
+
+
+@click.command(
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog="Run inside a folder of photos and videos; the site is written to ./_site. "
+    "Every setting is described in CONFIG.md.",
+)
+@click.option("-d", "--draft", is_flag=True, help="Draft mode: single resolution, fast encoding.")
+@click.option(
+    "-n", "--dry-run", is_flag=True, help="Show what would be built without writing anything."
+)
+@click.option(
+    "-c",
+    "--config",
+    "config_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    metavar="PATH",
+    help="Config file to use, .json or expose.sh .sh (default: ./_config.json, else ./_config.sh).",
+)
+@click.option(
+    "-s",
+    "--set",
+    "overrides",
+    multiple=True,
+    metavar="KEY=VALUE",
+    help="Override a setting; VALUE is parsed as JSON when possible "
+    "(e.g. --set jpeg_quality=85 --set 'resolution=[1920,640]'). Repeatable.",
+)
+@click.option(
+    "-j",
+    "--jobs",
+    type=int,
+    metavar="N",
+    help="Parallel workers for images (default: one per CPU).",
+)
+@click.option(
+    "--ffmpeg",
+    metavar="auto|bundled|system|PATH",
+    help="Which ffmpeg to use for video: system if installed, else bundled (auto, the default); "
+    "only the bundled one; only the system one; or a path to an ffmpeg binary.",
+)
+@click.option(
+    "--convert-config",
+    "convert",
+    is_flag=True,
+    help="Write _config.json from an expose.sh _config.sh (or --config FILE.sh) and exit.",
+)
+@click.option(
+    "--version",
+    is_flag=True,
+    expose_value=False,
+    is_eager=True,
+    callback=lambda ctx, _param, value: _print_version(ctx, value),
+    help="Show the version and exit.",
+)
+@click.pass_context
+def main(
+    ctx: click.Context,
+    draft: bool,
+    dry_run: bool,
+    config_path: Path | None,
+    overrides: tuple[str, ...],
+    jobs: int | None,
+    ffmpeg: str | None,
+    convert: bool,
+) -> None:
+    """Dorothea: a static photography website generator (a port of expose.sh)."""
+    prog = ctx.info_name or "dorothea"
     topdir = Path.cwd()
     # scriptdir is the dorothea package directory; themes are bundled inside it
     scriptdir = Path(__file__).parent.resolve()
 
-    if args.convert_config:
-        sys.exit(convert_config(topdir, args.config, parser.prog))
+    if convert:
+        ctx.exit(convert_config(topdir, config_path, prog))
 
     try:
-        overrides = dict(parse_override(item) for item in args.set)
-        if args.jobs is not None:
-            overrides["jobs"] = args.jobs
-        config = Config.load(topdir, scriptdir, config_path=args.config, overrides=overrides)
+        settings = dict(parse_override(item) for item in overrides)
+        if jobs is not None:
+            settings["jobs"] = jobs
+        if ffmpeg is not None:
+            settings["ffmpeg"] = ffmpeg
+        config = Config.load(topdir, scriptdir, config_path=config_path, overrides=settings)
         for warning in config.load_warnings + config.validate(topdir):
-            print(f"Warning: {warning}", file=sys.stderr)
+            click.echo(f"Warning: {warning}", err=True)
     except ConfigError as e:
-        print(f"{parser.prog}: {e}", file=sys.stderr)
-        sys.exit(2)
+        click.echo(f"{prog}: {e}", err=True)
+        ctx.exit(2)
 
-    if args.draft:
+    if draft:
         config.apply_draft_mode()
 
-    generator = ExposeGenerator(topdir, scriptdir, config, draft=args.draft, dry_run=args.dry_run)
+    generator = ExposeGenerator(topdir, scriptdir, config, draft=draft, dry_run=dry_run)
 
-    if args.dry_run:
+    if dry_run:
         generator.run()
-        print(format_plan(generator.planned_pages, generator.planned))
+        click.echo(format_plan(generator.planned_pages, generator.planned))
         return
 
     # Set up signal handlers for cleanup

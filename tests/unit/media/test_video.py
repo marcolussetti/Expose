@@ -157,3 +157,108 @@ class TestFfmpegHelpers:
         ).stdout.strip()
         w, h = (int(x) for x in out.split(","))
         assert ffmpeg.probe_dimensions(video) == (w, h)
+
+
+class TestFfmpegChoice:
+    """The ffmpeg setting / --ffmpeg flag (issue #3)."""
+
+    def test_auto_prefers_system(self):
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            assert ffmpeg.ffmpeg_exe("auto") == "ffmpeg"
+
+    def test_bundled_ignores_system(self):
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            exe = ffmpeg.ffmpeg_exe("bundled")
+        assert exe is not None and exe != "ffmpeg" and "ffmpeg" in exe
+
+    def test_system_without_system_ffmpeg(self):
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value=None):
+            assert ffmpeg.ffmpeg_exe("system") is None
+
+    def test_custom_path(self, tmp_path):
+        exe = tmp_path / "my-ffmpeg"
+        exe.write_text("#!/bin/sh\n")
+        exe.chmod(0o755)
+        assert ffmpeg.ffmpeg_exe(str(exe)) == str(exe)
+        assert ffmpeg.ffmpeg_kind(str(exe)) == "custom"
+
+    def test_custom_path_must_be_executable(self, tmp_path):
+        plain = tmp_path / "not-executable"
+        plain.write_text("x")
+        assert ffmpeg.ffmpeg_exe(str(plain)) is None
+        assert ffmpeg.ffmpeg_exe(str(tmp_path / "missing")) is None
+
+    def test_set_ffmpeg_changes_default(self):
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+            ffmpeg.set_ffmpeg("bundled")
+            assert ffmpeg.ffmpeg_exe() != "ffmpeg"
+            ffmpeg.set_ffmpeg(None)
+            assert ffmpeg.ffmpeg_exe() == "ffmpeg"
+
+    def test_generator_applies_config(self, tmp_path):
+        from dorothea.config import DEFAULT_CONFIG, Config
+        from dorothea.generator import ExposeGenerator
+
+        ExposeGenerator(tmp_path, tmp_path, Config({**DEFAULT_CONFIG, "ffmpeg": "bundled"}))
+        assert ffmpeg._choice == "bundled"
+
+    @mock.patch("subprocess.run")
+    def test_version_parsing(self, mock_run):
+        mock_run.return_value = mock.MagicMock(
+            stdout="ffmpeg version 7.0.2-static https://johnvansickle.com Copyright (c) 2000\n"
+        )
+        assert ffmpeg.ffmpeg_version("ffmpeg") == "7.0.2-static"
+        mock_run.return_value = mock.MagicMock(stdout="garbage\n")
+        assert ffmpeg.ffmpeg_version("ffmpeg") == "unknown"
+
+    @mock.patch("subprocess.run")
+    def test_encoder_parsing_and_missing(self, mock_run):
+        mock_run.return_value = mock.MagicMock(
+            stdout=(
+                "Encoders:\n V..... = Video\n ------\n"
+                " V....D libx264              libx264 H.264 / AVC\n"
+                " V....D libvpx               libvpx VP8\n"
+                " A....D aac                  AAC (Advanced Audio Coding)\n"
+            )
+        )
+        assert ffmpeg.ffmpeg_encoders("ffmpeg") == {"libx264", "libvpx", "aac"}
+        missing = ffmpeg.missing_encoders("ffmpeg", ["h264", "vp8", "vp9", "h265"])
+        assert missing == {"vp9": "libvpx-vp9", "h265": "libx265"}
+
+    @mock.patch("subprocess.run", side_effect=OSError("cannot run"))
+    def test_unlistable_encoders_warn_nothing(self, _mock_run):
+        assert ffmpeg.missing_encoders("ffmpeg", ["vp8"]) == {}
+
+    def test_real_ffmpeg_has_the_default_encoders(self):
+        exe = ffmpeg.ffmpeg_exe()
+        assert ffmpeg.ffmpeg_version(exe) != "unknown"
+        assert ffmpeg.missing_encoders(exe, ["h264", "vp8"]) == {}
+
+
+class TestReportFfmpeg:
+    """The 'Using ffmpeg …' line and missing-encoder warnings before video encoding."""
+
+    def _encoder(self, tmp_path, formats):
+        from dorothea.config import DEFAULT_CONFIG, Config
+        from dorothea.encoder import MediaEncoder
+
+        config = Config({**DEFAULT_CONFIG, "video_formats": formats})
+        return MediaEncoder(tmp_path, tmp_path, config, False, [], [], [], [], [], [], [])
+
+    def test_reports_ffmpeg_in_use(self, tmp_path, capsys):
+        self._encoder(tmp_path, ["h264"])._report_ffmpeg()
+        out = capsys.readouterr().out
+        assert out.startswith("Using ffmpeg ")
+        assert "Warning" not in out
+
+    def test_warns_about_missing_encoders(self, tmp_path, capsys):
+        with mock.patch("dorothea.encoder.missing_encoders", return_value={"vp9": "libvpx-vp9"}):
+            self._encoder(tmp_path, ["h264", "vp9"])._report_ffmpeg()
+        out = capsys.readouterr().out
+        assert "no libvpx-vp9 encoder, so vp9 videos will fail" in out
+        assert "--ffmpeg bundled" in out
+
+    def test_reports_when_unavailable(self, tmp_path, capsys):
+        with mock.patch("dorothea.encoder.ffmpeg_exe", return_value=None):
+            self._encoder(tmp_path, ["h264"])._report_ffmpeg()
+        assert "No ffmpeg available" in capsys.readouterr().out

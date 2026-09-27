@@ -55,8 +55,9 @@ to delete `_site`.
 
 ## Video
 
-Video needs ffmpeg: a system `ffmpeg` on `PATH` is used if present, otherwise the one bundled
-with Dorothea (imageio-ffmpeg).
+Video needs ffmpeg: by default a system `ffmpeg` on `PATH` is used if present, otherwise the one
+bundled with Dorothea (imageio-ffmpeg); the `ffmpeg` setting below picks explicitly. Builds with
+videos print which ffmpeg they use.
 
 | Key | Default | Description |
 |---|---|---|
@@ -67,6 +68,7 @@ with Dorothea (imageio-ffmpeg).
 | `h264_encodespeed` | `"veryslow"` | x264/x265 preset: `ultrafast` … `veryslow`. Slower compresses better. |
 | `vp9_encodespeed` | `1` | VP9 speed, 0 (best, very slow) to 4 (fastest). |
 | `ffmpeg_threads` | `0` | ffmpeg `-threads` (0 = auto). Lower it to throttle CPU use. |
+| `ffmpeg` | `"auto"` | Which ffmpeg to use: `"auto"` (the system one if installed, else the bundled one), `"bundled"`, `"system"`, or a path to an ffmpeg binary. Same as `--ffmpeg`. A system ffmpeg built without an encoder you need (e.g. libvpx for `vp8`) is reported at build time; switch to `"bundled"`. Dorothea-only. |
 | `sequence_keyword` | `"imagesequence"` | A folder whose name contains this is compiled into a video from its images. |
 | `sequence_framerate` | `24` | Frame rate of compiled image sequences. |
 
@@ -92,8 +94,10 @@ with Dorothea (imageio-ffmpeg).
 | `-c FILE`, `--config FILE` | Use this config file (`.json` or expose.sh `.sh`). |
 | `-s KEY=VALUE`, `--set KEY=VALUE` | Override a setting; VALUE is JSON if it parses (`--set 'resolution=[1920,640]'`), else a string. Repeatable. |
 | `-j N`, `--jobs N` | Parallel workers (see `jobs`). |
+| `--ffmpeg auto\|bundled\|system\|PATH` | Which ffmpeg to use (see `ffmpeg`). |
 | `--convert-config` | Write `_config.json` from `_config.sh` and exit. |
 | `--version` | Print the version. |
+| `-h`, `--help` | Show all options. |
 
 ## Per-post metadata
 

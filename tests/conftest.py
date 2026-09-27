@@ -88,3 +88,12 @@ def tmp_gallery(tmp_path):
     make_gallery_tree(tmp_path)
     yield tmp_path
     # tmp_path cleanup is handled by pytest
+
+
+@pytest.fixture(autouse=True)
+def _reset_ffmpeg_choice():
+    """The ffmpeg choice is module-level state; don't let one test's choice leak into another."""
+    from dorothea.media.ffmpeg import set_ffmpeg
+
+    yield
+    set_ffmpeg("auto")

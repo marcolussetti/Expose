@@ -48,6 +48,9 @@ DEFAULT_CONFIG = {
     "h264_encodespeed": "veryslow",
     "vp9_encodespeed": 1,
     "ffmpeg_threads": 0,
+    # Dorothea-only: which ffmpeg to use: "auto" (system, else bundled), "bundled", "system",
+    # or a path to an ffmpeg binary
+    "ffmpeg": "auto",
     # Dorothea-only: parallel workers for image encoding / file reading (0 = one per CPU)
     "jobs": 0,
 }
@@ -302,6 +305,24 @@ class Config:
         if not (is_int(jobs) and jobs >= 0):
             errors.append(f"jobs must be an integer >= 0 (0 = one per CPU), got {jobs!r}")
 
+        warnings = []
+        ffmpeg = c.get("ffmpeg", "auto")
+        if not isinstance(ffmpeg, str) or not ffmpeg:
+            errors.append(f"ffmpeg must be auto, bundled, system or a path, got {ffmpeg!r}")
+        else:
+            from dorothea.media.ffmpeg import FFMPEG_CHOICES, ffmpeg_exe
+
+            if ffmpeg_exe(ffmpeg) is None:
+                if ffmpeg in FFMPEG_CHOICES:
+                    # Not fatal: galleries without videos don't need ffmpeg at all
+                    warnings.append(
+                        f"ffmpeg={ffmpeg!r}: no such ffmpeg available; videos will be skipped"
+                    )
+                else:
+                    errors.append(
+                        f"ffmpeg: {ffmpeg!r} is not an executable file (use auto, bundled, system or a path)"
+                    )
+
         if topdir is not None:
             from dorothea.themes import resolve_theme_dir
 
@@ -313,7 +334,7 @@ class Config:
         if errors:
             raise ConfigError("Invalid configuration:\n  - " + "\n  - ".join(errors))
 
-        return [f"Unknown config key ignored: {k}" for k in c if k not in DEFAULT_CONFIG]
+        return warnings + [f"Unknown config key ignored: {k}" for k in c if k not in DEFAULT_CONFIG]
 
     def worker_count(self) -> int:
         """Number of parallel workers to use (``jobs`` config, 0 = one per CPU)."""
