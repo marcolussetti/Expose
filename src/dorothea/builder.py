@@ -29,6 +29,24 @@ def _read_text_file(path: Path) -> str:
         return ""
 
 
+# Characters that could end the style attribute/tag or add further CSS declarations
+_UNSAFE_CSS_VALUE = set('"<>;{}\\')
+
+
+def _textbackground_attr(value: str, source: Path) -> str:
+    """Build the ``{{textbackground_attr}}`` snippet for a ``textbackground: <css colour>`` key.
+
+    Themes put the placeholder inside the caption element's class attribute
+    (``class="content{{textbackground_attr}}"``), so when the key isn't set it disappears and
+    the page is byte-identical to one without the feature. When set, the snippet closes the
+    class value and adds a style attribute.
+    """
+    if _UNSAFE_CSS_VALUE & set(value):
+        print(f"\n\tIgnoring textbackground for {source.name}: {value!r} is not a CSS colour")
+        return ""
+    return f'" style="background-color: {value}; padding: 0.5em 1em'
+
+
 class HTMLBuilder:
     """HTML page builder.
 
@@ -209,6 +227,7 @@ class HTMLBuilder:
                 post = TemplateEngine.substitute(post, "post", content)
 
                 # Parse and apply metadata to post
+                textbackground = None
                 for line in metadata.split("\n"):
                     if ":" not in line:
                         continue
@@ -225,6 +244,14 @@ class HTMLBuilder:
                             self.gallery_video_options[gallery_index] = value
                         elif key == "video-filters":
                             self.gallery_video_filters[gallery_index] = value
+                        elif key == "textbackground" and textbackground is None:
+                            # Post metadata comes before metadata.txt, so a post's own value wins
+                            textbackground = value
+
+                if textbackground is not None:
+                    post = TemplateEngine.substitute(
+                        post, "textbackground_attr", _textbackground_attr(textbackground, file_path)
+                    )
 
                 # Set image parameters
                 post = TemplateEngine.substitute(

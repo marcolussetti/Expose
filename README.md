@@ -71,7 +71,14 @@ A folder called `_site` will contain the output HTML/jpeg/etc. You can take that
 
 ### Adding text
 
-To add text, you simply have to create a `.txt` file whose name matches the image: if your image is called `DSC0001.jpg`, you can put the text in `DSC0001.txt`.
+To add text, you simply have to create a `.txt` or `.md` file whose name matches the image: if your image is called `DSC0001.jpg`, you can put the text in `DSC0001.txt` or `DSC0001.md` (if both exist, the `.txt` wins). The text is Markdown either way.
+
+If the text is hard to read over a photo, give it a background with a `textbackground` line in the metadata section (any CSS colour):
+
+	---
+	textbackground: rgba(0,0,0,0.5)
+	---
+	Text over a busy photo.
 
 ### Sorting
 

@@ -101,9 +101,10 @@ videos print which ffmpeg they use.
 
 ## Per-post metadata
 
-A text file next to a photo or video with the same name (`01 Glacier.txt` or `.md`) holds its
-caption. Lines before a `---` line are `key: value` metadata; the rest is Markdown. A
-`metadata.txt` in a gallery folder applies to every post in it, and a post's own metadata wins.
+A text file next to a photo or video with the same name holds its caption: `01 Glacier.txt` or
+`01 Glacier.md` (if both exist, the `.txt` is used). Lines before a `---` line are `key: value`
+metadata; the rest is Markdown either way. A `metadata.txt` in a gallery folder applies to every
+post in it, and a post's own metadata wins.
 
 ```
 image-options: -modulate 100,120
@@ -118,6 +119,7 @@ Caption in *Markdown*.
 | `image-options` | Extra ImageMagick `convert` arguments for this photo (needs ImageMagick installed; otherwise ignored with a warning). Not applied to video thumbnails. |
 | `video-options` | Extra ffmpeg arguments, e.g. `-ss 10 -t 5` to cut a clip. |
 | `video-filters` | ffmpeg filters appended after scaling, e.g. `hflip`. |
+| `textbackground` | A CSS colour drawn behind the caption text (with a little padding), e.g. `rgba(0,0,0,.5)` to keep white text readable over a bright photo. Works in both bundled themes; put it in `metadata.txt` to apply it to a whole gallery. Values containing `"`, `<`, `>`, `;`, `{`, `}` or `\` are ignored with a warning. Dorothea-only. |
 | anything else | Available to the theme as `{{key}}`. theme1 uses `top`, `left`, `width`, `height` (percent), `polygon` and `textcolor`; theme2 uses `width` and `class`. `color1`…`color7` come from the extracted palette. |
 
 ## Build cache
