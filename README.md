@@ -82,11 +82,11 @@ If the text is hard to read over a photo, give it a background with a `textbackg
 
 ### Sorting
 
-Images are sorted by alphabetical order. If you wish to set a different order, add a numberical prefix in front of the file name (e.g. `0001_DSC0003.jpg`, `0002_DSC0002.jpg`, etc.).
+Images are sorted by name, with numbers compared as numbers (`1`, `2`, `10`). If you wish to set a different order, add a numerical prefix in front of the file name (e.g. `1_DSC0003.jpg`, `2_DSC0002.jpg`, etc.).
 
 Other orders are available with the `sort` setting (or `--sort`):
 
-- `natural`: numbers compare as numbers, so `1`, `2`, `10` don't need zero-padding
+- `name`: plain alphabetical order, like expose.sh (`1`, `10`, `2` unless you zero-pad)
 - `capture`: in the order the photos were taken (from the camera's EXIF data, else the file date); galleries follow their earliest photo, so the whole site reads like the trip
 - add `-desc` to reverse any order, e.g. `capture-desc` for newest first
 
@@ -193,6 +193,8 @@ Other flags:
 	dorothea --set jpeg_quality=85 --set 'resolution=[1920,640]'   # override config values
 	dorothea -j 4                         # parallel workers for images (default: one per CPU)
 	dorothea --ffmpeg bundled             # which ffmpeg: auto (default), bundled, system, or a path
+	dorothea --sort capture               # order: natural (default), name, capture; add -desc to reverse
+	dorothea --legacy                     # expose.sh's default settings, for exactly expose.sh's output
 	dorothea --convert-config             # turn an expose.sh _config.sh into _config.json
 	dorothea --version
 

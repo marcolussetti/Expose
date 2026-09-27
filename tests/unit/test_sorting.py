@@ -6,7 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from dorothea.cli import main
-from dorothea.config import DEFAULT_CONFIG, Config, ConfigError
+from dorothea.config import DEFAULT_CONFIG, EXPOSE_DEFAULTS, Config, ConfigError
 from dorothea.sorting import SORT_MODES, natural_key, sort_items
 from tests.conftest import make_generator, make_test_image
 from tests.unit.test_collisions import photo
@@ -63,9 +63,14 @@ class TestPhotoOrder:
             photo(g / f"{stem}.jpg", "red", taken=taken)
         return g
 
-    def test_default_is_name_order(self, tmp_path):
+    def test_default_is_natural_order(self, tmp_path):
         self._gallery(tmp_path)
-        assert order(tmp_path)[1] == ["1 a.jpg", "10 b.jpg", "2 c.jpg"]
+        assert order(tmp_path)[1] == ["1 a.jpg", "2 c.jpg", "10 b.jpg"]
+
+    def test_name_order(self, tmp_path):
+        """expose.sh's order (the --legacy default)."""
+        self._gallery(tmp_path)
+        assert order(tmp_path, "name")[1] == ["1 a.jpg", "10 b.jpg", "2 c.jpg"]
 
     @pytest.mark.parametrize(
         "mode,expected",
@@ -97,13 +102,13 @@ class TestPhotoOrder:
         other.mkdir()
         make_test_image(other / "10.jpg")
         make_test_image(other / "9.jpg")
-        galleries, photos = order(tmp_path)
+        galleries, photos = order(tmp_path, "name")
         assert photos == ["10 b.jpg", "2 c.jpg", "1 a.jpg", "10.jpg", "9.jpg"]  # other: name
 
     def test_invalid_override_is_ignored(self, tmp_path, capsys):
         g = self._gallery(tmp_path)
         (g / "metadata.txt").write_text("sort: sideways\n")
-        assert order(tmp_path)[1] == ["1 a.jpg", "10 b.jpg", "2 c.jpg"]
+        assert order(tmp_path, "name")[1] == ["1 a.jpg", "10 b.jpg", "2 c.jpg"]
         assert "Ignoring 'sort: sideways'" in capsys.readouterr().out
 
 
@@ -120,9 +125,9 @@ class TestGalleryOrder:
         (tmp_path / "Japan" / "Tokyo").mkdir(parents=True)
         photo(tmp_path / "Japan" / "Tokyo" / "shot.jpg", "blue", taken="2021:04:01 10:00:00")
 
-    def test_default_is_path_order(self, tmp_path):
+    def test_name_is_path_order(self, tmp_path):
         self._trip(tmp_path)
-        assert order(tmp_path)[0] == [
+        assert order(tmp_path, "name")[0] == [
             "Iceland",
             "1 Reykjavik",
             "10 Vik",
@@ -162,7 +167,8 @@ class TestGalleryOrder:
 
 class TestSortSetting:
     def test_default(self):
-        assert DEFAULT_CONFIG["sort"] == "name"
+        assert DEFAULT_CONFIG["sort"] == "natural"
+        assert EXPOSE_DEFAULTS["sort"] == "name"  # --legacy
 
     @pytest.mark.parametrize("mode", SORT_MODES)
     def test_valid(self, mode, tmp_path):

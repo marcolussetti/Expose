@@ -102,8 +102,14 @@ def _print_version(ctx: click.Context, value: bool) -> None:
 @click.option(
     "--sort",
     metavar="MODE",
-    help="Order of galleries and photos: name (default), natural (1, 2, 10), or capture "
-    "(when taken); add -desc for the reverse, e.g. capture-desc.",
+    help="Order of galleries and photos: natural (1, 2, 10; the default), name (plain "
+    "alphabetical, like expose.sh), or capture (when taken); add -desc for the reverse.",
+)
+@click.option(
+    "--legacy/--no-legacy",
+    default=None,
+    help="Use expose.sh's default settings, so the output matches expose.sh "
+    '(--no-legacy overrides "legacy": true in the config file).',
 )
 @click.option(
     "--convert-config",
@@ -129,6 +135,7 @@ def main(
     jobs: int | None,
     ffmpeg: str | None,
     sort: str | None,
+    legacy: bool | None,
     convert: bool,
 ) -> None:
     """Dorothea: a static photography website generator (a port of expose.sh)."""
@@ -148,6 +155,8 @@ def main(
             settings["ffmpeg"] = ffmpeg
         if sort is not None:
             settings["sort"] = sort
+        if legacy is not None:
+            settings["legacy"] = legacy
         config = Config.load(topdir, scriptdir, config_path=config_path, overrides=settings)
         for warning in config.load_warnings + config.validate(topdir):
             click.echo(f"Warning: {warning}", err=True)

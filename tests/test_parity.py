@@ -57,7 +57,7 @@ def parity_outputs(tmp_path_factory):
 
     # Run Python version
     subprocess.run(
-        [sys.executable, "-m", "dorothea", "-d"],
+        [sys.executable, "-m", "dorothea", "-d", "--legacy"],
         cwd=str(gallery),
         check=True,
         capture_output=True,
@@ -219,7 +219,7 @@ def real_gallery_parity_outputs(tmp_path_factory):
 
     # Run Python version
     result = subprocess.run(
-        [sys.executable, "-m", "dorothea", "-d"],
+        [sys.executable, "-m", "dorothea", "-d", "--legacy"],
         cwd=str(gallery),
         capture_output=True,
         text=True,

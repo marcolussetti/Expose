@@ -2,10 +2,10 @@
 
 Settings are read, in increasing order of precedence, from:
 
-1. built-in defaults (below, the same as expose.sh's)
+1. built-in defaults: Dorothea's, or expose.sh's with `--legacy` / `"legacy": true` (below)
 2. `_config.json` in the gallery folder, or `--config FILE` (`.json` or `.sh`). Without a
    `_config.json`, expose.sh's `_config.sh` is read instead (see [MIGRATION.md](MIGRATION.md))
-3. `--set KEY=VALUE` and `-j N` on the command line
+3. `--set KEY=VALUE`, `-j N`, `--sort`, `--ffmpeg` and `--legacy` on the command line
 4. draft mode (`-d`), which forces `resolution=[1024]`, `bitrate=[4]`, `video_formats=["h264"]`
    and `download_button=false`
 
@@ -25,6 +25,24 @@ Changing a setting that affects image or video bytes (resolution, quality, bitra
 speed, per-post options...) re-encodes just the affected files on the next run. There's no need
 to delete `_site`.
 
+## Legacy (expose.sh) defaults
+
+Dorothea's defaults improve on expose.sh's in four places. With `--legacy` (or `"legacy": true`
+in `_config.json`) the defaults are exactly expose.sh's, so a gallery builds the same site as
+expose.sh would. Anything you set explicitly still wins in both modes; `--no-legacy` overrides
+`"legacy": true` in the config file.
+
+| Key | Dorothea default | `--legacy` (expose.sh) |
+|---|---|---|
+| `sort` | `"natural"` (`1, 2, 10`) | `"name"` (`1, 10, 2`) |
+| `video_formats` | `["h264", "vp9"]` | `["h264", "vp8"]` |
+| `h264_encodespeed` | `"slow"` | `"veryslow"` |
+| `social_button` | `false` | `true` |
+| `legacy` | `false` | `true` |
+
+Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both modes; see
+[MIGRATION.md](MIGRATION.md).
+
 ## Site and theme
 
 | Key | Default | Description |
@@ -32,7 +50,7 @@ to delete `_site`.
 | `site_title` | `"My Awesome Photos"` | Site name shown in every page. |
 | `theme_dir` | `"theme1"` | Theme: a bundled one (`theme1`, `theme2`), a folder of that name in the gallery, or an absolute path. |
 | `text_toggle` | `true` | Show a button to hide/show the text. |
-| `social_button` | `true` | Show the social sharing button. |
+| `social_button` | `false` (legacy: `true`) | Show the social sharing button. |
 | `disqus_shortname` | `""` | Disqus forum name for comments; empty disables them. |
 
 ## Images
@@ -61,11 +79,11 @@ videos print which ffmpeg they use.
 
 | Key | Default | Description |
 |---|---|---|
-| `video_formats` | `["h264", "vp8"]` | Formats to encode, in order of preference: `h264`, `h265`, `vp9`, `vp8`, `ogv`. |
+| `video_formats` | `["h264", "vp9"]` (legacy: `["h264", "vp8"]`) | Formats to encode, in order of preference: `h264`, `h265`, `vp9`, `vp8`, `ogv`. |
 | `bitrate` | `[40, 24, 12, 7, 4, 2]` | Target bitrate in Mbit/s for each entry in `resolution` (the last value repeats if the list is shorter). |
 | `bitrate_maxratio` | `2` | Max bitrate as a multiple of the target (VBR). Must be ≥ 1; 1 means constant bitrate. |
 | `disable_audio` | `true` | Strip audio (otherwise it's copied as-is). |
-| `h264_encodespeed` | `"veryslow"` | x264/x265 preset: `ultrafast` … `veryslow`. Slower compresses better. |
+| `h264_encodespeed` | `"slow"` (legacy: `"veryslow"`) | x264/x265 preset: `ultrafast` … `veryslow`. Slower compresses better. |
 | `vp9_encodespeed` | `1` | VP9 speed, 0 (best, very slow) to 4 (fastest). |
 | `ffmpeg_threads` | `0` | ffmpeg `-threads` (0 = auto). Lower it to throttle CPU use. |
 | `ffmpeg` | `"auto"` | Which ffmpeg to use: `"auto"` (the system one if installed, else the bundled one), `"bundled"`, `"system"`, or a path to an ffmpeg binary. Same as `--ffmpeg`. A system ffmpeg built without an encoder you need (e.g. libvpx for `vp8`) is reported at build time; switch to `"bundled"`. Dorothea-only. |
@@ -84,7 +102,8 @@ videos print which ffmpeg they use.
 | Key | Default | Description |
 |---|---|---|
 | `jobs` | `0` | Parallel workers for reading and resizing images (0 = one per CPU). Same as `-j N`. Videos always encode one at a time, since ffmpeg already uses every core. |
-| `sort` | `"name"` | Order of galleries and photos. `"name"`: by name, like expose.sh (so `10` comes before `2` unless you zero-pad). `"natural"`: numbers compare as numbers (`1, 2, 10`), ignoring case. `"capture"`: when photos were taken (EXIF capture time, else file time); galleries follow their earliest photo, so the site reads like the trip. Add `-desc` to reverse any of them (`"capture-desc"` for newest first). Same as `--sort`. A gallery's `metadata.txt` can set `sort:` for its own photos. |
+| `sort` | `"natural"` (legacy: `"name"`) | Order of galleries and photos. `"natural"`: numbers compare as numbers (`1, 2, 10`), ignoring case. `"name"`: by name, like expose.sh (so `10` comes before `2` unless you zero-pad). `"capture"`: when photos were taken (EXIF capture time, else file time); galleries follow their earliest photo, so the site reads like the trip. Add `-desc` to reverse any of them (`"capture-desc"` for newest first). Same as `--sort`. A gallery's `metadata.txt` can set `sort:` for its own photos. |
+| `legacy` | `false` | Use expose.sh's defaults instead of Dorothea's (see [Legacy defaults](#legacy-exposesh-defaults)). Same as `--legacy`. |
 
 ## Command line
 
@@ -97,6 +116,7 @@ videos print which ffmpeg they use.
 | `-j N`, `--jobs N` | Parallel workers (see `jobs`). |
 | `--ffmpeg auto\|bundled\|system\|PATH` | Which ffmpeg to use (see `ffmpeg`). |
 | `--sort MODE` | Order of galleries and photos (see `sort`). |
+| `--legacy`, `--no-legacy` | Use expose.sh's defaults (or not, overriding the config file); see `legacy`. |
 | `--convert-config` | Write `_config.json` from `_config.sh` and exit. |
 | `--version` | Print the version. |
 | `-h`, `--help` | Show all options. |

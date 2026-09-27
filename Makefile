@@ -88,12 +88,13 @@ try:
 	@echo "--- $(SANDBOX)/try/_site:"
 	@find $(SANDBOX)/try/_site -mindepth 1 -maxdepth 2 -type d ! -path '*/img*' | sort
 
-# Build GALLERY with expose.sh and with Dorothea (draft mode) and compare like the parity tests
+# Build GALLERY with expose.sh and with Dorothea (draft mode, --legacy) and compare like the
+# parity tests
 compare:
 	$(call fresh_copy,compare-shell)
 	$(call fresh_copy,compare-python)
 	cd $(SANDBOX)/compare-shell && bash "$(CURDIR)/tests/reference/expose.sh" -d > /dev/null
-	cd $(SANDBOX)/compare-python && uv run --project "$(CURDIR)" dorothea -d > /dev/null
+	cd $(SANDBOX)/compare-python && uv run --project "$(CURDIR)" dorothea -d --legacy > /dev/null
 	uv run python -c "import sys; from pathlib import Path; \
 	from tests.test_final_parity import compare_directories as c; \
 	d = c(Path('$(SANDBOX)/compare-shell/_site'), Path('$(SANDBOX)/compare-python/_site')); \

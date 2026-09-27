@@ -7,7 +7,13 @@ import json
 
 import pytest
 
-from dorothea.config import DEFAULT_CONFIG, Config, ConfigError
+from dorothea.config import (
+    DEFAULT_CONFIG,
+    DOROTHEA_DEFAULTS,
+    EXPOSE_DEFAULTS,
+    Config,
+    ConfigError,
+)
 
 
 class TestConfigDefaults:
@@ -167,16 +173,62 @@ class TestConfigParity:
     """Test that config matches expose.py behavior."""
 
     def test_config_matches_default_config_dict(self):
-        """Verify DEFAULT_CONFIG matches expose.py defaults."""
+        """Verify EXPOSE_DEFAULTS (used with --legacy) match expose.sh's defaults."""
         # These are the critical defaults that must match
-        assert DEFAULT_CONFIG["site_title"] == "My Awesome Photos"
-        assert DEFAULT_CONFIG["theme_dir"] == "theme1"
-        assert DEFAULT_CONFIG["jpeg_quality"] == 92
-        assert DEFAULT_CONFIG["autorotate"] is True
-        assert DEFAULT_CONFIG["video_formats"] == ["h264", "vp8"]
-        assert DEFAULT_CONFIG["extract_colors"] is True
-        assert DEFAULT_CONFIG["backgroundcolor"] == "#000000"
-        assert DEFAULT_CONFIG["textcolor"] == "#ffffff"
+        assert EXPOSE_DEFAULTS["site_title"] == "My Awesome Photos"
+        assert EXPOSE_DEFAULTS["theme_dir"] == "theme1"
+        assert EXPOSE_DEFAULTS["jpeg_quality"] == 92
+        assert EXPOSE_DEFAULTS["autorotate"] is True
+        assert EXPOSE_DEFAULTS["video_formats"] == ["h264", "vp8"]
+        assert EXPOSE_DEFAULTS["h264_encodespeed"] == "veryslow"
+        assert EXPOSE_DEFAULTS["social_button"] is True
+        assert EXPOSE_DEFAULTS["sort"] == "name"
+        assert EXPOSE_DEFAULTS["extract_colors"] is True
+        assert EXPOSE_DEFAULTS["backgroundcolor"] == "#000000"
+        assert EXPOSE_DEFAULTS["textcolor"] == "#ffffff"
+
+
+class TestLegacyDefaults:
+    """Dorothea's defaults vs expose.sh's (--legacy), #24."""
+
+    def test_dorothea_defaults_differ_only_where_intended(self):
+        changed = {k for k in DEFAULT_CONFIG if DEFAULT_CONFIG[k] != EXPOSE_DEFAULTS[k]}
+        assert changed == {"sort", "video_formats", "h264_encodespeed", "social_button", "legacy"}
+        assert DEFAULT_CONFIG is DOROTHEA_DEFAULTS
+        assert DOROTHEA_DEFAULTS["sort"] == "natural"
+        assert DOROTHEA_DEFAULTS["video_formats"] == ["h264", "vp9"]
+        assert DOROTHEA_DEFAULTS["h264_encodespeed"] == "slow"
+        assert DOROTHEA_DEFAULTS["social_button"] is False
+
+    def test_load_uses_dorothea_defaults(self, tmp_path):
+        config = Config.load(tmp_path, tmp_path)
+        assert config["sort"] == "natural"
+        assert config["legacy"] is False
+
+    def test_legacy_override(self, tmp_path):
+        config = Config.load(tmp_path, tmp_path, overrides={"legacy": True})
+        assert all(config[k] == v for k, v in EXPOSE_DEFAULTS.items())
+
+    def test_legacy_in_config_file(self, tmp_path):
+        (tmp_path / "_config.json").write_text(json.dumps({"legacy": True, "jpeg_quality": 80}))
+        config = Config.load(tmp_path, tmp_path)
+        assert config["video_formats"] == ["h264", "vp8"]
+        assert config["jpeg_quality"] == 80  # explicit settings still win
+
+    def test_no_legacy_overrides_config_file(self, tmp_path):
+        (tmp_path / "_config.json").write_text(json.dumps({"legacy": True}))
+        config = Config.load(tmp_path, tmp_path, overrides={"legacy": False})
+        assert config["video_formats"] == ["h264", "vp9"]
+
+    def test_explicit_settings_win_over_either_set(self, tmp_path):
+        (tmp_path / "_config.json").write_text(json.dumps({"sort": "capture"}))
+        assert Config.load(tmp_path, tmp_path)["sort"] == "capture"
+        legacy = Config.load(tmp_path, tmp_path, overrides={"legacy": True})
+        assert legacy["sort"] == "capture"
+
+    def test_legacy_must_be_boolean(self, tmp_path):
+        with pytest.raises(ConfigError, match="legacy must be true or false"):
+            Config({**DEFAULT_CONFIG, "legacy": "yes"}).validate(tmp_path)
 
     def test_draft_mode_matches_expose_sh(self, tmp_path):
         """Verify draft mode matches expose.sh behavior."""

@@ -1,10 +1,18 @@
 # Migrating from expose.sh to Dorothea
 
-Dorothea is a Python port of [expose.sh](https://github.com/Jack000/Expose). For the same
-photos and settings it produces the same site: its test suite builds galleries with both and
-checks that the file lists match, HTML/CSS/JS are byte-identical, and every image and video has
-the same file size. This page covers what you need to change, and the places where Dorothea
-deliberately behaves differently.
+Dorothea is a Python port of [expose.sh](https://github.com/Jack000/Expose). With `--legacy`
+(expose.sh's default settings) it produces the same site: its test suite builds galleries with
+both and checks that the file lists match, HTML/CSS/JS are byte-identical, and every image and
+video has the same file size. This page covers what you need to change, and the places where
+Dorothea deliberately behaves differently.
+
+## Keeping expose.sh's output: `--legacy`
+
+A few of Dorothea's default settings differ from expose.sh's: natural sort order (`1, 2, 10`),
+vp9 instead of vp8 video, a faster h264 preset, and no share menu. To keep exactly what expose.sh
+made, run `dorothea --legacy`, or add `"legacy": true` to `_config.json`. Settings you set
+explicitly win either way. The full list is in
+[CONFIG.md](CONFIG.md#legacy-exposesh-defaults).
 
 ## Install
 
@@ -53,8 +61,9 @@ If both files exist, `_config.json` wins. Every setting is described in
 
 ## New in Dorothea
 
-- **Sort orders**: `sort` / `--sort` can order galleries and photos naturally (`1, 2, 10`), by
-  capture time (the site follows the trip), or in reverse. The default is expose.sh's name order.
+- **Sort orders**: `sort` / `--sort` can order galleries and photos naturally (`1, 2, 10`, the
+  default), by name (expose.sh's order, the `--legacy` default), by capture time (the site
+  follows the trip), or in reverse.
 - **Incremental builds that notice changes.** expose.sh skips any output that already exists,
   so edits needed a manual `rm -rf _site`. Dorothea rebuilds exactly the files whose source,
   settings or per-post metadata changed. State lives in `.dorothea-cache.json` in the gallery

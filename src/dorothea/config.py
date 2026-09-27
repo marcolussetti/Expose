@@ -14,8 +14,8 @@ from typing import Any, TypeIs
 # Video format -> container extension
 VIDEO_FORMAT_EXTENSIONS = {"h264": "mp4", "h265": "mp4", "vp9": "webm", "vp8": "webm", "ogv": "ogv"}
 
-# Default configuration matching expose.sh
-DEFAULT_CONFIG = {
+# expose.sh's defaults: with these (`--legacy`), a fresh build matches expose.sh's output
+EXPOSE_DEFAULTS = {
     "site_title": "My Awesome Photos",
     "theme_dir": "theme1",
     "resolution": [3840, 2560, 1920, 1280, 1024, 640],
@@ -55,7 +55,23 @@ DEFAULT_CONFIG = {
     "jobs": 0,
     # Dorothea-only: order of galleries and photos, see dorothea.sorting.SORT_MODES
     "sort": "name",
+    # Dorothea-only: use these expose.sh defaults instead of DOROTHEA_DEFAULTS
+    "legacy": True,
 }
+
+# Where Dorothea's own defaults differ from expose.sh's (#24)
+DOROTHEA_CHANGES = {
+    "sort": "natural",  # 1, 2, 10 without zero-padding
+    "video_formats": ["h264", "vp9"],  # vp9: much smaller than vp8, supported by every browser
+    "h264_encodespeed": "slow",  # ~2-3x faster than veryslow for a few percent larger files
+    "social_button": False,  # the 2015-era share menu is opt-in
+    "legacy": False,
+}
+
+DOROTHEA_DEFAULTS = {**EXPOSE_DEFAULTS, **DOROTHEA_CHANGES}
+
+# The defaults (Dorothea's); `--legacy` / "legacy": true switches to EXPOSE_DEFAULTS
+DEFAULT_CONFIG = DOROTHEA_DEFAULTS
 
 
 def is_int(value: object) -> TypeIs[int]:
@@ -225,6 +241,9 @@ class Config:
     ) -> Config:
         """Load configuration: defaults, then the config file, then overrides.
 
+        The defaults are Dorothea's, or expose.sh's when ``legacy`` is true (in the overrides,
+        e.g. ``--legacy``, or else in the config file).
+
         Args:
             topdir: Top-level directory (where _config.json might be).
             scriptdir: Script directory (for resolving theme paths).
@@ -238,7 +257,8 @@ class Config:
         Raises:
             ConfigError: If the config file is missing (when explicit) or not valid JSON.
         """
-        config = dict(DEFAULT_CONFIG)
+        user_config: dict[str, Any] = {}
+        overrides = overrides or {}
         warnings: list[str] = []
 
         if config_path is not None:
@@ -256,10 +276,11 @@ class Config:
         if config_path is not None:
             user_config, file_warnings = read_config_file(config_path)
             warnings += file_warnings
-            config.update(user_config)
 
-        if overrides:
-            config.update(overrides)
+        legacy = overrides.get("legacy", user_config.get("legacy", False))
+        config = dict(EXPOSE_DEFAULTS if legacy is True else DOROTHEA_DEFAULTS)
+        config.update(user_config)
+        config.update(overrides)
 
         result = cls(config)
         result.load_warnings = warnings
@@ -312,6 +333,10 @@ class Config:
         sort = c.get("sort", "name")
         if sort not in SORT_MODES:
             errors.append(f"sort must be one of {', '.join(SORT_MODES)}; got {sort!r}")
+
+        legacy = c.get("legacy", False)
+        if not isinstance(legacy, bool):
+            errors.append(f"legacy must be true or false, got {legacy!r}")
 
         warnings = []
         ffmpeg = c.get("ffmpeg", "auto")
