@@ -22,7 +22,7 @@ from PIL import Image
 from dorothea.cache import BuildCache, Fingerprint, settings_hash, source_stat
 from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
 from dorothea.media.ffmpeg import describe_ffmpeg, ffmpeg_exe, missing_encoders, run_ffmpeg
-from dorothea.media.image import ImageProcessor
+from dorothea.media.image import ImageProcessor, jpeg_compatible
 from dorothea.media.video import VideoProcessor
 from dorothea.utils import sequence_frames, site_path
 
@@ -380,11 +380,12 @@ class MediaEncoder:
             return None
 
         # ffmpeg's image2 demuxer needs sequentially named frames with one extension, and
-        # decodes every frame with the codec of the first. Frames that are all one format are
-        # copied under a uniform extension (so .JPG/.jpeg/.jpg mix fine); mixed formats are
-        # converted to lossless PNG first (expose.sh silently drops the odd frames out).
-        kinds = {_FRAME_KIND[img.suffix.lower()] for img in images}
-        if len(kinds) == 1:
+        # decodes every frame with the codec of the first. Frames that are all one format ffmpeg
+        # reads are copied under a uniform extension (so .JPG/.jpeg/.jpg mix fine); mixed
+        # formats, and formats ffmpeg may not read (HEIC, WebP, AVIF, TIFF), are converted to
+        # lossless PNG first (expose.sh silently drops the odd frames out).
+        kinds = {_FRAME_KIND.get(img.suffix.lower()) for img in images}
+        if len(kinds) == 1 and None not in kinds:
             ext = f".{kinds.pop()}"
             for j, img in enumerate(images):
                 shutil.copy(img, scratch / f"{j:04d}{ext}")
@@ -392,7 +393,7 @@ class MediaEncoder:
             ext = ".png"
             for j, img in enumerate(images):
                 with Image.open(img) as frame:
-                    frame.convert("RGB").save(scratch / f"{j:04d}{ext}")
+                    jpeg_compatible(frame).convert("RGB").save(scratch / f"{j:04d}{ext}")
 
         sequence_video = scratch / "sequencevideo.mp4"
         maxres = max(self.config["resolution"])

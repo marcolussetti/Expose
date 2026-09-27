@@ -7,10 +7,33 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pillow_heif
 from PIL import Image, ImageCms, ImageOps, JpegImagePlugin
 
 from dorothea.media.base import MediaProcessor
 from dorothea.media.metadata import filtered_exif, is_srgb, srgb_profile_file, to_srgb
+
+# HEIC/HEIF (iPhone photos) through Pillow's Image.open; WebP, AVIF and TIFF are built in (#2)
+pillow_heif.register_heif_opener()
+
+_SIXTEEN_BIT_MODES = {"I", "I;16", "I;16B", "I;16L", "I;16N"}
+
+
+def jpeg_compatible(img: Image.Image) -> Image.Image:
+    """Convert an image to a mode JPEG can store (RGB, L or CMYK).
+
+    Like ImageMagick when it writes a JPEG, transparency is dropped rather than blended: pixels
+    keep the colour stored under them. Palette images (GIF, 8-bit PNG) become RGB, greyscale with
+    alpha becomes greyscale, and 16-bit greyscale is scaled down to 8 bits. Animated GIF/WebP
+    images are already on their first frame when opened.
+    """
+    if img.mode in ("RGB", "L", "CMYK"):
+        return img
+    if img.mode in ("LA", "La", "1"):
+        return img.convert("L")
+    if img.mode in _SIXTEEN_BIT_MODES:
+        return img.convert("I").point(lambda value: value * (1 / 256)).convert("L")
+    return img.convert("RGB")
 
 
 class ImageProcessor(MediaProcessor):
@@ -111,6 +134,8 @@ class ImageProcessor(MediaProcessor):
             xmp = img.info.get("xmp") if keep_metadata == "all" else None
             if auto_orient:
                 img = ImageOps.exif_transpose(img)
+            # Before resizing: palette images only resize with nearest-neighbour
+            img = jpeg_compatible(img)
             # Match ImageMagick -resize WxW: scale to fit within the box,
             # upscaling if necessary (thumbnail() only shrinks).
             orig_w, orig_h = img.size

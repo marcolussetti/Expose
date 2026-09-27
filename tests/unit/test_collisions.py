@@ -113,7 +113,6 @@ class TestItemCollisions:
         g = tmp_path / "g"
         g.mkdir()
         photo(g / "Photo.jpg", "red", taken="2020:01:01 00:00:00")
-        # RGB PNG: palette PNGs don't encode at all yet (#2), which isn't what this tests
         Image.new("RGB", (1200, 900), "blue").save(g / "photo.png")
         os.utime(g / "photo.png", (2_000_000_000, 2_000_000_000))
 

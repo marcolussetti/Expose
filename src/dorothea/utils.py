@@ -91,13 +91,19 @@ def href(url: str) -> str:
     return quote(url, safe="/.-")
 
 
+# Photo formats Dorothea reads (lowercase, no dot). expose.sh only read the first four; WebP,
+# AVIF and TIFF come with Pillow, HEIC/HEIF (iPhone photos) with pillow-heif (#2).
+IMAGE_EXTENSIONS = ("jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "heif", "tif", "tiff")
+
+
+def is_image_file(path: Path) -> bool:
+    """True for a photo Dorothea reads (by extension), excluding hidden files."""
+    return path.suffix.lower().lstrip(".") in IMAGE_EXTENSIONS and not path.name.startswith(".")
+
+
 def sequence_frames(directory: Path) -> list[Path]:
     """Image files of an image-sequence folder, sorted; hidden files (macOS ``._*``) excluded."""
-    return sorted(
-        f
-        for f in directory.iterdir()
-        if f.suffix.lower() in (".jpg", ".jpeg", ".gif", ".png") and not f.name.startswith(".")
-    )
+    return sorted(f for f in directory.iterdir() if is_image_file(f))
 
 
 def strip_numeric_prefix(name: str) -> str:

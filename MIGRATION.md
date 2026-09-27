@@ -95,6 +95,7 @@ These are places where expose.sh has a bug or a platform quirk that Dorothea doe
 | Leaves `ffmpeg2pass-*.log` in the current folder while encoding. | Keeps 2-pass logs in a temporary folder. |
 | A non-text or non-UTF-8 caption file is skipped (`file` check). | Same, with a warning. Captions are always read and written as UTF-8. |
 | Requires ImageMagick and `zip`; video needs ffmpeg and ffprobe. | Needs nothing beyond `pip`/`uv`; ffprobe isn't used. |
+| Reads JPEG, PNG and GIF photos only. | Also reads WebP, AVIF, HEIC/HEIF (iPhone) and TIFF, with or without `--legacy`. |
 
 Caption Markdown is rendered by python-markdown and normalized to match expose.sh's
 Markdown.pl output. One exception: Markdown.pl obfuscates email autolinks (`<me@x.com>`) with

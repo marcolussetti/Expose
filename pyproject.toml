@@ -33,6 +33,7 @@ dependencies = [
     "imageio-ffmpeg>=0.6",
     "markdown>=3.9",
     "pillow>=11.3.0",
+    "pillow-heif>=1.8",
 ]
 
 [project.urls]

@@ -73,6 +73,8 @@ uvx dorothea
 
 A folder called `_site` will contain the output HTML/jpeg/etc. You can take that folder and put it on any webserver that serves static HTML website (including S3 buckets, etc.).
 
+Photos can be JPEG, PNG, GIF, WebP, AVIF, HEIC/HEIF (iPhone) or TIFF; they're published as JPEGs. Animated GIFs and WebPs use their first frame. Videos in most formats work too (MP4, MOV, MKV, WebM, AVI, …).
+
 ### Adding text
 
 To add text, you simply have to create a `.txt` or `.md` file whose name matches the image: if your image is called `DSC0001.jpg`, you can put the text in `DSC0001.txt` or `DSC0001.md` (if both exist, the `.txt` wins). The text is Markdown either way.

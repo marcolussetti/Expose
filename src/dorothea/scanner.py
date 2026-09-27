@@ -21,6 +21,7 @@ from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
 from dorothea.sorting import SORT_MODES, sort_items
 from dorothea.utils import (
+    IMAGE_EXTENSIONS,
     sequence_frames,
     site_path,
     slug_or_fallback,
@@ -360,7 +361,7 @@ class Scanner:
             entries = list(directory.iterdir())
         except OSError:
             return []
-        media = {"jpg", "jpeg", "png", "gif", *VIDEO_EXTENSIONS}
+        media = {*IMAGE_EXTENSIONS, *VIDEO_EXTENSIONS}
         return [
             f
             for f in entries
@@ -465,7 +466,7 @@ class Scanner:
             return None
 
         extension = file_path.suffix.lower().lstrip(".")
-        if extension in ["jpg", "jpeg", "png", "gif"]:
+        if extension in IMAGE_EXTENSIONS:
             return GalleryEntry(nav_index, file_path, image_url, 0, file_path, False)
 
         if not self.video_enabled:

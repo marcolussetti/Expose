@@ -42,4 +42,8 @@ class ColorExtractor:
         Returns:
             List of hex color strings (e.g., ["#ff0000", ...]).
         """
-        return self._backend.extract_palette(image_path, num_colors)
+        palette = self._backend.extract_palette(image_path, num_colors)
+        if not palette and isinstance(self._backend, ImageMagickColorExtractor):
+            # This ImageMagick may lack a decoder for the format (e.g. HEIC/AVIF); Pillow has one
+            palette = PillowColorExtractor().extract_palette(image_path, num_colors)
+        return palette
