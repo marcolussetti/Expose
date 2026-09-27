@@ -294,10 +294,12 @@ class TestConfigEdgeCases:
 
 
 def test_every_setting_is_documented():
-    """CONFIG.md must mention every key in DEFAULT_CONFIG (keeps the docs from drifting)."""
+    """The configuration page must mention every key in DEFAULT_CONFIG (keeps the docs from
+    drifting)."""
     from pathlib import Path
 
-    docs = (Path(__file__).resolve().parents[2] / "CONFIG.md").read_text(encoding="utf-8")
+    page = Path(__file__).resolve().parents[2] / "docs" / "configuration.md"
+    docs = page.read_text(encoding="utf-8")
     missing = [key for key in DEFAULT_CONFIG if f"`{key}`" not in docs]
     assert missing == []
 

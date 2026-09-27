@@ -1,22 +1,27 @@
-# Dorothea configuration
+# Configuration
+
+Site-wide settings go in a `_config.json` file in the top folder of your photos. Only include
+the settings you want to change:
+
+```json
+{
+  "site_title": "Iceland 2022",
+  "theme_dir": "medium",
+  "site_url": "https://example.com/photos/"
+}
+```
+
+Settings for a single photo or gallery go in its caption or `metadata.txt`; see
+[Galleries and captions](galleries.md#metadata-keys).
 
 Settings are read, in increasing order of precedence, from:
 
 1. built-in defaults: Dorothea's, or expose.sh's with `--legacy` / `"legacy": true` (below)
 2. `_config.json` in the gallery folder, or `--config FILE` (`.json` or `.sh`). Without a
-   `_config.json`, expose.sh's `_config.sh` is read instead (see [MIGRATION.md](MIGRATION.md))
+   `_config.json`, expose.sh's `_config.sh` is read instead (see [Migrating](migrating.md#configuration))
 3. `--set KEY=VALUE`, `-j N`, `--sort`, `--ffmpeg` and `--legacy` on the command line
 4. draft mode (`-d`), which forces `resolution=[1024]`, `bitrate=[4]`, `video_formats=["h264"]`
    and `download_button=false`, `download_album=false`
-
-```json
-{
-  "site_title": "Iceland 2022",
-  "theme_dir": "theme2",
-  "resolution": [2560, 1920, 1280, 640],
-  "jpeg_quality": 88
-}
-```
 
 Invalid values stop the build with a message naming each problem (exit code 2); unknown keys
 only print a warning, since they're usually typos.
@@ -45,7 +50,7 @@ expose.sh would. Anything you set explicitly still wins in both modes; `--no-leg
 | `legacy` | `false` | `true` |
 
 Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both modes; see
-[MIGRATION.md](MIGRATION.md).
+[Migrating from expose.sh](migrating.md#intentional-differences).
 
 ## Site and theme
 
@@ -148,43 +153,16 @@ videos print which ffmpeg they use.
 | `--sort MODE` | Order of galleries and photos (see `sort`). |
 | `--legacy`, `--no-legacy` | Use expose.sh's defaults (or not, overriding the config file); see `legacy`. |
 | `--convert-config` | Write `_config.json` from `_config.sh` and exit. |
+| `serve [--port N] [--bind ADDR] [--no-build]` | Build (with the flags above), then preview the site at `http://localhost:8000/`. See [Preview](index.md#preview). |
 | `--version` | Print the version. |
 | `-h`, `--help` | Show all options. |
 
-## Per-post metadata
-
-A text file next to a photo or video with the same name holds its caption: `01 Glacier.txt` or
-`01 Glacier.md` (if both exist, the `.txt` is used). Lines before a `---` line are `key: value`
-metadata; the rest is Markdown either way. A `metadata.txt` in a gallery folder applies to every
-post in it, and a post's own metadata wins.
-
-```
-image-options: -modulate 100,120
-top: 30
-left: 5
----
-Caption in *Markdown*.
-```
-
-| Key | Description |
-|---|---|
-| `image-options` | Extra ImageMagick `convert` arguments for this photo (needs ImageMagick installed; otherwise ignored with a warning). Not applied to video thumbnails. |
-| `video-options` | Extra ffmpeg arguments, e.g. `-ss 10 -t 5` to cut a clip. |
-| `video-filters` | ffmpeg filters appended after scaling, e.g. `hflip`. |
-| `textbackground` | A CSS colour drawn behind the caption text (with a little padding), e.g. `rgba(0,0,0,.5)` to keep white text readable over a bright photo. Works in both bundled themes; put it in `metadata.txt` to apply it to a whole gallery. Values containing `"`, `<`, `>`, `;`, `{`, `}` or `\` are ignored with a warning. Dorothea-only. |
-| `date` | For the feeds (`site_url`). In a gallery's `metadata.txt`: when the gallery was published, as `2022-07-14`, `2022-07-14 18:30` or full ISO 8601; without it, a gallery's date is when its newest photo was taken (EXIF), else its newest file's time. In a photo's caption: its date in the gallery's own feed, instead of when it was taken. Dorothea-only. |
-| `title` | In a photo's caption: its title in the gallery's own feed (default: the file name without its number). Themes may show it too. |
-| `feed` | Only in a gallery's `metadata.txt`: `false` to not give this gallery its own feed, or `true` to give it one when `gallery_feeds` is off. Dorothea-only. |
-| `download` | Only in a gallery's `metadata.txt`: `false` to not offer this gallery as one zip, or `true` to offer it when `download_album` is off. Doesn't affect the per-photo `download_button`. Dorothea-only. |
-| `description` | Only in a gallery's `metadata.txt`, for the feed (`site_url`): the gallery's text in feed readers (Markdown). Without it, the first photo's caption is used. Dorothea-only. |
-| `sort` | Only in a gallery's `metadata.txt`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. Dorothea-only. |
-| `exif` | `false` to show no details for this photo (or, in `metadata.txt`, this gallery); `icon` or `caption` to show them that way instead of the `exif_display` style. Only details the caption gives are shown where `exif_display` is `"off"`, since EXIF isn't read then. Dorothea-only. |
-| `camera`, `lens`, `focal_length`, `aperture`, `shutter_speed`, `iso` | Override (or supply) a detail shown with `exif_display`, e.g. `lens: Helios 44-2` for a manual lens that records no EXIF, or `aperture: f/2`; `-` hides it (`lens: -`). An `iso` that's just a number is shown as `ISO 400`. Dorothea-only. |
-| anything else | Available to the theme as `{{key}}`. theme1 uses `top`, `left`, `width`, `height` (percent), `polygon` and `textcolor`; theme2 uses `width` and `class`. `color1`…`color7` come from the extracted palette. |
+Photos and galleries have their own settings too, in captions and `metadata.txt`: see
+[Galleries and captions](galleries.md#metadata-keys).
 
 ## Build cache
 
 Dorothea keeps `.dorothea-cache.json` in the gallery folder. It holds extracted palettes and
-shooting details (`exif_display`), so unchanged photos aren't re-analysed, and a fingerprint for every generated file, so changed
-sources, settings or metadata rebuild exactly what they affect. It's safe to delete: the next
+photo details (`exif_display`), so unchanged photos aren't re-analysed, and a fingerprint for
+every generated file, so changed sources, settings or metadata rebuild exactly what they affect. It's safe to delete: the next
 run re-analyses the photos and keeps any existing output that's newer than its source.

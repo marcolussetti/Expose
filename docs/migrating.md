@@ -15,7 +15,7 @@ photos converted to sRGB, and camera information (but never location) kept in th
 photos. To keep exactly what expose.sh
 made, run `dorothea --legacy`, or add `"legacy": true` to `_config.json`. Settings you set
 explicitly win either way. The full list is in
-[CONFIG.md](CONFIG.md#legacy-exposesh-defaults).
+[Configuration](configuration.md#legacy-exposesh-defaults).
 
 ## Install
 
@@ -56,7 +56,7 @@ dorothea --convert-config        # writes _config.json from _config.sh
 ```
 
 If both files exist, `_config.json` wins. Every setting is described in
-[CONFIG.md](CONFIG.md).
+[Configuration](configuration.md).
 
 > **Note:** expose.sh ignores `resolution`, `bitrate`, `video_formats` and `default_palette` set
 > in `_config.sh` (it reassigns them after reading the file). Dorothea honours them, so a

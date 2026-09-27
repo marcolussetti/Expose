@@ -1,7 +1,7 @@
 # Dorothea Makefile
 # Common development tasks using uv
 
-.PHONY: help test test-cov test-fast stats report clean install lint format typecheck try compare package-check ci-local
+.PHONY: help test test-cov test-fast stats report clean install lint format typecheck try compare package-check ci-local docs docs-serve
 
 help:
 	@echo "Available commands:"
@@ -22,6 +22,7 @@ help:
 	@echo "  make compare [GALLERY=dir]                - Build a copy with expose.sh and Dorothea (draft) and diff them"
 	@echo "  make package-check                        - Build the wheel/sdist and run them via uvx and pipx"
 	@echo "  make ci-local                             - Run every CI job locally with act"
+	@echo "  make docs / make docs-serve               - Build the docs site (strict) / preview it with live reload"
 
 # Run all tests
 test:
@@ -127,6 +128,14 @@ package-check:
 	$(call fresh_copy,package)
 	cd $(SANDBOX)/package && uvx --isolated --from "$$(ls $(CURDIR)/$(SANDBOX)/dist/*.whl)" dorothea -d > /dev/null
 	@test -s $(SANDBOX)/package/_site/index.html && echo "OK: built a gallery from the wheel"
+
+# Docs site (docs/, mkdocs.yml): build it like Read the Docs does, failing on broken links and
+# other warnings, into $(SANDBOX)/docs; or serve it with live reload at http://localhost:8000/
+docs:
+	uv run --only-group docs zensical build --strict
+
+docs-serve:
+	uv run --only-group docs zensical serve
 
 # Run every CI job locally with act (needs docker)
 ci-local:

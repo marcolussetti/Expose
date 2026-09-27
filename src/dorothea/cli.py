@@ -197,7 +197,7 @@ def build(
     invoke_without_command=True,
     context_settings={"help_option_names": ["-h", "--help"]},
     epilog="Run inside a folder of photos and videos; the site is written to ./_site. "
-    "Every setting is described in CONFIG.md.",
+    "Every setting is described at https://dorothea.readthedocs.io/configuration/",
 )
 @build_options
 @click.option(
