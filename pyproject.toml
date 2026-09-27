@@ -9,6 +9,9 @@ packages = ["src/pyexpose"]
 name = "pyexpose"
 version = "2.0.0"
 description = "Static photography website generator. Python port of expose.sh"
+readme = "readme.md"
+license = "MIT"
+license-files = ["LICENSE.txt"]
 requires-python = ">=3.14"
 dependencies = [
     "imageio-ffmpeg>=0.6",
@@ -20,7 +23,7 @@ dependencies = [
 expose = "pyexpose.cli:main"
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-order", "ruff==0.16.9"]  # keep in sync with .pre-commit-config.yaml
+dev = ["pytest", "pytest-cov", "pytest-order", "ruff==0.16.9", "ty==0.0.84"]  # keep in sync with .pre-commit-config.yaml
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

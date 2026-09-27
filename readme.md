@@ -33,15 +33,20 @@ The script operates on your current working directory, and outputs a _site direc
 
 ### Configuration
 
-Site title, theme, jpeg quality and other config values can be edited in expose.sh itself, you can also create `_config.sh` in the top
-level of your project, eg:
+Site title, theme, jpeg quality and other config values go in a `_config.json` in the top level
+of your project, eg:
 
-```sh
-site_title="Alternate Site Title"
-theme_dir="theme2"
-social_button=false
-backgroundcolor="#ffffff"
+```json
+{
+  "site_title": "Alternate Site Title",
+  "theme_dir": "theme2",
+  "social_button": false,
+  "backgroundcolor": "#ffffff"
+}
 ```
+
+An expose.sh-style `_config.sh` still works (and `expose --convert-config` converts it). Every
+option is described in [CONFIG.md](CONFIG.md).
 
 ### Flags
 
@@ -51,14 +56,18 @@ The -d flag enables draft mode, where only a single low resolution is encoded. T
 
 Other flags (PyExpose):
 
+	expose -n                           # dry run: list what would be built, and why
 	expose --config other.json          # use a different config file than ./_config.json
 	expose --set jpeg_quality=85 --set 'resolution=[1920,640]'   # override config values
 	expose -j 4                         # parallel workers for images (default: one per CPU)
+	expose --convert-config             # turn an expose.sh _config.sh into _config.json
 	expose --version
 
-Images whose source file is newer than the generated output are re-encoded automatically.
+Re-running only rebuilds what changed: edited photos, changed settings, or changed post
+metadata. There's no need to delete `_site`. All settings are listed in [CONFIG.md](CONFIG.md);
+coming from expose.sh, see [MIGRATION.md](MIGRATION.md).
 
-Generated images and videos are not overwritten, to do a completely clean build delete the existing _site directory first.
+To do a completely clean build, delete the existing _site directory first.
 
 ### Adding text
 

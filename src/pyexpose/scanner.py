@@ -11,7 +11,9 @@ import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import NamedTuple
 
+from pyexpose.cache import BuildCache, settings_hash, source_stat
 from pyexpose.config import Config
 from pyexpose.media.colors import ColorExtractor
 from pyexpose.media.image import ImageProcessor
@@ -54,6 +56,17 @@ VIDEO_EXTENSIONS = [
 ]
 
 
+class GalleryEntry(NamedTuple):
+    """One gallery item found by ``read_files`` before it's analysed."""
+
+    nav_index: int  # index into the nav_* arrays of the directory it's in
+    file_path: Path  # the image/video file, or the sequence directory
+    url: str  # url-safe name
+    gallery_type: int  # 0 = image, 1 = video, 2 = sequence
+    image: Path  # file to take colours/dimensions from (first frame for sequences)
+    is_video: bool  # a frame must be extracted from ``image`` first
+
+
 class Scanner:
     """Directory and file scanner.
 
@@ -61,37 +74,48 @@ class Scanner:
     structures (gallery_files, gallery_*) that track all images/videos.
     """
 
-    def __init__(self, topdir: Path, scriptdir: Path, config: Config):
+    def __init__(
+        self,
+        topdir: Path,
+        scriptdir: Path,
+        config: Config,
+        cache: BuildCache | None = None,
+        dry_run: bool = False,
+    ):
         """Initialize the scanner.
 
         Args:
             topdir: Top-level working directory (gallery root).
             scriptdir: Script directory (for resources).
             config: Configuration object.
+            cache: Build cache for palettes/dimensions (None: always analyse).
+            dry_run: Create no directories and skip expensive palette extraction.
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
         self.config = config
+        self.cache = cache
+        self.dry_run = dry_run
 
         # Navigation structures
-        self.paths = []
-        self.nav_name = []
-        self.nav_depth = []
-        self.nav_type = []
-        self.nav_url = []
-        self.nav_count = []
+        self.paths: list[Path] = []
+        self.nav_name: list[str] = []
+        self.nav_depth: list[int] = []
+        self.nav_type: list[int] = []
+        self.nav_url: list[str] = []
+        self.nav_count: list[int] = []
 
         # Gallery structures
-        self.gallery_files = []
-        self.gallery_nav = []
-        self.gallery_url = []
-        self.gallery_type = []
-        self.gallery_maxwidth = []
-        self.gallery_maxheight = []
-        self.gallery_colors = []
-        self.gallery_image_options = []
-        self.gallery_video_options = []
-        self.gallery_video_filters = []
+        self.gallery_files: list[Path] = []
+        self.gallery_nav: list[int] = []
+        self.gallery_url: list[str] = []
+        self.gallery_type: list[int] = []
+        self.gallery_maxwidth: list[int] = []
+        self.gallery_maxheight: list[int] = []
+        self.gallery_colors: list[list[str]] = []
+        self.gallery_image_options: list[str] = []
+        self.gallery_video_options: list[str] = []
+        self.gallery_video_filters: list[str] = []
 
         # Initialize media processors
         self.image_processor = ImageProcessor()
@@ -104,7 +128,7 @@ class Scanner:
         # Check video support
         self.video_enabled = self.video_processor.available
 
-    def scan_directories(self):
+    def scan_directories(self) -> None:
         """Scan working directory to populate navigation structures."""
         print("Scanning directories", end="", flush=True)
 
@@ -175,7 +199,8 @@ class Scanner:
             self.nav_type.append(node_type)
 
         # Create _site directory
-        (self.topdir / "_site").mkdir(exist_ok=True)
+        if not self.dry_run:
+            (self.topdir / "_site").mkdir(exist_ok=True)
 
         # Build URL structure
         dir_stack = []
@@ -201,12 +226,13 @@ class Scanner:
 
             url = "/".join(dir_stack + [url_rel]) if dir_stack else url_rel
 
-            (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
+            if not self.dry_run:
+                (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
             self.nav_url.append(url)
 
         print()
 
-    def read_files(self):
+    def read_files(self) -> None:
         """Read files to populate gallery structures.
 
         Files are discovered sequentially (ordering matters for parity), then colour
@@ -215,7 +241,7 @@ class Scanner:
         print("Reading files", end="", flush=True)
 
         sequence_keyword = self.config.get("sequence_keyword", "")
-        entries = []  # (nav index, file path, url, gallery type, analysis source, is video)
+        entries: list[GalleryEntry] = []
 
         for i, path in enumerate(self.paths):
             self.nav_count.append(-1)
@@ -223,7 +249,8 @@ class Scanner:
             if self.nav_type[i] < 1:
                 continue
 
-            (self.topdir / "_site" / self.nav_url[i]).mkdir(parents=True, exist_ok=True)
+            if not self.dry_run:
+                (self.topdir / "_site" / self.nav_url[i]).mkdir(parents=True, exist_ok=True)
 
             # Get files in directory, sorted
             files = sorted([f for f in path.iterdir() if not f.name.startswith("_")])
@@ -244,17 +271,14 @@ class Scanner:
         else:
             results = [self._analyze(k, e) for k, e in enumerate(entries)]
 
-        counts = {}
-        for (nav_index, file_path, image_url, gtype, _src, _video), result in zip(
-            entries, results, strict=True
-        ):
-            palette, maxwidth, maxheight = result
-            counts[nav_index] = counts.get(nav_index, 0) + 1
+        counts: dict[int, int] = {}
+        for entry, (palette, maxwidth, maxheight) in zip(entries, results, strict=True):
+            counts[entry.nav_index] = counts.get(entry.nav_index, 0) + 1
 
-            self.gallery_files.append(file_path)
-            self.gallery_nav.append(nav_index)
-            self.gallery_url.append(image_url)
-            self.gallery_type.append(gtype)
+            self.gallery_files.append(entry.file_path)
+            self.gallery_nav.append(entry.nav_index)
+            self.gallery_url.append(entry.url)
+            self.gallery_type.append(entry.gallery_type)
             self.gallery_maxwidth.append(maxwidth)
             self.gallery_maxheight.append(maxheight)
             self.gallery_colors.append(palette)
@@ -268,7 +292,9 @@ class Scanner:
 
         print()
 
-    def _classify(self, nav_index: int, file_path: Path, sequence_keyword: str):
+    def _classify(
+        self, nav_index: int, file_path: Path, sequence_keyword: str
+    ) -> GalleryEntry | None:
         """Decide whether a gallery directory entry is an image, video or sequence.
 
         Returns:
@@ -289,14 +315,14 @@ class Scanner:
             )
             if not seq_images:
                 return None
-            return (nav_index, file_path, image_url, 2, seq_images[0], False)
+            return GalleryEntry(nav_index, file_path, image_url, 2, seq_images[0], False)
 
         if not file_path.is_file():
             return None
 
         extension = file_path.suffix.lower().lstrip(".")
         if extension in ["jpg", "jpeg", "png", "gif"]:
-            return (nav_index, file_path, image_url, 0, file_path, False)
+            return GalleryEntry(nav_index, file_path, image_url, 0, file_path, False)
 
         if not self.video_enabled:
             return None
@@ -305,19 +331,41 @@ class Scanner:
             mime_type, _ = mimetypes.guess_type(str(file_path))
             if not mime_type or "video" not in mime_type:
                 return None
-        return (nav_index, file_path, image_url, 1, file_path, True)
+        return GalleryEntry(nav_index, file_path, image_url, 1, file_path, True)
 
-    def _analyze(self, k: int, entry) -> tuple[list, int, int]:
-        """Extract (palette, maxwidth, maxheight) for one entry. Safe to run in threads."""
-        _nav, _file, _url, _gtype, image, is_video = entry
+    def _analysis_key(self) -> str:
+        """Hash of the settings palette/dimension extraction depends on."""
+        return settings_hash(
+            backend=type(self.color_extractor.backend).__name__,
+            extract_colors=self.config["extract_colors"],
+            default_palette=self.config["default_palette"],
+            autorotate=self.config["autorotate"],
+        )
 
-        if is_video:
+    def _palette_and_size(self, k: int, entry: GalleryEntry) -> tuple[list[str], int, int]:
+        """Colour palette and (orientation-corrected) size, from the cache when unchanged."""
+        stat = source_stat(entry.file_path)
+        key = self._analysis_key()
+        if self.cache is not None:
+            hit = self.cache.get_analysis(entry.file_path, stat, key)
+            if hit is not None:
+                return hit
+
+        autorotate = self.config["autorotate"]
+        if self.dry_run:
+            # Skip the expensive parts; dimensions are all a dry run needs
+            palette = list(self.config["default_palette"])
+            if entry.is_video:
+                return palette, *self.video_processor.probe(entry.image)
+            return palette, *self.image_processor.extract_dimensions(entry.image, autorotate)
+
+        image = entry.image
+        if entry.is_video:
             # Each entry gets its own frame file so parallel extraction can't collide
             frame = self.scratchdir / f"frame-{k}.jpg"
             self.video_processor.extract_frame(image, frame)
             image = frame
 
-        # Extract color palette
         if self.config["extract_colors"]:
             palette = self.color_extractor.extract_palette(image, num_colors=7)
         else:
@@ -325,8 +373,15 @@ class Scanner:
 
         # Get image dimensions with EXIF orientation handling
         width, height = self.image_processor.extract_dimensions(
-            image, handle_orientation=self.config["autorotate"]
+            image, handle_orientation=autorotate
         )
+        if self.cache is not None and (width or not entry.is_video):
+            self.cache.put_analysis(entry.file_path, stat, key, palette, width, height)
+        return palette, width, height
+
+    def _analyze(self, k: int, entry: GalleryEntry) -> tuple[list[str], int, int]:
+        """Extract (palette, maxwidth, maxheight) for one entry. Safe to run in threads."""
+        palette, width, height = self._palette_and_size(k, entry)
 
         # Calculate max dimensions
         maxwidth = 0
@@ -340,7 +395,7 @@ class Scanner:
 
         return palette, maxwidth, maxheight
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up temporary files."""
         if self.scratchdir.exists():
             shutil.rmtree(self.scratchdir, ignore_errors=True)

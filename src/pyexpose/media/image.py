@@ -21,7 +21,7 @@ class ImageProcessor(MediaProcessor):
 
     _warned_no_convert = False
 
-    def process(self, input_path: Path, output_path: Path, **kwargs) -> None:
+    def process(self, input_path: Path, output_path: Path, **kwargs: object) -> None:
         """Process an image (generic interface).
 
         Args:
@@ -99,7 +99,7 @@ class ImageProcessor(MediaProcessor):
             orig_w, orig_h = img.size
             ratio = min(width / orig_w, width / orig_h)
             new_size = (round(orig_w * ratio), round(orig_h * ratio))
-            img = img.resize(new_size, Image.LANCZOS)
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
             # Save without any metadata (+profile * equivalent)
             try:
                 img.save(
@@ -126,7 +126,14 @@ class ImageProcessor(MediaProcessor):
         return 0 if quality >= 90 else 2
 
     @staticmethod
-    def _resize_imagemagick(input_path, output_path, width, quality, auto_orient, extra_args):
+    def _resize_imagemagick(
+        input_path: Path,
+        output_path: Path,
+        width: int,
+        quality: int,
+        auto_orient: bool,
+        extra_args: list[str],
+    ) -> None:
         """Resize with ImageMagick exactly as expose.sh does (including image-options)."""
         cmd = ["convert"]
         if auto_orient:

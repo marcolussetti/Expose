@@ -37,7 +37,7 @@ class TemplateEngine:
         collapsed_value = " ".join(value.split())
 
         # Use a lambda to avoid regex escape sequence issues
-        def replacer(match):
+        def replacer(match: re.Match[str]) -> str:
             return collapsed_value
 
         # Replace {{key}} and {{key:default}}
@@ -58,7 +58,7 @@ class TemplateEngine:
         """
 
         # Find all {{key:default}} patterns and replace with default
-        def replace_with_default(match):
+        def replace_with_default(match: re.Match[str]) -> str:
             return match.group(1)
 
         text = re.sub(r"\{\{[^:}]+:([^}]*)\}\}", replace_with_default, text)

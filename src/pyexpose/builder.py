@@ -13,6 +13,21 @@ from pyexpose.template import TemplateEngine
 from pyexpose.themes import resolve_theme_dir
 
 
+def _read_text_file(path: Path) -> str:
+    """Return a caption/metadata file's text, or "" if it's missing or not UTF-8 text.
+
+    expose.sh only reads files that ``file`` reports as text; a binary or mis-encoded
+    ``.txt`` is skipped rather than aborting the build.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return ""
+    except UnicodeDecodeError, OSError:
+        print(f"\n\tSkipping {path.name}: not a UTF-8 text file")
+        return ""
+
+
 class HTMLBuilder:
     """HTML page builder.
 
@@ -99,12 +114,22 @@ class HTMLBuilder:
 
         # Load templates
         theme_dir = resolve_theme_dir(self.config["theme_dir"], self.topdir)
-        self.template_html = (theme_dir / "template.html").read_text()
-        self.post_template_html = (theme_dir / "post-template.html").read_text()
+        self.template_html = (theme_dir / "template.html").read_text(encoding="utf-8")
+        self.post_template_html = (theme_dir / "post-template.html").read_text(encoding="utf-8")
 
-    def build_html(self):
-        """Build HTML pages for all galleries."""
-        print("Building html", end="", flush=True)
+    def build_html(self, write: bool = True) -> int:
+        """Build HTML pages for all galleries.
+
+        Args:
+            write: Write the pages. With False (dry run) metadata is still parsed, which
+                fills the per-item image/video options, but nothing is written.
+
+        Returns:
+            Number of pages (including the top-level index.html).
+        """
+        if write:
+            print("Building html", end="", flush=True)
+        pages = 0
 
         gallery_index = 0
         firsthtml = ""
@@ -117,12 +142,12 @@ class HTMLBuilder:
             html = self.template_html
 
             # Read gallery metadata
-            metadata_file = path / "metadata.txt"
-            gallery_metadata = metadata_file.read_text() if metadata_file.exists() else ""
+            gallery_metadata = _read_text_file(path / "metadata.txt")
 
             nav_count = self.nav_count[i]
             for j in range(nav_count):
-                print(".", end="", flush=True)
+                if write:
+                    print(".", end="", flush=True)
 
                 k = j + 1
                 file_path = self.gallery_files[gallery_index]
@@ -143,8 +168,9 @@ class HTMLBuilder:
                 item_metadata = ""
                 content = ""
 
-                if textfile and textfile.exists():
-                    text = textfile.read_text().replace("\r", "").rstrip("\n")
+                text = _read_text_file(textfile) if textfile else ""
+                if text:
+                    text = text.replace("\r", "").rstrip("\n")
                     lines = text.split("\n")
                     dash_lines = [idx for idx, line in enumerate(lines) if line == "---"]
 
@@ -262,9 +288,11 @@ class HTMLBuilder:
             html = html.replace("<ul></ul>", "")
 
             # Write output
-            output_path = self.topdir / "_site" / self.nav_url[i] / "index.html"
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(html)
+            pages += 1
+            if write:
+                output_path = self.topdir / "_site" / self.nav_url[i] / "index.html"
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(html, encoding="utf-8")
 
         # Write top-level index.html (copy of first gallery with root basepath)
         if firsthtml:
@@ -274,10 +302,14 @@ class HTMLBuilder:
             root_html = TemplateEngine.apply_defaults(root_html)
             root_html = TemplateEngine.clean_unused(root_html)
             root_html = root_html.replace("<ul></ul>", "")
-            (self.topdir / "_site").mkdir(parents=True, exist_ok=True)
-            (self.topdir / "_site" / "index.html").write_text(root_html)
+            pages += 1
+            if write:
+                (self.topdir / "_site").mkdir(parents=True, exist_ok=True)
+                (self.topdir / "_site" / "index.html").write_text(root_html, encoding="utf-8")
 
-        print()
+        if write:
+            print()
+        return pages
 
     def _build_navigation(self, current_idx: int) -> str:
         """Build navigation menu HTML.

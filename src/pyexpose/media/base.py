@@ -12,7 +12,7 @@ class MediaProcessor(ABC):
     """
 
     @abstractmethod
-    def process(self, input_path: Path, output_path: Path, **kwargs) -> None:
+    def process(self, input_path: Path, output_path: Path, **kwargs: object) -> None:
         """Process a media file.
 
         Args:

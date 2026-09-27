@@ -6,8 +6,10 @@ defaults and validation.
 
 import json
 import os
+import re
+import shlex
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeIs
 
 # Video format -> container extension
 VIDEO_FORMAT_EXTENSIONS = {"h264": "mp4", "h265": "mp4", "vp9": "webm", "vp8": "webm", "ogv": "ogv"}
@@ -51,8 +53,27 @@ DEFAULT_CONFIG = {
 }
 
 
+def is_int(value: object) -> TypeIs[int]:
+    """True for ints but not bools (``True`` is an int in Python)."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def is_num(value: object) -> TypeIs[int | float]:
+    """True for ints and floats but not bools."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 class ConfigError(ValueError):
     """Raised when the configuration is malformed or has invalid values."""
+
+
+def find_config_file(topdir: Path) -> Path | None:
+    """Return ``_config.json`` if present, else expose.sh's ``_config.sh``, else None."""
+    for name in ("_config.json", "_config.sh"):
+        candidate = topdir / name
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def parse_override(item: str) -> tuple[str, Any]:
@@ -71,6 +92,111 @@ def parse_override(item: str) -> tuple[str, Any]:
     return key, value
 
 
+_SH_ASSIGNMENT = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
+
+
+def _has_expansion(raw: str) -> bool:
+    """True if ``raw`` contains ``$`` or a backtick outside single quotes (i.e. shell code)."""
+    in_single = in_double = False
+    for ch in raw:
+        if ch == "'" and not in_double:
+            in_single = not in_single
+        elif ch == '"' and not in_single:
+            in_double = not in_double
+        elif ch in "$`" and not in_single:
+            return True
+        elif ch == "#" and not in_single and not in_double:
+            break  # rest is a comment
+    return False
+
+
+def _coerce(key: str, value: str, element: bool = False) -> Any:
+    """Convert a shell string to the type DEFAULT_CONFIG uses for ``key``."""
+    default = DEFAULT_CONFIG.get(key)
+    if element and isinstance(default, list):
+        default = default[0] if default else None
+    if isinstance(default, bool) or (default is None and value in ("true", "false")):
+        if value in ("true", "false"):
+            return value == "true"
+        return value
+    if isinstance(default, (int, float)) or default is None:
+        for convert in (int, float):
+            try:
+                return convert(value)
+            except ValueError:
+                pass
+    return value
+
+
+def parse_config_sh(text: str) -> tuple[dict[str, Any], list[str]]:
+    """Parse the simple assignments expose.sh users put in ``_config.sh``.
+
+    This never executes shell. Supported: ``key=value``, ``key="value"``, ``key='value'``,
+    ``key=(a b "c d")`` and ``#`` comments. Values are converted to the type of the matching
+    ``DEFAULT_CONFIG`` entry (``true``/``false`` → bool, numbers → int/float).
+
+    Returns:
+        (values, warnings) — lines that can't be parsed safely are skipped with a warning.
+    """
+    values: dict[str, Any] = {}
+    warnings: list[str] = []
+
+    for lineno, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        match = _SH_ASSIGNMENT.match(stripped)
+        if not match:
+            warnings.append(f"_config.sh line {lineno}: not a simple assignment, ignored")
+            continue
+        key, raw = match.groups()
+
+        if _has_expansion(raw):
+            warnings.append(f"_config.sh line {lineno}: shell expansion in {key}, ignored")
+            continue
+
+        try:
+            if raw.lstrip().startswith("("):
+                tokens = shlex.split(raw.lstrip()[1:], comments=True)
+                if not tokens or not tokens[-1].endswith(")"):
+                    raise ValueError("array must open and close on one line")
+                tokens[-1] = tokens[-1][:-1]
+                if tokens[-1] == "":
+                    tokens.pop()
+                values[key] = [_coerce(key, t, element=True) for t in tokens]
+            else:
+                tokens = shlex.split(raw, comments=True)
+                if len(tokens) > 1:
+                    raise ValueError("unquoted value with spaces")
+                values[key] = _coerce(key, tokens[0] if tokens else "")
+        except ValueError as e:
+            warnings.append(f"_config.sh line {lineno}: {e} in {key}, ignored")
+
+    return values, warnings
+
+
+def read_config_file(path: Path) -> tuple[dict[str, Any], list[str]]:
+    """Read a ``.json`` or ``.sh`` config file.
+
+    Returns:
+        (values, warnings)
+
+    Raises:
+        ConfigError: If a JSON file is malformed.
+    """
+    path = Path(path)
+    if path.suffix == ".sh":
+        return parse_config_sh(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ConfigError(f"{path}: invalid JSON ({e})") from e
+    if not isinstance(data, dict):
+        raise ConfigError(f"{path}: expected a JSON object at the top level")
+    return data, []
+
+
 class Config:
     """Configuration container with validation."""
 
@@ -81,6 +207,8 @@ class Config:
             config_dict: Configuration dictionary.
         """
         self._config = config_dict
+        # Notes produced while loading (e.g. _config.sh lines that were skipped)
+        self.load_warnings: list[str] = []
 
     @classmethod
     def load(
@@ -95,38 +223,42 @@ class Config:
         Args:
             topdir: Top-level directory (where _config.json might be).
             scriptdir: Script directory (for resolving theme paths).
-            config_path: Explicit config file. Must exist if given; defaults to
-                ``topdir/_config.json`` (optional).
+            config_path: Explicit config file (``.json`` or ``.sh``). Must exist if given.
+                Defaults to ``topdir/_config.json``, else expose.sh's ``topdir/_config.sh``.
             overrides: Values that take precedence over the file (e.g. from ``--set``).
 
         Returns:
-            Config instance.
+            Config instance. ``load_warnings`` holds any notes for the user.
 
         Raises:
             ConfigError: If the config file is missing (when explicit) or not valid JSON.
         """
         config = dict(DEFAULT_CONFIG)
+        warnings: list[str] = []
 
         if config_path is not None:
             config_path = Path(config_path)
             if not config_path.exists():
                 raise ConfigError(f"Config file not found: {config_path}")
         else:
-            config_path = Path(topdir) / "_config.json"
+            config_path = find_config_file(Path(topdir))
+            if config_path is not None and config_path.suffix == ".sh":
+                warnings.append(
+                    "Using _config.sh (expose.sh format); run `expose --convert-config` "
+                    "to switch to _config.json"
+                )
 
-        if config_path.exists():
-            try:
-                user_config = json.loads(config_path.read_text())
-            except json.JSONDecodeError as e:
-                raise ConfigError(f"{config_path}: invalid JSON ({e})") from e
-            if not isinstance(user_config, dict):
-                raise ConfigError(f"{config_path}: expected a JSON object at the top level")
+        if config_path is not None:
+            user_config, file_warnings = read_config_file(config_path)
+            warnings += file_warnings
             config.update(user_config)
 
         if overrides:
             config.update(overrides)
 
-        return cls(config)
+        result = cls(config)
+        result.load_warnings = warnings
+        return result
 
     def validate(self, topdir: Path | None = None) -> list[str]:
         """Check values, raising on errors.
@@ -142,12 +274,6 @@ class Config:
         """
         c = self._config
         errors = []
-
-        def is_int(v):
-            return isinstance(v, int) and not isinstance(v, bool)
-
-        def is_num(v):
-            return isinstance(v, (int, float)) and not isinstance(v, bool)
 
         res = c.get("resolution")
         if not (isinstance(res, list) and res and all(is_int(r) and r > 0 for r in res)):
@@ -202,7 +328,7 @@ class Config:
         self._config["video_formats"] = ["h264"]
         self._config["download_button"] = False
 
-    def get(self, key: str, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value.
 
         Args:
@@ -214,7 +340,7 @@ class Config:
         """
         return self._config.get(key, default)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> Any:
         """Get configuration value using dict syntax.
 
         Args:
@@ -228,7 +354,7 @@ class Config:
         """
         return self._config[key]
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key: str, value: Any) -> None:
         """Set configuration value using dict syntax.
 
         Args:

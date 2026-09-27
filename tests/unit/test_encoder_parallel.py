@@ -83,17 +83,28 @@ class TestIncrementalRebuild:
         build(tmp_gallery)
         assert out.stat().st_mtime_ns == before
 
-    def test_newer_source_is_reencoded(self, tmp_gallery):
+    def test_edited_source_is_reencoded(self, tmp_gallery):
         build(tmp_gallery)
         out = tmp_gallery / "_site" / "urban" / "city" / "1024.jpg"
         other = tmp_gallery / "_site" / "nature" / "oceans" / "wave" / "1024.jpg"
-        os.utime(out, (1, 1))  # pretend the output predates the source
-        other_before = other.stat().st_mtime_ns
+        before, other_before = out.stat().st_mtime_ns, other.stat().st_mtime_ns
+
+        make_test_image(tmp_gallery / "02 Urban" / "01 city.jpg", 640, 480, "green")
+        build(tmp_gallery)
+
+        assert out.stat().st_mtime_ns != before
+        assert other.stat().st_mtime_ns == other_before
+
+    def test_output_older_than_source_without_cache_is_rebuilt(self, tmp_gallery):
+        """A _site with no cache record (e.g. built by expose.sh) falls back to mtimes."""
+        build(tmp_gallery)
+        (tmp_gallery / ".pyexpose-cache.json").unlink()
+        out = tmp_gallery / "_site" / "urban" / "city" / "1024.jpg"
+        os.utime(out, (1, 1))
 
         build(tmp_gallery)
 
         assert out.stat().st_mtime > 1
-        assert other.stat().st_mtime_ns == other_before
 
 
 @pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick not installed")

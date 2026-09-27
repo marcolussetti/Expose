@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff, format, ty)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync
+      - run: uvx prek run --all-files --show-diff-on-failure
+
+  test-full:
+    # Everything installed, including expose.sh's own dependencies, so the parity tests
+    # run. Arch ships ImageMagick 7 and ffmpeg with x264 (like the dev machine); Ubuntu's
+    # ImageMagick 6 picks different JPEG chroma subsampling than the one we match.
+    name: Tests + parity (ImageMagick, ffmpeg, perl)
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install system packages
+        run: >-
+          pacman -Syu --noconfirm --needed
+          git make bash which file rsync perl imagemagick ffmpeg uv
+      - uses: actions/checkout@v7
+      - run: uv sync
+      - run: make test-cov
+
+  test-minimal:
+    # No ffmpeg or ImageMagick on the system: proves `uv tool install` needs nothing else
+    # (the bundled imageio-ffmpeg binary and Pillow are used). Parity tests skip here.
+    name: Tests without system packages
+    runs-on: ubuntu-latest
+    container: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the environment really is minimal
+        run: |
+          ! command -v ffmpeg
+          ! command -v convert
+          ! command -v magick
+      - run: uv sync
+      - run: uv run pytest -m "not slow" --no-cov

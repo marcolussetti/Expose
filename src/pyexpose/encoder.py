@@ -12,13 +12,21 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
+from PIL import Image
+
+from pyexpose.cache import BuildCache, Fingerprint, settings_hash, source_stat
 from pyexpose.config import VIDEO_FORMAT_EXTENSIONS, Config
 from pyexpose.media.ffmpeg import run_ffmpeg
 from pyexpose.media.image import ImageProcessor
 from pyexpose.media.video import VideoProcessor
+
+# Sequence frame extension -> image2 codec family (.jpg and .jpeg decode the same)
+_FRAME_KIND = {".jpg": "jpg", ".jpeg": "jpg", ".png": "png", ".gif": "gif"}
 
 # Arguments shared by every ffmpeg invocation (expose.sh passes these on each call)
 FFMPEG_COMMON = ["-loglevel", "error", "-nostdin"]
@@ -82,6 +90,8 @@ class MediaEncoder:
         nav_url: list[str],
         scratchdir: Path | None = None,
         gallery_video_options: list[str] | None = None,
+        cache: BuildCache | None = None,
+        dry_run: bool = False,
     ):
         """Initialize the media encoder.
 
@@ -99,6 +109,8 @@ class MediaEncoder:
             nav_url: Navigation URLs.
             scratchdir: Optional existing scratch directory to reuse.
             gallery_video_options: FFmpeg options per gallery item.
+            cache: Build cache for output fingerprints (None: rebuild on missing/stale only).
+            dry_run: Record what would be encoded in ``planned`` instead of encoding.
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
@@ -124,10 +136,15 @@ class MediaEncoder:
 
         self.autorotate = config["autorotate"]
 
+        self.cache = cache
+        self.dry_run = dry_run
+        # (output path relative to _site, reason) for every file a dry run would build
+        self.planned: list[tuple[str, str]] = []
+
     # --- helpers ---
 
     @staticmethod
-    def _item(values: list, index: int, default=""):
+    def _item(values: list, index: int, default: Any = "") -> Any:
         """Return values[index], or default when the per-item array is short."""
         return values[index] if index < len(values) and values[index] else default
 
@@ -135,22 +152,89 @@ class MediaEncoder:
         """Return the source file for gallery item ``index`` (for freshness checks)."""
         return self._item(self.gallery_files, index, fallback)
 
+    @staticmethod
+    def _fingerprint(source: Path | None, **settings: Any) -> Fingerprint:
+        """Fingerprint of an output: its source's stat plus the settings that shape it."""
+        stat = source_stat(source) if source is not None else [0, 0]
+        return Fingerprint(stat, settings_hash(**settings))
+
+    def _needs(
+        self, output: Path, fingerprint: Fingerprint, source: Path | None, nonempty: bool = False
+    ) -> str | None:
+        """Why ``output`` must be (re)built, or None if it's up to date.
+
+        With a cache, an output is rebuilt when its recorded fingerprint differs (source edited,
+        settings or per-post metadata changed). Outputs with no record (e.g. built by
+        expose.sh or an older PyExpose) are adopted if they're newer than their source.
+        """
+        try:
+            stat = output.stat()
+        except FileNotFoundError:
+            return "new"
+        if nonempty and stat.st_size == 0:
+            return "new"
+        if self.cache is None:
+            return None if is_current(output, source) else "source changed"
+
+        recorded = self.cache.get_output(output)
+        if recorded == fingerprint:
+            return None
+        if recorded is not None:
+            return "source changed" if recorded.source != fingerprint.source else "settings changed"
+        if is_current(output, source):
+            if not self.dry_run:
+                self.cache.put_output(output, fingerprint)
+            return None
+        return "source changed"
+
+    def _plan(self, output: Path, reason: str) -> None:
+        """Record an output a dry run would build."""
+        self.planned.append((output.relative_to(self.topdir / "_site").as_posix(), reason))
+
+    def _built(self, output: Path, fingerprint: Fingerprint, ok: bool = True) -> None:
+        """Record a successfully built output's fingerprint."""
+        if ok and self.cache is not None and output.exists():
+            self.cache.put_output(output, fingerprint)
+
+    def _video_settings(self, index: int, vformat: str, res: int, j: int) -> dict[str, Any]:
+        """Settings that determine the bytes of one encoded video file."""
+        bitrates = self.config["bitrate"]
+        mbit = bitrates[j] if j < len(bitrates) else bitrates[-1]
+        speed = None
+        if vformat in ("h264", "h265"):
+            speed = self.config["h264_encodespeed"]
+        elif vformat == "vp9":
+            speed = self.config["vp9_encodespeed"]
+        return {
+            "kind": "video-draft" if self.draft else "video",
+            "format": vformat,
+            "res": res,
+            "mbit": None if self.draft else mbit,
+            "maxratio": None if self.draft else self.config["bitrate_maxratio"],
+            "speed": None if self.draft else speed,
+            "filters": self._item(self.gallery_video_filters, index),
+            "options": self._item(self.gallery_video_options, index),
+            "audio": not self.config["disable_audio"],
+        }
+
     # --- pipeline ---
 
-    def encode_media(self):
+    def encode_media(self) -> None:
         """Encode all images and videos.
 
         Images are encoded in parallel (``jobs`` config key, 0 = one per CPU). Videos and
         sequences run one at a time since each ffmpeg process already uses every core.
         """
-        print("Starting encode")
+        if not self.dry_run:
+            print("Starting encode")
 
         total = len(self.gallery_files)
         images = [i for i in range(total) if self.gallery_type[i] == 0]
         videos = [i for i in range(total) if self.gallery_type[i] != 0]
 
         jobs = self.config.worker_count()
-        if jobs > 1 and len(images) > 1:
+        # A dry run only stats files; keep it sequential so the plan lists in gallery order
+        if jobs > 1 and len(images) > 1 and not self.dry_run:
             pool = ThreadPoolExecutor(max_workers=jobs)
             try:
                 # list() re-raises any worker exception here
@@ -165,13 +249,13 @@ class MediaEncoder:
         for i in videos:
             self._encode_item(i)
 
-    def _encode_item(self, i: int):
+    def _encode_item(self, i: int) -> None:
         """Encode one gallery item in its own scratch directory."""
-        print(f"[{i + 1}/{len(self.gallery_files)}] {self.gallery_url[i]}")
-
         file_path = self.gallery_files[i]
         url = f"{self.nav_url[self.gallery_nav[i]]}/{self.gallery_url[i]}"
-        (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
+        if not self.dry_run:
+            print(f"[{i + 1}/{len(self.gallery_files)}] {self.gallery_url[i]}")
+            (self.topdir / "_site" / url).mkdir(parents=True, exist_ok=True)
 
         scratch = self.scratchdir / f"item-{i}"
         scratch.mkdir(parents=True, exist_ok=True)
@@ -183,13 +267,22 @@ class MediaEncoder:
 
                 if self.gallery_type[i] == 2:
                     # Compile image sequence to video
-                    if self._sequence_finished(url):
+                    if self._sequence_finished(url, i):
                         return
 
                     print("Compiling sequence images")
                     filepath = self._compile_sequence(file_path, scratch=scratch)
                     if not filepath:
                         return
+
+                if self.dry_run:
+                    # Plan from the source's dimensions without compiling or extracting
+                    width, height = self._planning_dims(i, file_path)
+                    self._encode_video(file_path, url, i, dims=(width, height))
+                    self._encode_images(file_path, url, i, width=width)
+                    if self.config["download_button"]:
+                        self._create_download_zip(file_path, url, i)
+                    return
 
                 self._encode_video(filepath, url, i, scratch=scratch)
 
@@ -218,20 +311,36 @@ class MediaEncoder:
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
 
-    def _sequence_finished(self, url: str) -> bool:
+    def _planning_dims(self, index: int, file_path: Path) -> tuple[int, int]:
+        """Source dimensions for a dry run: probe videos, read a sequence's first frame."""
+        if self.gallery_type[index] == 2:
+            frames = sorted(f for f in file_path.iterdir() if f.suffix.lower() in _FRAME_KIND)
+            if not frames:
+                return 0, 0
+            return self.image_processor.extract_dimensions(frames[0])
+        return self.video_processor.probe(file_path)
+
+    def _sequence_finished(self, url: str, index: int | None = None) -> bool:
         """Check if sequence encoding is already complete.
 
         Args:
             url: URL path for the sequence.
+            index: Gallery index, to also check fingerprints (None: existence only).
 
         Returns:
-            True if all sequence video files exist and are non-empty.
+            True if all sequence video files exist, are non-empty and up to date.
         """
-        for res in self.config["resolution"]:
-            for vformat in self.config["video_formats"]:
+        for vformat in self.config["video_formats"]:
+            for j, res in enumerate(self.config["resolution"]):
                 ext = VIDEO_FORMAT_EXTENSIONS.get(vformat, "mp4")
                 videofile = self.topdir / "_site" / url / f"{res}-{vformat}.{ext}"
-                if not is_current(videofile, None, nonempty=True):
+                if index is None:
+                    if not is_current(videofile, None, nonempty=True):
+                        return False
+                    continue
+                source = self._source(index)
+                fp = self._fingerprint(source, **self._video_settings(index, vformat, res, j))
+                if self._needs(videofile, fp, source, nonempty=True):
                     return False
         return True
 
@@ -253,17 +362,27 @@ class MediaEncoder:
         if not images:
             return None
 
-        # Copy files to scratch with sequential names
-        for j, img in enumerate(images):
-            shutil.copy(img, scratch / f"{j:04d}{img.suffix}")
+        # ffmpeg's image2 demuxer needs sequentially named frames with one extension, and
+        # decodes every frame with the codec of the first. Frames that are all one format are
+        # copied under a uniform extension (so .JPG/.jpeg/.jpg mix fine); mixed formats are
+        # converted to lossless PNG first (expose.sh silently drops the odd frames out).
+        kinds = {_FRAME_KIND[img.suffix.lower()] for img in images}
+        if len(kinds) == 1:
+            ext = f".{kinds.pop()}"
+            for j, img in enumerate(images):
+                shutil.copy(img, scratch / f"{j:04d}{ext}")
+        else:
+            ext = ".png"
+            for j, img in enumerate(images):
+                with Image.open(img) as frame:
+                    frame.convert("RGB").save(scratch / f"{j:04d}{ext}")
 
         sequence_video = scratch / "sequencevideo.mp4"
         maxres = max(self.config["resolution"])
-        first_ext = images[0].suffix
 
         run_ffmpeg(
             FFMPEG_COMMON
-            + ["-f", "image2", "-y", "-i", str(scratch / f"%04d{first_ext}")]
+            + ["-f", "image2", "-y", "-i", str(scratch / f"%04d{ext}")]
             + ["-c:v", "libx264", "-threads", str(self.config["ffmpeg_threads"])]
             + ["-vf", f"scale={maxres}:trunc(ow/a/2)*2", "-profile:v", "high"]
             + ["-pix_fmt", "yuv420p", "-preset", self.config["h264_encodespeed"]]
@@ -273,7 +392,14 @@ class MediaEncoder:
 
         return sequence_video if sequence_video.exists() else None
 
-    def _encode_video(self, filepath: Path, url: str, index: int, scratch: Path | None = None):
+    def _encode_video(
+        self,
+        filepath: Path,
+        url: str,
+        index: int,
+        scratch: Path | None = None,
+        dims: tuple[int, int] | None = None,
+    ) -> None:
         """Encode video to multiple formats and resolutions.
 
         Args:
@@ -281,9 +407,10 @@ class MediaEncoder:
             url: URL path for output files.
             index: Index into gallery arrays.
             scratch: Scratch directory for 2-pass logs (defaults to the shared scratchdir).
+            dims: Known (width, height); probed from ``filepath`` when None.
         """
         scratch = scratch or self.scratchdir
-        width, height = self.video_processor.probe(filepath)
+        width, height = dims if dims is not None else self.video_processor.probe(filepath)
 
         filters = self._item(self.gallery_video_filters, index)
         filters_arg = f",{filters}" if filters else ""
@@ -298,7 +425,12 @@ class MediaEncoder:
             res = self.config["resolution"][0]
             output_path = self.topdir / "_site" / url / f"{res}-h264.mp4"
 
-            if is_current(output_path, source, nonempty=True):
+            fp = self._fingerprint(source, **self._video_settings(index, "h264", res, 0))
+            reason = self._needs(output_path, fp, source, nonempty=True)
+            if reason is None:
+                return
+            if self.dry_run:
+                self._plan(output_path, reason)
                 return
 
             part = part_path(output_path)
@@ -311,7 +443,7 @@ class MediaEncoder:
                 + ["-crf", "26", *audio_args]
                 + ["-movflags", "+faststart", "-f", "mp4", str(part)]
             )
-            _finalize(part, output_path, ok)
+            self._built(output_path, fp, _finalize(part, output_path, ok))
             return
 
         # Full encode: 2-pass VBR
@@ -337,7 +469,12 @@ class MediaEncoder:
                 ext = VIDEO_FORMAT_EXTENSIONS.get(vformat, "mp4")
                 output_path = self.topdir / "_site" / url / f"{res}-{vformat}.{ext}"
 
-                if is_current(output_path, source, nonempty=True):
+                fp = self._fingerprint(source, **self._video_settings(index, vformat, res, j))
+                reason = self._needs(output_path, fp, source, nonempty=True)
+                if reason is None:
+                    continue
+                if self.dry_run:
+                    self._plan(output_path, reason)
                     continue
 
                 print(f"\tEncoding {vformat} {res} x {scaled_height}")
@@ -373,6 +510,7 @@ class MediaEncoder:
                 if not success:
                     break  # Skip this format entirely
 
+                self._built(output_path, fp)
                 firstpass = True
 
     def _two_pass(
@@ -439,7 +577,7 @@ class MediaEncoder:
         filters_full: list[str],
         audio_args: list[str],
         firstpass: bool,
-        options: list[str] = (),
+        options: Sequence[str] = (),
         passlog: Path | None = None,
     ) -> bool:
         """Encode h264 video with 2-pass. See ``_two_pass`` for arguments."""
@@ -461,7 +599,7 @@ class MediaEncoder:
         filters_full: list[str],
         audio_args: list[str],
         firstpass: bool,
-        options: list[str] = (),
+        options: Sequence[str] = (),
         passlog: Path | None = None,
     ) -> bool:
         """Encode h265 video with 2-pass. See ``_two_pass`` for arguments."""
@@ -482,7 +620,7 @@ class MediaEncoder:
         filters_full: list[str],
         audio_args: list[str],
         firstpass: bool,
-        options: list[str] = (),
+        options: Sequence[str] = (),
         passlog: Path | None = None,
     ) -> bool:
         """Encode VP9 video with 2-pass. See ``_two_pass`` for arguments."""
@@ -504,7 +642,7 @@ class MediaEncoder:
         filters_full: list[str],
         audio_args: list[str],
         firstpass: bool,
-        options: list[str] = (),
+        options: Sequence[str] = (),
         passlog: Path | None = None,
     ) -> bool:
         """Encode VP8 video with 2-pass. See ``_two_pass`` for arguments."""
@@ -523,7 +661,7 @@ class MediaEncoder:
         mbitmax: float,
         filters_arg: str,
         audio_args: list[str],
-        options: list[str] = (),
+        options: Sequence[str] = (),
     ) -> bool:
         """Encode Theora video (1-pass).
 
@@ -551,34 +689,51 @@ class MediaEncoder:
         )
         return _finalize(part, output, ok)
 
-    def _encode_images(self, image: Path, url: str, index: int):
+    def _encode_images(self, image: Path, url: str, index: int, width: int | None = None) -> None:
         """Generate static images for each resolution.
 
         Args:
             image: Source image path.
             url: URL path for output files.
             index: Index into gallery arrays.
+            width: Known source width (read from ``image`` when None).
         """
-        width_str = self.image_processor.identify(image, "%w")
-        width = int(width_str) if width_str else 0
+        if width is None:
+            width_str = self.image_processor.identify(image, "%w")
+            width = int(width_str) if width_str else 0
 
+        gtype = self._item(self.gallery_type, index, 0)
         # Image options are ImageMagick arguments; never applied to video thumbnails
-        options = ""
-        if self._item(self.gallery_type, index, 0) != 1:
-            options = self._item(self.gallery_image_options, index)
+        options = self._item(self.gallery_image_options, index) if gtype != 1 else ""
         extra_args = shlex.split(options)
 
         source = self._source(index, image)
         resolutions = self.config["resolution"]
+        settings = {
+            "kind": "image",
+            "quality": self.config["jpeg_quality"],
+            "autorotate": self.autorotate,
+            "options": options,
+            "backend": "imagemagick" if extra_args and shutil.which("convert") else "pillow",
+        }
+        if gtype != 0:
+            # Thumbnails are grabbed from the (filtered) video
+            settings["video_filters"] = self._item(self.gallery_video_filters, index)
+            settings["video_options"] = self._item(self.gallery_video_options, index)
 
         for count, res in enumerate(resolutions, 1):
             output_path = self.topdir / "_site" / url / f"{res}.jpg"
 
-            if is_current(output_path, source):
+            fp = self._fingerprint(source, res=res, **settings)
+            reason = self._needs(output_path, fp, source)
+            if reason is None:
                 continue
 
             # Only downscale or use smallest resolution
             if width >= res or count == len(resolutions):
+                if self.dry_run:
+                    self._plan(output_path, reason)
+                    continue
                 part = part_path(output_path)
                 try:
                     self.image_processor.resize(
@@ -592,11 +747,11 @@ class MediaEncoder:
                 except BaseException:
                     part.unlink(missing_ok=True)
                     raise
-                _finalize(part, output_path, True)
+                self._built(output_path, fp, _finalize(part, output_path, True))
 
     def _create_download_zip(
         self, file_path: Path, url: str, index: int, scratch: Path | None = None
-    ):
+    ) -> None:
         """Create ZIP file for download.
 
         Args:
@@ -608,7 +763,12 @@ class MediaEncoder:
         scratch = scratch or self.scratchdir
         zip_path = self.topdir / "_site" / url / f"{self.gallery_url[index]}.zip"
 
-        if is_current(zip_path, file_path):
+        fp = self._fingerprint(file_path, kind="zip", readme=self.config["download_readme"])
+        reason = self._needs(zip_path, fp, file_path)
+        if reason is None:
+            return
+        if self.dry_run:
+            self._plan(zip_path, reason)
             return
 
         zip_dir = scratch / "zip"
@@ -625,16 +785,16 @@ class MediaEncoder:
         shutil.copy(filezip, zip_dir / filezip.name)
 
         # Write readme
-        (zip_dir / "readme.txt").write_text(self.config["download_readme"])
+        (zip_dir / "readme.txt").write_text(self.config["download_readme"], encoding="utf-8")
 
         # Create zip using stdlib (flat structure, no ./ prefix)
         part = part_path(zip_path)
         with zipfile.ZipFile(part, "w", zipfile.ZIP_DEFLATED) as zf:
             for f in zip_dir.iterdir():
                 zf.write(f, f.name)
-        _finalize(part, zip_path, True)
+        self._built(zip_path, fp, _finalize(part, zip_path, True))
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up temporary files."""
         if self.scratchdir.exists():
             shutil.rmtree(self.scratchdir, ignore_errors=True)

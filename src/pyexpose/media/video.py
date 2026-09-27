@@ -20,7 +20,7 @@ class VideoProcessor(MediaProcessor):
         """Initialize video processor."""
         self.available = ffmpeg_exe() is not None
 
-    def process(self, input_path: Path, output_path: Path, **kwargs) -> None:
+    def process(self, input_path: Path, output_path: Path, **kwargs: object) -> None:
         """Process a video (generic interface).
 
         Args:

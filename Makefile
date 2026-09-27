@@ -1,7 +1,7 @@
 # PyExpose Makefile
 # Common development tasks using uv
 
-.PHONY: help test test-cov test-fast clean install lint format
+.PHONY: help test test-cov test-fast clean install lint format typecheck
 
 help:
 	@echo "Available commands:"
@@ -10,7 +10,8 @@ help:
 	@echo "  make test-fast  - Run tests without slow/parity tests"
 	@echo "  make clean      - Clean generated files and caches"
 	@echo "  make install    - Install dependencies with uv"
-	@echo "  make lint       - Run all pre-commit hooks (via prek)"
+	@echo "  make lint       - Run all pre-commit hooks (via prek): ruff, format, ty"
+	@echo "  make typecheck  - Type-check src/ with ty"
 	@echo "  make format     - Format code (via prek ruff-format)"
 	@echo "  make install-hooks - Install prek hooks"
 
@@ -49,6 +50,10 @@ install-hooks:
 # Run all pre-commit hooks on all files (via prek)
 lint:
 	prek run --all-files
+
+# Type-check with ty
+typecheck:
+	uv run ty check src
 
 # Format code only (via prek ruff-format hook)
 format:

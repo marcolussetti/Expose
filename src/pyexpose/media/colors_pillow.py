@@ -33,7 +33,7 @@ class PillowColorExtractor:
                 img = img.convert("RGB")
 
                 # Step 1: resize to ≤200x200 (matches -resize 200x200)
-                img.thumbnail((200, 200), Image.LANCZOS)
+                img.thumbnail((200, 200), Image.Resampling.LANCZOS)
 
                 # Step 2: 4-bit depth reduction — 16 levels per channel
                 # Matches ImageMagick -depth 4 (rounds each channel to nearest
@@ -46,7 +46,7 @@ class PillowColorExtractor:
                 # Step 4: extract palette entries
                 # In Pillow 12+, getpalette() returns only the colors actually
                 # present — may be fewer than num_colors for simple images.
-                palette_data = quantized.getpalette()
+                palette_data = quantized.getpalette() or []
                 actual_count = len(palette_data) // 3
                 colors = []
                 for i in range(min(num_colors, actual_count)):

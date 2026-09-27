@@ -11,7 +11,7 @@ from pyexpose.media.colors_imagemagick import ImageMagickColorExtractor
 from pyexpose.media.colors_pillow import PillowColorExtractor
 
 
-def _make_extractor():
+def _make_extractor() -> ImageMagickColorExtractor | PillowColorExtractor:
     if shutil.which("convert"):
         return ImageMagickColorExtractor()
     return PillowColorExtractor()
@@ -28,7 +28,7 @@ class ColorExtractor:
         self._backend = _make_extractor()
 
     @property
-    def backend(self):
+    def backend(self) -> ImageMagickColorExtractor | PillowColorExtractor:
         """The active backend instance."""
         return self._backend
 
