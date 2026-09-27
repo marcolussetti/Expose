@@ -1,4 +1,4 @@
-"""Template engine for PyExpose.
+"""Template engine for Dorothea.
 
 Provides sed-like template substitution to maintain parity with
 the original shell script implementation.

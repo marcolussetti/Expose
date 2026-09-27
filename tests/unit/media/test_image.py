@@ -1,4 +1,4 @@
-"""Unit tests for pyexpose.media.image module.
+"""Unit tests for dorothea.media.image module.
 
 Tests the ImageProcessor class that uses Pillow.
 """
@@ -9,7 +9,7 @@ import subprocess
 import pytest
 from PIL import Image, JpegImagePlugin
 
-from pyexpose.media.image import ImageProcessor
+from dorothea.media.image import ImageProcessor
 
 
 @pytest.fixture

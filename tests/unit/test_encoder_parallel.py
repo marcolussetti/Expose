@@ -98,7 +98,7 @@ class TestIncrementalRebuild:
     def test_output_older_than_source_without_cache_is_rebuilt(self, tmp_gallery):
         """A _site with no cache record (e.g. built by expose.sh) falls back to mtimes."""
         build(tmp_gallery)
-        (tmp_gallery / ".pyexpose-cache.json").unlink()
+        (tmp_gallery / ".dorothea-cache.json").unlink()
         out = tmp_gallery / "_site" / "urban" / "city" / "1024.jpg"
         os.utime(out, (1, 1))
 
@@ -125,11 +125,11 @@ class TestImageOptions:
         assert r > 200 and g > 200 and b < 60
 
     def test_image_options_warn_without_imagemagick(self, tmp_path, capsys):
-        from pyexpose.media.image import ImageProcessor
+        from dorothea.media.image import ImageProcessor
 
         out = self._gallery_with_options(tmp_path, "-negate")
         with (
-            mock.patch("pyexpose.media.image.shutil.which", return_value=None),
+            mock.patch("dorothea.media.image.shutil.which", return_value=None),
             mock.patch.object(ImageProcessor, "_warned_no_convert", False),
         ):
             build(tmp_path)

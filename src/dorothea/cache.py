@@ -1,6 +1,6 @@
 """Persistent build cache.
 
-Stored as ``.pyexpose-cache.json`` in the gallery root (hidden and outside ``_site``, so it is
+Stored as ``.dorothea-cache.json`` in the gallery root (hidden and outside ``_site``, so it is
 never scanned or published). It holds:
 
 - **analysis**: colour palette and dimensions per source file, so unchanged photos skip
@@ -18,7 +18,7 @@ import threading
 from pathlib import Path
 from typing import Any, NamedTuple
 
-CACHE_NAME = ".pyexpose-cache.json"
+CACHE_NAME = ".dorothea-cache.json"
 CACHE_VERSION = 1
 
 

@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from pyexpose.config import DEFAULT_CONFIG, Config
-from pyexpose.generator import ExposeGenerator
+from dorothea.config import DEFAULT_CONFIG, Config
+from dorothea.generator import ExposeGenerator
 
 # Directory containing the bash reference implementation (expose.sh) and its
 # dependencies. Used only by parity tests.

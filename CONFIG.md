@@ -1,4 +1,4 @@
-# PyExpose configuration
+# Dorothea configuration
 
 Settings are read, in increasing order of precedence, from:
 
@@ -56,7 +56,7 @@ to delete `_site`.
 ## Video
 
 Video needs ffmpeg: a system `ffmpeg` on `PATH` is used if present, otherwise the one bundled
-with PyExpose (imageio-ffmpeg).
+with Dorothea (imageio-ffmpeg).
 
 | Key | Default | Description |
 |---|---|---|
@@ -77,7 +77,7 @@ with PyExpose (imageio-ffmpeg).
 | `download_button` | `false` | Offer each original in a zip with a readme. |
 | `download_readme` | `"All rights reserved"` | Text of the `readme.txt` in each zip. |
 
-## PyExpose-only
+## Dorothea-only
 
 | Key | Default | Description |
 |---|---|---|
@@ -118,7 +118,7 @@ Caption in *Markdown*.
 
 ## Build cache
 
-PyExpose keeps `.pyexpose-cache.json` in the gallery folder. It holds extracted palettes, so
+Dorothea keeps `.dorothea-cache.json` in the gallery folder. It holds extracted palettes, so
 unchanged photos aren't re-analysed, and a fingerprint for every generated file, so changed
 sources, settings or metadata rebuild exactly what they affect. It's safe to delete: the next
 run re-analyses the photos and keeps any existing output that's newer than its source.

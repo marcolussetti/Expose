@@ -144,7 +144,7 @@ class TestFinalParity:
 
         # Run Python version
         subprocess.run(
-            [sys.executable, "-m", "pyexpose", "-d"],
+            [sys.executable, "-m", "dorothea", "-d"],
             cwd=str(gallery),
             check=True,
             capture_output=True,
@@ -191,7 +191,7 @@ class TestFinalParity:
 
         # Run Python version
         subprocess.run(
-            [sys.executable, "-m", "pyexpose", "-d"],
+            [sys.executable, "-m", "dorothea", "-d"],
             cwd=str(gallery),
             check=True,
             capture_output=True,
@@ -242,7 +242,7 @@ class TestFinalParity:
 
         # Run Python version
         result = subprocess.run(
-            [sys.executable, "-m", "pyexpose", "-d"],
+            [sys.executable, "-m", "dorothea", "-d"],
             cwd=str(gallery),
             capture_output=True,
             text=True,

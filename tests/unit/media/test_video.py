@@ -1,4 +1,4 @@
-"""Unit tests for pyexpose.media.video module.
+"""Unit tests for dorothea.media.video module.
 
 Tests the VideoProcessor class that wraps FFmpeg.
 """
@@ -8,8 +8,8 @@ from unittest import mock
 
 import pytest
 
-from pyexpose.media import ffmpeg
-from pyexpose.media.video import VideoProcessor
+from dorothea.media import ffmpeg
+from dorothea.media.video import VideoProcessor
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ class TestVideoProcessor:
     def test_unavailable_without_any_ffmpeg(self):
         """No system ffmpeg and no bundled binary → video disabled."""
         with (
-            mock.patch("pyexpose.media.ffmpeg.shutil.which", return_value=None),
+            mock.patch("dorothea.media.ffmpeg.shutil.which", return_value=None),
             mock.patch("imageio_ffmpeg.get_ffmpeg_exe", side_effect=RuntimeError),
         ):
             assert VideoProcessor().available is False
@@ -72,14 +72,14 @@ class TestVideoProcessorMethods:
 
 
 class TestFfmpegHelpers:
-    """Tests for pyexpose.media.ffmpeg."""
+    """Tests for dorothea.media.ffmpeg."""
 
     def test_prefers_system_ffmpeg(self):
-        with mock.patch("pyexpose.media.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value="/usr/bin/ffmpeg"):
             assert ffmpeg.ffmpeg_exe() == "ffmpeg"
 
     def test_falls_back_to_bundled_ffmpeg(self):
-        with mock.patch("pyexpose.media.ffmpeg.shutil.which", return_value=None):
+        with mock.patch("dorothea.media.ffmpeg.shutil.which", return_value=None):
             exe = ffmpeg.ffmpeg_exe()
         assert exe is not None
         assert "ffmpeg" in exe

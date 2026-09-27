@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from pyexpose.cache import CACHE_NAME, BuildCache, Fingerprint, settings_hash, source_stat
-from pyexpose.cli import main
+from dorothea.cache import CACHE_NAME, BuildCache, Fingerprint, settings_hash, source_stat
+from dorothea.cli import main
 from tests.conftest import make_gallery_tree, make_generator, make_test_image
 
 
@@ -160,7 +160,7 @@ def test_video_plan_build_and_rebuild(tmp_path):
     """Videos: the dry run lists every output, a real build makes them, a rebuild does nothing."""
     import subprocess
 
-    from pyexpose.media.ffmpeg import ffmpeg_exe
+    from dorothea.media.ffmpeg import ffmpeg_exe
 
     gallery = tmp_path / "gallery"
     gallery.mkdir()

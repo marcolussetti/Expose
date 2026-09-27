@@ -19,11 +19,11 @@ from typing import Any
 
 from PIL import Image
 
-from pyexpose.cache import BuildCache, Fingerprint, settings_hash, source_stat
-from pyexpose.config import VIDEO_FORMAT_EXTENSIONS, Config
-from pyexpose.media.ffmpeg import run_ffmpeg
-from pyexpose.media.image import ImageProcessor
-from pyexpose.media.video import VideoProcessor
+from dorothea.cache import BuildCache, Fingerprint, settings_hash, source_stat
+from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
+from dorothea.media.ffmpeg import run_ffmpeg
+from dorothea.media.image import ImageProcessor
+from dorothea.media.video import VideoProcessor
 
 # Sequence frame extension -> image2 codec family (.jpg and .jpeg decode the same)
 _FRAME_KIND = {".jpg": "jpg", ".jpeg": "jpg", ".png": "png", ".gif": "gif"}
@@ -165,7 +165,7 @@ class MediaEncoder:
 
         With a cache, an output is rebuilt when its recorded fingerprint differs (source edited,
         settings or per-post metadata changed). Outputs with no record (e.g. built by
-        expose.sh or an older PyExpose) are adopted if they're newer than their source.
+        expose.sh or an older Dorothea) are adopted if they're newer than their source.
         """
         try:
             stat = output.stat()

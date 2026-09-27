@@ -1,15 +1,16 @@
-# Migrating from expose.sh to PyExpose
+# Migrating from expose.sh to Dorothea
 
-PyExpose is a Python port of [expose.sh](https://github.com/Jack000/Expose). For the same
+Dorothea is a Python port of [expose.sh](https://github.com/Jack000/Expose). For the same
 photos and settings it produces the same site: its test suite builds galleries with both and
 checks that the file lists match, HTML/CSS/JS are byte-identical, and every image and video has
-the same file size. This page covers what you need to change, and the places where PyExpose
+the same file size. This page covers what you need to change, and the places where Dorothea
 deliberately behaves differently.
 
 ## Install
 
 ```sh
-uv tool install /path/to/pyexpose    # or: pipx install /path/to/pyexpose
+uvx dorothea                 # run without installing (or: pipx run dorothea)
+uv tool install dorothea     # install the command (or: pipx install dorothea)
 ```
 
 No system packages are required: Pillow resizes images and an ffmpeg binary is bundled.
@@ -19,11 +20,12 @@ Optional:
 - **ImageMagick** is used for colour extraction (identical palettes to expose.sh) and for
   per-post `image-options`
 
-Run it the same way as before, inside the gallery folder: `expose` or `expose -d`.
+Run it the same way as before, inside the gallery folder: `dorothea` or `dorothea -d`. The
+command is also installed as `expose`, so `expose -d` keeps working.
 
 ## Configuration
 
-Your `_config.sh` keeps working: without a `_config.json`, PyExpose reads it. It's parsed,
+Your `_config.sh` keeps working: without a `_config.json`, Dorothea reads it. It's parsed,
 never executed, so only plain assignments are supported:
 
 ```sh
@@ -36,21 +38,21 @@ Anything else (`$(...)`, `${VAR}`, `export`, `if`) is skipped with a warning nam
 To switch to JSON, the recommended format:
 
 ```sh
-expose --convert-config          # writes _config.json from _config.sh
+dorothea --convert-config        # writes _config.json from _config.sh
 ```
 
 If both files exist, `_config.json` wins. Every setting is described in
 [CONFIG.md](CONFIG.md).
 
 > **Note:** expose.sh ignores `resolution`, `bitrate`, `video_formats` and `default_palette` set
-> in `_config.sh` (it reassigns them after reading the file). PyExpose honours them, so a
+> in `_config.sh` (it reassigns them after reading the file). Dorothea honours them, so a
 > gallery that set them will now actually use those values.
 
-## New in PyExpose
+## New in Dorothea
 
 - **Incremental builds that notice changes.** expose.sh skips any output that already exists,
-  so edits needed a manual `rm -rf _site`. PyExpose rebuilds exactly the files whose source,
-  settings or per-post metadata changed. State lives in `.pyexpose-cache.json` in the gallery
+  so edits needed a manual `rm -rf _site`. Dorothea rebuilds exactly the files whose source,
+  settings or per-post metadata changed. State lives in `.dorothea-cache.json` in the gallery
   folder, which also caches colour palettes so re-runs are fast. An existing `_site` from
   expose.sh is adopted as-is, and files newer than their source aren't re-encoded.
 - `-n` / `--dry-run` lists what would be built and why.
@@ -62,9 +64,9 @@ If both files exist, `_config.json` wins. Every setting is described in
 
 ## Intentional differences
 
-These are places where expose.sh has a bug or a platform quirk that PyExpose doesn't copy:
+These are places where expose.sh has a bug or a platform quirk that Dorothea doesn't copy:
 
-| expose.sh | PyExpose |
+| expose.sh | Dorothea |
 |---|---|
 | Skips hidden folders only at the top level (`.foo/`). | Skips hidden folders at any depth (`gallery/.thumbs/`). |
 | An image sequence mixing formats (JPEG + PNG) or extensions (`.JPG` + `.jpg`) silently loses frames. | Every frame is used; mixed formats are converted to lossless PNG first. |

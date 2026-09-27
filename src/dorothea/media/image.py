@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps, JpegImagePlugin
 
-from pyexpose.media.base import MediaProcessor
+from dorothea.media.base import MediaProcessor
 
 
 class ImageProcessor(MediaProcessor):

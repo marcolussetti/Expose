@@ -5,15 +5,15 @@ Provides abstraction layer for FFmpeg commands.
 
 from pathlib import Path
 
-from pyexpose.media.base import MediaProcessor
-from pyexpose.media.ffmpeg import ffmpeg_exe, probe_dimensions, run_ffmpeg
+from dorothea.media.base import MediaProcessor
+from dorothea.media.ffmpeg import ffmpeg_exe, probe_dimensions, run_ffmpeg
 
 
 class VideoProcessor(MediaProcessor):
     """FFmpeg wrapper for video processing.
 
     Uses the system ffmpeg if present, otherwise the binary bundled with imageio-ffmpeg
-    (see ``pyexpose.media.ffmpeg``).
+    (see ``dorothea.media.ffmpeg``).
     """
 
     def __init__(self):

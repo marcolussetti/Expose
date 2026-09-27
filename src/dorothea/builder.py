@@ -7,10 +7,10 @@ and substituting variables.
 import re
 from pathlib import Path
 
-from pyexpose.config import Config
-from pyexpose.media.markdown import MarkdownProcessor
-from pyexpose.template import TemplateEngine
-from pyexpose.themes import resolve_theme_dir
+from dorothea.config import Config
+from dorothea.media.markdown import MarkdownProcessor
+from dorothea.template import TemplateEngine
+from dorothea.themes import resolve_theme_dir
 
 
 def _read_text_file(path: Path) -> str:

@@ -52,3 +52,33 @@ jobs:
           ! command -v magick
       - run: uv sync
       - run: uv run pytest -m "not slow" --no-cov
+
+  package:
+    # Build the wheel and sdist and run them the way users will (`uvx dorothea`,
+    # `pipx run dorothea`), outside the source tree, with no ffmpeg or ImageMagick installed.
+    # Catches what the test suite can't: themes missing from the package, broken entry
+    # points, dependencies missing from pyproject.toml.
+    name: Package (uvx, pipx)
+    runs-on: ubuntu-latest
+    container: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+    steps:
+      - uses: actions/checkout@v7
+      - run: uv build
+      - name: Entry points
+        run: |
+          wheel=$(ls dist/*.whl)
+          uvx --isolated --from "$wheel" dorothea --version
+          uvx --isolated --from "$wheel" expose --version
+          uvx pipx run --no-cache --spec "$wheel" dorothea --version
+      - name: Build a gallery from the wheel and from the sdist
+        run: |
+          for dist in dist/*.whl dist/*.tar.gz; do
+            gallery=$(mktemp -d)
+            cp -r tests/data/test_run/. "$gallery"
+            rm -rf "$gallery/_site"
+            (cd "$gallery" && uvx --isolated --from "$GITHUB_WORKSPACE/$dist" dorothea -d)
+            test -s "$gallery/_site/index.html"
+            test -s "$gallery/_site/global.css"
+            test -s "$gallery/_site/nature/mountains/peak/1024.jpg"
+            echo "OK: $dist"
+          done

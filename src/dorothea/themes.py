@@ -1,6 +1,6 @@
-"""Theme directory resolution for PyExpose.
+"""Theme directory resolution for Dorothea.
 
-Bundled themes live inside the package at src/pyexpose/themes/.
+Bundled themes live inside the package at src/dorothea/themes/.
 Users can override by placing a theme directory in their gallery folder.
 """
 

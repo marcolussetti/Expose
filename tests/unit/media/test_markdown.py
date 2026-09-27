@@ -1,4 +1,4 @@
-"""Unit tests for pyexpose.media.markdown module.
+"""Unit tests for dorothea.media.markdown module.
 
 Tests the MarkdownProcessor class.
 """
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from pyexpose.media.markdown import MarkdownProcessor
+from dorothea.media.markdown import MarkdownProcessor
 
 
 @pytest.fixture

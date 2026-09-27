@@ -1,7 +1,7 @@
 """Tests for pure functions — no external dependencies required."""
 
-from pyexpose.template import TemplateEngine
-from pyexpose.utils import strip_numeric_prefix, url_safe
+from dorothea.template import TemplateEngine
+from dorothea.utils import strip_numeric_prefix, url_safe
 
 # --- url_safe ---
 

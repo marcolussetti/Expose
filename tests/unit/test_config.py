@@ -1,4 +1,4 @@
-"""Unit tests for pyexpose.config module.
+"""Unit tests for dorothea.config module.
 
 Tests the Config class that handles configuration loading and management.
 """
@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from pyexpose.config import DEFAULT_CONFIG, Config, ConfigError
+from dorothea.config import DEFAULT_CONFIG, Config, ConfigError
 
 
 class TestConfigDefaults:

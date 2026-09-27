@@ -5,8 +5,8 @@ import subprocess
 
 import pytest
 
-from pyexpose.media.markdown import MarkdownProcessor, normalize_to_markdown_pl
-from pyexpose.template import TemplateEngine
+from dorothea.media.markdown import MarkdownProcessor, normalize_to_markdown_pl
+from dorothea.template import TemplateEngine
 from tests.conftest import REFDIR
 
 CASES = {

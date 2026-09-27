@@ -12,9 +12,9 @@ from unittest import mock
 import pytest
 from PIL import Image
 
-from pyexpose.media.colors import ColorExtractor
-from pyexpose.media.colors_imagemagick import ImageMagickColorExtractor
-from pyexpose.media.colors_pillow import PillowColorExtractor
+from dorothea.media.colors import ColorExtractor
+from dorothea.media.colors_imagemagick import ImageMagickColorExtractor
+from dorothea.media.colors_pillow import PillowColorExtractor
 from tests.conftest import DATADIR
 
 # ---------------------------------------------------------------------------
@@ -112,17 +112,17 @@ class TestImageMagickColorExtractor:
 
 class TestColorExtractorFacade:
     def test_uses_imagemagick_when_available(self):
-        with mock.patch("pyexpose.media.colors.shutil.which", return_value="/usr/bin/convert"):
+        with mock.patch("dorothea.media.colors.shutil.which", return_value="/usr/bin/convert"):
             extractor = ColorExtractor()
         assert isinstance(extractor.backend, ImageMagickColorExtractor)
 
     def test_falls_back_to_pillow_when_imagemagick_missing(self):
-        with mock.patch("pyexpose.media.colors.shutil.which", return_value=None):
+        with mock.patch("dorothea.media.colors.shutil.which", return_value=None):
             extractor = ColorExtractor()
         assert isinstance(extractor.backend, PillowColorExtractor)
 
     def test_extract_palette_delegates_to_backend(self, blue_image):
-        with mock.patch("pyexpose.media.colors.shutil.which", return_value=None):
+        with mock.patch("dorothea.media.colors.shutil.which", return_value=None):
             extractor = ColorExtractor()
         _assert_valid_palette(extractor.extract_palette(blue_image), 7)
 

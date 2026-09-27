@@ -1,6 +1,8 @@
-## Exposé
+## Dorothea
 
-A simple static site generator for photoessays
+A simple static site generator for photo essays. Dorothea is a Python port of Jack Qiao's
+[Exposé](https://github.com/Jack000/Expose) (expose.sh): same themes, same output, no system
+dependencies.
 
 ### Intro
 
@@ -8,26 +10,33 @@ If you're into photography, you probably have folders of images and videos like 
 
 ![a bunch of images](http://jack.works/exposeimages/folder.jpg)
 
-Expose is a Bash script that turns those images *and videos* into a photoessay similar to [jack.ventures](http://jack.ventures) or [jack.works](http://jack.works) (my personal blogs)
+Dorothea turns those images *and videos* into a photo essay similar to [jack.ventures](http://jack.ventures) or [jack.works](http://jack.works) (Jack Qiao's blogs, made with the original Exposé).
 
-If you're not a fan of that look, a [Medium-style theme](http://jack.ventures/sample/inner-mongolia) is included
+If you're not a fan of that look, a [Medium-style theme](http://jack.ventures/sample/inner-mongolia) is included.
 
-tested on Windows/Cygwin, OSX, and should be fine on Linux
+Runs on Linux and macOS with Python 3.14+.
 
 ### Installation
 
-This is the Python port (PyExpose). Everything it needs, including an ffmpeg binary, is installed
-from `pyproject.toml`, so no system packages are required:
+Run it without installing, or install it as a command:
 
-	uv tool install /path/to/this/repo     # or: pipx install /path/to/this/repo
+	uvx dorothea                 # or: pipx run dorothea
+	uv tool install dorothea     # or: pipx install dorothea
 
-A system `ffmpeg` on your PATH is used in preference to the bundled one. ImageMagick is optional:
-when installed it's used for colour extraction and for per-image `image-options`.
+Everything it needs, including an ffmpeg binary, comes with the package; no system packages are
+required. A system `ffmpeg` on your PATH is used in preference to the bundled one. ImageMagick is
+optional: when installed it's used for colour extraction and for per-image `image-options`.
+
+Before the first PyPI release, run it straight from GitHub:
+
+	uvx --from git+https://github.com/marcolussetti/Expose@port-to-python dorothea
 
 ### Basic usage
 
 	cd ~/folderofimages
-	expose
+	dorothea
+
+The command is also available as `expose`, for anyone coming from expose.sh.
 
 The script operates on your current working directory, and outputs a _site directory.
 
@@ -45,23 +54,23 @@ of your project, eg:
 }
 ```
 
-An expose.sh-style `_config.sh` still works (and `expose --convert-config` converts it). Every
+An expose.sh-style `_config.sh` still works (and `dorothea --convert-config` converts it). Every
 option is described in [CONFIG.md](CONFIG.md).
 
 ### Flags
 
-	expose -d
+	dorothea -d
 
 The -d flag enables draft mode, where only a single low resolution is encoded. This can be used for a quick preview or for layout purposes.
 
-Other flags (PyExpose):
+Other flags:
 
-	expose -n                           # dry run: list what would be built, and why
-	expose --config other.json          # use a different config file than ./_config.json
-	expose --set jpeg_quality=85 --set 'resolution=[1920,640]'   # override config values
-	expose -j 4                         # parallel workers for images (default: one per CPU)
-	expose --convert-config             # turn an expose.sh _config.sh into _config.json
-	expose --version
+	dorothea -n                           # dry run: list what would be built, and why
+	dorothea --config other.json          # use a different config file than ./_config.json
+	dorothea --set jpeg_quality=85 --set 'resolution=[1920,640]'   # override config values
+	dorothea -j 4                         # parallel workers for images (default: one per CPU)
+	dorothea --convert-config             # turn an expose.sh _config.sh into _config.json
+	dorothea --version
 
 Re-running only rebuilds what changed: edited photos, changed settings, or changed post
 metadata. There's no need to delete `_site`. All settings are listed in [CONFIG.md](CONFIG.md);

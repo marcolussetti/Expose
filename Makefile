@@ -1,4 +1,4 @@
-# PyExpose Makefile
+# Dorothea Makefile
 # Common development tasks using uv
 
 .PHONY: help test test-cov test-fast clean install lint format typecheck
@@ -22,7 +22,7 @@ test:
 # Run tests with coverage
 test-cov:
 	@rm -rf .coverage htmlcov
-	uv run pytest tests/ --cov=src/pyexpose --cov-report=term --cov-report=html
+	uv run pytest tests/ --cov=src/dorothea --cov-report=term --cov-report=html
 
 # Run only fast tests (skip slow parity tests)
 test-fast:

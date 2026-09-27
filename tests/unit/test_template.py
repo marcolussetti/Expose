@@ -1,9 +1,9 @@
-"""Unit tests for pyexpose.template module.
+"""Unit tests for dorothea.template module.
 
 Tests the TemplateEngine class that provides sed-like template substitution.
 """
 
-from pyexpose.template import TemplateEngine
+from dorothea.template import TemplateEngine
 
 
 class TestTemplateSubstitute:

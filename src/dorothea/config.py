@@ -1,4 +1,4 @@
-"""Configuration management for PyExpose.
+"""Configuration management for Dorothea.
 
 Handles loading configuration from _config.json files and applying
 defaults and validation.
@@ -48,7 +48,7 @@ DEFAULT_CONFIG = {
     "h264_encodespeed": "veryslow",
     "vp9_encodespeed": 1,
     "ffmpeg_threads": 0,
-    # PyExpose-only: parallel workers for image encoding / file reading (0 = one per CPU)
+    # Dorothea-only: parallel workers for image encoding / file reading (0 = one per CPU)
     "jobs": 0,
 }
 
@@ -303,7 +303,7 @@ class Config:
             errors.append(f"jobs must be an integer >= 0 (0 = one per CPU), got {jobs!r}")
 
         if topdir is not None:
-            from pyexpose.themes import resolve_theme_dir
+            from dorothea.themes import resolve_theme_dir
 
             try:
                 resolve_theme_dir(c.get("theme_dir", ""), Path(topdir))

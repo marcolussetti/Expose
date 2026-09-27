@@ -7,8 +7,8 @@ Falls back to Pillow when ImageMagick is not available.
 import shutil
 from pathlib import Path
 
-from pyexpose.media.colors_imagemagick import ImageMagickColorExtractor
-from pyexpose.media.colors_pillow import PillowColorExtractor
+from dorothea.media.colors_imagemagick import ImageMagickColorExtractor
+from dorothea.media.colors_pillow import PillowColorExtractor
 
 
 def _make_extractor() -> ImageMagickColorExtractor | PillowColorExtractor:

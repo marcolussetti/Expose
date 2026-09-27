@@ -1,4 +1,4 @@
-"""Utility functions for PyExpose.
+"""Utility functions for Dorothea.
 
 Pure utility functions with no external dependencies.
 """

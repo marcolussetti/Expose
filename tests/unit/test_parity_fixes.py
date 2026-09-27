@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from pyexpose.media.ffmpeg import ffmpeg_exe
+from dorothea.media.ffmpeg import ffmpeg_exe
 from tests.conftest import make_generator, make_test_image
 
 

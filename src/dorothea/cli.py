@@ -1,4 +1,4 @@
-"""Command-line interface for PyExpose.
+"""Command-line interface for Dorothea.
 
 Handles argument parsing, configuration loading/validation, signal handlers,
 and orchestrates the generation process.
@@ -13,16 +13,15 @@ from collections import Counter
 from pathlib import Path
 from types import FrameType
 
-from pyexpose import __version__
-from pyexpose.config import Config, ConfigError, parse_config_sh, parse_override
-from pyexpose.generator import ExposeGenerator
+from dorothea import __version__
+from dorothea.config import Config, ConfigError, parse_config_sh, parse_override
+from dorothea.generator import ExposeGenerator
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the ``expose`` command."""
     parser = argparse.ArgumentParser(
-        prog="expose",
-        description="Expose - Static photography website generator. "
+        description="Dorothea - static photography website generator (a port of expose.sh). "
         "Run it inside a folder of images/videos; output goes to ./_site",
     )
     parser.add_argument(
@@ -80,15 +79,15 @@ def format_plan(pages: int, planned: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def convert_config(topdir: Path, source: Path | None) -> int:
+def convert_config(topdir: Path, source: Path | None, prog: str = "dorothea") -> int:
     """Convert an expose.sh ``_config.sh`` to ``_config.json``. Returns an exit code."""
     source = source or topdir / "_config.sh"
     target = topdir / "_config.json"
     if not source.exists():
-        print(f"expose: {source} not found", file=sys.stderr)
+        print(f"{prog}: {source} not found", file=sys.stderr)
         return 2
     if target.exists():
-        print(f"expose: {target} already exists; not overwriting", file=sys.stderr)
+        print(f"{prog}: {target} already exists; not overwriting", file=sys.stderr)
         return 2
     values, warnings = parse_config_sh(source.read_text(encoding="utf-8"))
     for warning in warnings:
@@ -105,11 +104,11 @@ def main() -> None:
     args = parser.parse_args()
 
     topdir = Path.cwd()
-    # scriptdir is the pyexpose package directory; themes are bundled inside it
+    # scriptdir is the dorothea package directory; themes are bundled inside it
     scriptdir = Path(__file__).parent.resolve()
 
     if args.convert_config:
-        sys.exit(convert_config(topdir, args.config))
+        sys.exit(convert_config(topdir, args.config, parser.prog))
 
     try:
         overrides = dict(parse_override(item) for item in args.set)
@@ -119,7 +118,7 @@ def main() -> None:
         for warning in config.load_warnings + config.validate(topdir):
             print(f"Warning: {warning}", file=sys.stderr)
     except ConfigError as e:
-        print(f"expose: {e}", file=sys.stderr)
+        print(f"{parser.prog}: {e}", file=sys.stderr)
         sys.exit(2)
 
     if args.draft:

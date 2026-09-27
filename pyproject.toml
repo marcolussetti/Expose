@@ -3,24 +3,42 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pyexpose"]
+packages = ["src/dorothea"]
 
 [project]
-name = "pyexpose"
+name = "dorothea"
 version = "2.0.0"
-description = "Static photography website generator. Python port of expose.sh"
+description = "Static photography website generator: turn folders of photos and videos into a photo essay. A Python port of expose.sh"
 readme = "readme.md"
 license = "MIT"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.14"
+authors = [{ name = "Marco Lussetti" }, { name = "Jack Qiao" }]
+keywords = ["photography", "gallery", "static site generator", "photo essay", "expose"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP :: Site Management",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Video",
+]
 dependencies = [
     "imageio-ffmpeg>=0.6",
     "markdown>=3.9",
     "pillow>=11.3.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/marcolussetti/Expose"
+
 [project.scripts]
-expose = "pyexpose.cli:main"
+dorothea = "dorothea.cli:main"
+expose = "dorothea.cli:main"  # familiar name for expose.sh users
 
 [dependency-groups]
 dev = ["pytest", "pytest-cov", "pytest-order", "ruff==0.16.9", "ty==0.0.84"]  # keep in sync with .pre-commit-config.yaml
@@ -31,12 +49,12 @@ markers = [
     "slow: marks tests as slow (parity tests)",
     "final: marks tests that run only after all others pass",
 ]
-addopts = "--cov=src/pyexpose --cov-report=term-missing --cov-report=html"
+addopts = "--cov=src/dorothea --cov-report=term-missing --cov-report=html"
 
 [tool.coverage.run]
-source = ["src/pyexpose"]
+source = ["src/dorothea"]
 omit = [
-    "src/pyexpose/themes/*",
+    "src/dorothea/themes/*",
     "tests/reference/*",
     "tests/*",
     "_site/*",
@@ -64,7 +82,7 @@ target-version = "py314"
 line-length = 100
 force-exclude = true
 exclude = [
-    "src/pyexpose/themes/",
+    "src/dorothea/themes/",
     "tests/reference/",
     "_site/",
     ".git/",

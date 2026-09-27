@@ -1,4 +1,4 @@
-# Pre-commit configuration for pyexpose
+# Pre-commit configuration for dorothea
 # Excludes legacy theme files and expose.sh
 
 # Hooks that parse Python (debug-statements) must run on the project's minimum version (3.14)

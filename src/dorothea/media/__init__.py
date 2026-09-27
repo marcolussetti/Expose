@@ -3,10 +3,10 @@
 Provides abstractions for image, video, markdown, and color processing.
 """
 
-from pyexpose.media.colors import ColorExtractor
-from pyexpose.media.image import ImageProcessor
-from pyexpose.media.markdown import MarkdownProcessor
-from pyexpose.media.video import VideoProcessor
+from dorothea.media.colors import ColorExtractor
+from dorothea.media.image import ImageProcessor
+from dorothea.media.markdown import MarkdownProcessor
+from dorothea.media.video import VideoProcessor
 
 __all__ = [
     "ImageProcessor",

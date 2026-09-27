@@ -5,8 +5,8 @@ from unittest import mock
 
 import pytest
 
-from pyexpose.cli import main
-from pyexpose.config import Config, parse_config_sh
+from dorothea.cli import main
+from dorothea.config import Config, parse_config_sh
 
 
 class TestParseConfigSh:

@@ -10,13 +10,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from pyexpose.builder import HTMLBuilder
-from pyexpose.cache import BuildCache
-from pyexpose.config import Config
-from pyexpose.encoder import MediaEncoder
-from pyexpose.media.image import ImageProcessor
-from pyexpose.scanner import Scanner
-from pyexpose.themes import resolve_theme_dir
+from dorothea.builder import HTMLBuilder
+from dorothea.cache import BuildCache
+from dorothea.config import Config
+from dorothea.encoder import MediaEncoder
+from dorothea.media.image import ImageProcessor
+from dorothea.scanner import Scanner
+from dorothea.themes import resolve_theme_dir
 
 
 class _ScannerField[T]:
@@ -63,7 +63,7 @@ class ExposeGenerator:
             config: Configuration object or dict.
             draft: Whether to run in draft mode.
             dry_run: Work out what would be built without writing anything.
-            use_cache: Use ``.pyexpose-cache.json`` for palettes and output fingerprints.
+            use_cache: Use ``.dorothea-cache.json`` for palettes and output fingerprints.
         """
         if isinstance(config, dict):
             config = Config(config)

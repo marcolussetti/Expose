@@ -5,9 +5,9 @@ from unittest import mock
 
 import pytest
 
-from pyexpose import __version__
-from pyexpose.cli import main
-from pyexpose.config import DEFAULT_CONFIG, load_config
+from dorothea import __version__
+from dorothea.cli import main
+from dorothea.config import DEFAULT_CONFIG, load_config
 
 
 class TestLoadConfig:
@@ -49,7 +49,7 @@ class TestLoadConfig:
 class TestMain:
     """Tests for main() CLI entry point."""
 
-    @mock.patch("pyexpose.cli.ExposeGenerator")
+    @mock.patch("dorothea.cli.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
     def test_main_basic(self, mock_register, mock_signal, mock_generator_class):
@@ -63,7 +63,7 @@ class TestMain:
         mock_generator_class.assert_called_once()
         mock_generator.run.assert_called_once()
 
-    @mock.patch("pyexpose.cli.ExposeGenerator")
+    @mock.patch("dorothea.cli.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
     def test_main_draft_mode(self, mock_register, mock_signal, mock_generator_class):
@@ -79,7 +79,7 @@ class TestMain:
         call_kwargs = mock_generator_class.call_args[1]
         assert call_kwargs["draft"] is True
 
-    @mock.patch("pyexpose.cli.ExposeGenerator")
+    @mock.patch("dorothea.cli.ExposeGenerator")
     @mock.patch("signal.signal")
     @mock.patch("atexit.register")
     def test_main_sets_up_signal_handlers(self, mock_register, mock_signal, mock_generator_class):
@@ -99,7 +99,7 @@ def run_main(argv, monkeypatch, cwd):
     """Run main() in ``cwd`` with the generator mocked; return the generator class mock."""
     monkeypatch.chdir(cwd)
     with (
-        mock.patch("pyexpose.cli.ExposeGenerator") as gen_class,
+        mock.patch("dorothea.cli.ExposeGenerator") as gen_class,
         mock.patch("signal.signal"),
         mock.patch("atexit.register"),
         mock.patch("sys.argv", ["expose", *argv]),

@@ -13,12 +13,12 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NamedTuple
 
-from pyexpose.cache import BuildCache, settings_hash, source_stat
-from pyexpose.config import Config
-from pyexpose.media.colors import ColorExtractor
-from pyexpose.media.image import ImageProcessor
-from pyexpose.media.video import VideoProcessor
-from pyexpose.utils import strip_numeric_prefix, url_safe
+from dorothea.cache import BuildCache, settings_hash, source_stat
+from dorothea.config import Config
+from dorothea.media.colors import ColorExtractor
+from dorothea.media.image import ImageProcessor
+from dorothea.media.video import VideoProcessor
+from dorothea.utils import strip_numeric_prefix, url_safe
 
 # Video extensions (from expose.py)
 VIDEO_EXTENSIONS = [

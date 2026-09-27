@@ -2,8 +2,8 @@
 
 import zipfile
 
-from pyexpose.config import DEFAULT_CONFIG, Config
-from pyexpose.generator import ExposeGenerator
+from dorothea.config import DEFAULT_CONFIG, Config
+from dorothea.generator import ExposeGenerator
 from tests.conftest import SCRIPTDIR, make_test_image
 
 

@@ -3,8 +3,8 @@
 from pathlib import Path
 from unittest import mock
 
-from pyexpose.config import DEFAULT_CONFIG, Config
-from pyexpose.generator import ExposeGenerator
+from dorothea.config import DEFAULT_CONFIG, Config
+from dorothea.generator import ExposeGenerator
 from tests.conftest import SCRIPTDIR, make_test_image
 
 PROBE_640x480 = "  Stream #0:0: Video: h264 (High), yuv420p(progressive), 640x480, 24 fps\n"
