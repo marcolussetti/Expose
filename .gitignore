@@ -53,6 +53,8 @@ plans/
 knowneuropean-photos/
 .coverage
 htmlcov/
+# `make test-cov` / `make stats` outputs (JUnit, coverage XML, cloc) for the CI report
+reports/
 
 # Scratch space for `make try` / `compare` / `package-check`
 .sandbox/

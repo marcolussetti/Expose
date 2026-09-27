@@ -1,5 +1,14 @@
 # Dorothea
 
+[![CI](https://github.com/marcolussetti/dorothea/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/marcolussetti/dorothea/actions/workflows/ci.yml?query=branch%3Amain)
+[![Tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmarcolussetti%2Fdorothea%2Fbadges%2Ftests.json)](https://github.com/marcolussetti/dorothea/actions/workflows/ci.yml?query=branch%3Amain)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmarcolussetti%2Fdorothea%2Fbadges%2Fcoverage.json)](https://github.com/marcolussetti/dorothea/actions/workflows/report.yml?query=branch%3Amain)
+[![Code](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmarcolussetti%2Fdorothea%2Fbadges%2Floc.json)](https://github.com/marcolussetti/dorothea/tree/main/src/dorothea)
+[![Code + tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmarcolussetti%2Fdorothea%2Fbadges%2Floc-total.json)](https://github.com/marcolussetti/dorothea)
+[![PyPI](https://img.shields.io/pypi/v/dorothea)](https://pypi.org/project/dorothea/)
+[![Python](https://img.shields.io/pypi/pyversions/dorothea)](https://pypi.org/project/dorothea/)
+[![License](https://img.shields.io/pypi/l/dorothea)](https://github.com/marcolussetti/dorothea/blob/main/LICENSE.txt)
+
 Dorothea is a [static site generator](https://en.wikipedia.org/wiki/Static_site_generator) for photography websites, primarily photo essays.
 
 It is a port to Python of Jack Qiao's wonderful [Exposé](https://github.com/Jack000/Expose) project (originally in bash).

@@ -9,8 +9,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  event-file:
+    # report.yml (triggered by this workflow) needs the triggering event, e.g. the PR number
+    name: Save event
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/upload-artifact@v7
+        with:
+          name: event
+          path: ${{ github.event_path }}
+
   lint:
-    name: Lint (ruff, format, ty)
+    name: Lint (ruff, format, ty, actionlint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -33,10 +43,21 @@ jobs:
       - name: Install system packages
         run: >-
           pacman -Syu --noconfirm --needed
-          git make bash which file rsync perl imagemagick ffmpeg nodejs uv
+          git make bash which file rsync perl imagemagick ffmpeg nodejs uv cloc
       - uses: actions/checkout@v7
       - run: uv sync
+      # Also writes reports/junit.xml and reports/coverage.xml
       - run: make test-cov
+      - name: Lines of code
+        if: ${{ !cancelled() }}
+        run: make stats
+      # report.yml turns these into the PR comments and README badges
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: report-full
+          path: reports/
+          if-no-files-found: ignore
 
   test-minimal:
     # No ffmpeg or ImageMagick on the system: proves `uv tool install` needs nothing else
@@ -47,12 +68,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Check the environment really is minimal
+        # (`! cmd` lines don't trip `set -e`, so each tool is checked explicitly)
         run: |
-          ! command -v ffmpeg
-          ! command -v convert
-          ! command -v magick
+          for tool in ffmpeg convert magick; do
+            if command -v "$tool"; then echo "$tool is installed; this job needs a bare image"; exit 1; fi
+          done
       - run: uv sync
-      - run: uv run pytest -m "not slow" --no-cov
+      - run: uv run pytest -m "not slow" --no-cov --junitxml=reports/junit-minimal.xml
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: junit-minimal
+          path: reports/
+          if-no-files-found: ignore
 
   test-windows:
     # Windows (#19): no ImageMagick, but System32\convert.exe is on PATH and must not be
@@ -66,9 +94,18 @@ jobs:
         with:
           python-version: "3.14"
       - run: uv sync
-      - run: uv run pytest -m "not slow" --no-cov
+      - run: uv run pytest -m "not slow" --no-cov --junitxml=reports/junit-windows.xml
       - name: Real video encodes (2-pass, audio, progress)
-        run: uv run pytest tests/unit/test_audio.py tests/unit/test_progress.py --no-cov
+        if: ${{ !cancelled() }}
+        run: >-
+          uv run pytest tests/unit/test_audio.py tests/unit/test_progress.py --no-cov
+          -m slow --junitxml=reports/junit-windows-video.xml
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: junit-windows
+          path: reports/
+          if-no-files-found: ignore
       - name: Build a gallery from the wheel
         shell: bash
         run: |

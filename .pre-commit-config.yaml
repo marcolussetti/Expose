@@ -30,6 +30,15 @@ repos:
 
   - repo: local
     hooks:
+      # GitHub Actions workflows: syntax/expression errors, unknown action inputs, and shellcheck
+      # on `run:` steps. The PyPI builds bring their own shellcheck, so a commit checks the same
+      # things as CI (rhysd/actionlint's own hook silently skips shellcheck when it's missing).
+      - id: actionlint
+        name: actionlint
+        entry: actionlint
+        language: python
+        additional_dependencies: [actionlint-py==1.7.12.25, shellcheck-py==0.11.0.1]
+        files: ^\.github/workflows/.*\.ya?ml$
       - id: ty
         name: ty check
         entry: uv run ty check src

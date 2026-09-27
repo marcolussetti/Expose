@@ -1,0 +1,107 @@
+name: Report
+
+# Posts CI's test results and coverage on pull requests, and updates the README badges from
+# main (#27). A separate workflow because pull requests from forks get a read-only token in
+# CI; this one runs in this repository's context with write access. It never runs the PR's
+# code: the script comes from the default branch, and the PR's artifacts are only parsed.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.conclusion != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # download CI's artifacts
+      checks: write # test results check run
+      contents: write # the badges branch
+      issues: read
+      pull-requests: write # comments
+    concurrency:
+      group: report-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+    env:
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      EVENT: ${{ github.event.workflow_run.event }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v7
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts
+
+      # Pass/fail/skip counts from every test job (Linux full, minimal, Windows), as a
+      # check run and a PR comment listing any failures
+      - uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: artifacts/event/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: artifacts/**/junit*.xml
+          check_name: Test results
+          comment_title: Test results
+
+      - name: Summarize coverage and code size
+        id: summary
+        run: |
+          full=artifacts/report-full
+          if [ ! -f "$full/coverage.xml" ] || [ ! -f "$full/cloc-src.json" ]; then
+            echo "The full test job didn't produce a coverage report; nothing to summarize"
+            exit 0
+          fi
+          python scripts/ci_report.py summary --junit "$full/junit.xml" \
+            --coverage "$full/coverage.xml" --cloc-src "$full/cloc-src.json" \
+            --cloc-tests "$full/cloc-tests.json" -o summary.json
+          # main's numbers, for the change column (absent until the first push to main)
+          git fetch --depth=1 origin badges 2>/dev/null \
+            && git show FETCH_HEAD:summary.json > base.json 2>/dev/null || : > base.json
+          python scripts/ci_report.py comment summary.json --base base.json -o comment.md
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Find the pull request
+        id: pr
+        if: steps.summary.outputs.ok && github.event.workflow_run.event == 'pull_request'
+        run: |
+          # The event file comes from the PR's own CI run, so check it against GitHub's record
+          number=$(jq -r '.pull_request.number // empty' artifacts/event/event.json)
+          if ! [[ "$number" =~ ^[0-9]+$ ]]; then echo "No PR number"; exit 0; fi
+          head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" --jq .head.sha)
+          if [ "$head" != "$HEAD_SHA" ]; then
+            echo "PR #$number is now at $head, not $HEAD_SHA; a newer run will comment"
+            exit 0
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - uses: marocchino/sticky-pull-request-comment@v3
+        if: steps.pr.outputs.number
+        with:
+          number: ${{ steps.pr.outputs.number }}
+          header: coverage-and-size
+          path: comment.md
+
+      - name: Update the README badges
+        if: >-
+          steps.summary.outputs.ok && github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.head_branch == 'main'
+          && github.event.workflow_run.head_repository.full_name == github.repository
+        run: |
+          python scripts/ci_report.py badges summary.json badges
+          cd badges
+          git init -q -b badges
+          git add .
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qm "Badges for $HEAD_SHA"
+          # One commit, replaced each time: the branch only ever holds the latest numbers
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges

@@ -1,13 +1,15 @@
 # Dorothea Makefile
 # Common development tasks using uv
 
-.PHONY: help test test-cov test-fast clean install lint format typecheck try compare package-check ci-local
+.PHONY: help test test-cov test-fast stats report clean install lint format typecheck try compare package-check ci-local
 
 help:
 	@echo "Available commands:"
 	@echo "  make test       - Run all tests"
 	@echo "  make test-cov   - Run tests with coverage report"
 	@echo "  make test-fast  - Run tests without slow/parity tests"
+	@echo "  make stats      - Lines of code (cloc) into reports/"
+	@echo "  make report     - Preview the coverage/code-size comment CI posts on PRs"
 	@echo "  make clean      - Clean generated files and caches"
 	@echo "  make install    - Install dependencies with uv"
 	@echo "  make lint       - Run all pre-commit hooks (via prek): ruff, format, ty"
@@ -25,10 +27,26 @@ help:
 test:
 	uv run pytest tests/ --no-cov
 
-# Run tests with coverage
+# Run tests with coverage (also writes reports/junit.xml and reports/coverage.xml, which CI
+# turns into the README badges and PR comments)
 test-cov:
 	@rm -rf .coverage htmlcov
-	uv run pytest tests/ --cov=src/dorothea --cov-report=term --cov-report=html
+	@mkdir -p reports
+	uv run pytest tests/ --cov=src/dorothea --cov-report=term --cov-report=html \
+		--cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml
+
+# Lines of code with cloc: src/, and tests/ without the expose.sh references and test galleries
+stats:
+	@mkdir -p reports
+	cloc --quiet --json src > reports/cloc-src.json
+	cloc --quiet --json tests --exclude-dir=reference,data > reports/cloc-tests.json
+
+# Preview the PR comment CI posts (runs the tests with coverage, then cloc)
+report: test-cov stats
+	uv run python scripts/ci_report.py summary --junit reports/junit.xml \
+		--coverage reports/coverage.xml --cloc-src reports/cloc-src.json \
+		--cloc-tests reports/cloc-tests.json -o reports/summary.json
+	uv run python scripts/ci_report.py comment reports/summary.json
 
 # Run only fast tests (skip slow parity tests)
 test-fast:
@@ -40,7 +58,7 @@ test-parity:
 
 # Clean generated files
 clean:
-	@rm -rf .coverage htmlcov .pytest_cache
+	@rm -rf .coverage htmlcov .pytest_cache reports
 	@rm -rf tests/__pycache__ tests/.pytest_cache
 	@find tests -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
