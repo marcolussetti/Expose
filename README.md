@@ -210,6 +210,18 @@ Other flags:
 	dorothea --convert-config             # turn an expose.sh _config.sh into _config.json
 	dorothea --version
 
+### Previewing
+
+	dorothea serve                        # build, then preview at http://localhost:8000/
+	dorothea serve -d                     # same, with a draft build (takes the same flags as dorothea)
+	dorothea serve --no-build --port 8080 # just serve the existing _site
+	dorothea serve --bind 0.0.0.0         # reachable from other devices, e.g. a phone on your network
+
+Gallery links point at folders, which only work through a web server: if you open
+`_site/index.html` straight from disk, clicking a gallery shows a folder listing. Preview with
+`dorothea serve` instead, or set `"link_index_html": true` for a site meant to be browsed from
+disk (see [CONFIG.md](CONFIG.md)).
+
 On a terminal, the build shows progress bars: files read and encoded so far (e.g.
 `Encoding 12/80`), and the percentage and time left of each video encoding pass. Output
 redirected to a file or a CI log stays plain text.

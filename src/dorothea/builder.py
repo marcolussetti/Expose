@@ -370,14 +370,14 @@ class HTMLBuilder:
                         navigation += f'<li><span class="label">{self.nav_name[j]}</span><ul>{{{{marker{j}}}}}</ul></li>'
                     else:
                         gindex = self._find_gallery_index(j)
-                        navigation += f'<li class="gallery {active}" data-image="{href(self.gallery_url[gindex])}"><a href="{{{{basepath}}}}{href(self.nav_url[j])}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>'
+                        navigation += f'<li class="gallery {active}" data-image="{href(self.gallery_url[gindex])}"><a href="{{{{basepath}}}}{self._nav_link(j)}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>'
                     remaining -= 1
                 elif self.nav_depth[j] == depth:
                     if self.nav_type[j] == 0:
                         substring = f'<li><span class="label">{self.nav_name[j]}</span><ul>{{{{marker{j}}}}}</ul></li>{{{{marker{parent}}}}}'
                     else:
                         gindex = self._find_gallery_index(j)
-                        substring = f'<li class="gallery {active}" data-image="{href(self.gallery_url[gindex])}"><a href="{{{{basepath}}}}{href(self.nav_url[j])}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>{{{{marker{parent}}}}}'
+                        substring = f'<li class="gallery {active}" data-image="{href(self.gallery_url[gindex])}"><a href="{{{{basepath}}}}{self._nav_link(j)}"><span>{self.nav_name[j]}</span></a><ul>{{{{marker{j}}}}}</ul></li>{{{{marker{parent}}}}}'
                     navigation = TemplateEngine.substitute(navigation, f"marker{parent}", substring)
                     remaining -= 1
 
@@ -385,6 +385,12 @@ class HTMLBuilder:
             depth += 1
 
         return navigation
+
+    def _nav_link(self, nav_idx: int) -> str:
+        """A gallery's link: its directory (like expose.sh), or its index.html with
+        ``link_index_html``, which also works opened from disk (#6)."""
+        link = href(self.nav_url[nav_idx])
+        return f"{link}/index.html" if self.config.get("link_index_html", False) else link
 
     def _find_gallery_index(self, nav_idx: int) -> int:
         """Find first gallery index for a navigation item.

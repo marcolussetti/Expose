@@ -1,6 +1,7 @@
 """Tests for CLI entry points and main functions."""
 
 import json
+import signal
 from unittest import mock
 
 import pytest
@@ -82,8 +83,11 @@ class TestMain:
     def test_main_sets_up_signal_handlers(self, tmp_path, monkeypatch):
         result, gen_class = invoke([], monkeypatch, tmp_path)
         assert result.exit_code == 0, result.output
-        # SIGINT and SIGTERM handlers, plus an atexit cleanup
-        assert gen_class.signal_mock.call_count == 2
+        # SIGINT and SIGTERM handlers during the build (restored after it, for `serve`), plus an
+        # atexit cleanup
+        installed = [c.args[0] for c in gen_class.signal_mock.call_args_list[:2]]
+        assert installed == [signal.SIGINT, signal.SIGTERM]
+        assert gen_class.signal_mock.call_count == 4
         gen_class.atexit_mock.assert_called_once()
 
     def test_help(self, tmp_path, monkeypatch):

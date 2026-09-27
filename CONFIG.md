@@ -55,6 +55,7 @@ Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both mo
 | `text_toggle` | `true` | Show a button to hide/show the text. |
 | `social_button` | `false` (legacy: `true`) | Show the social sharing button. |
 | `disqus_shortname` | `""` | Disqus forum name for comments; empty disables them. |
+| `link_index_html` | `false` | Link galleries to `…/gallery/index.html` instead of `…/gallery`. Gallery links point at folders, which a web server (or `dorothea serve`) answers with the folder's `index.html`; opened straight from disk, or on a host without directory indexes, they show a folder listing instead. Turn this on for a site browsed from disk (e.g. copied onto a USB stick). Dorothea-only. |
 
 ## Images
 

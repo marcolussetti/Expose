@@ -9,8 +9,10 @@ import json
 import signal
 import sys
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 from types import FrameType
+from typing import Any
 
 import click
 
@@ -61,73 +63,67 @@ def _print_version(ctx: click.Context, value: bool) -> None:
         ctx.exit()
 
 
-@click.command(
-    context_settings={"help_option_names": ["-h", "--help"]},
-    epilog="Run inside a folder of photos and videos; the site is written to ./_site. "
-    "Every setting is described in CONFIG.md.",
-)
-@click.option("-d", "--draft", is_flag=True, help="Draft mode: single resolution, fast encoding.")
-@click.option(
-    "-n", "--dry-run", is_flag=True, help="Show what would be built without writing anything."
-)
-@click.option(
-    "-c",
-    "--config",
-    "config_path",
-    type=click.Path(dir_okay=False, path_type=Path),
-    metavar="PATH",
-    help="Config file to use, .json or expose.sh .sh (default: ./_config.json, else ./_config.sh).",
-)
-@click.option(
-    "-s",
-    "--set",
-    "overrides",
-    multiple=True,
-    metavar="KEY=VALUE",
-    help="Override a setting; VALUE is parsed as JSON when possible "
-    "(e.g. --set jpeg_quality=85 --set 'resolution=[1920,640]'). Repeatable.",
-)
-@click.option(
-    "-j",
-    "--jobs",
-    type=int,
-    metavar="N",
-    help="Parallel workers for images (default: one per CPU).",
-)
-@click.option(
-    "--ffmpeg",
-    metavar="auto|bundled|system|PATH",
-    help="Which ffmpeg to use for video: system if installed, else bundled (auto, the default); "
-    "only the bundled one; only the system one; or a path to an ffmpeg binary.",
-)
-@click.option(
-    "--sort",
-    metavar="MODE",
-    help="Order of galleries and photos: natural (1, 2, 10; the default), name (plain "
-    "alphabetical, like expose.sh), or capture (when taken); add -desc for the reverse.",
-)
-@click.option(
-    "--legacy/--no-legacy",
-    default=None,
-    help="Use expose.sh's default settings, so the output matches expose.sh "
-    '(--no-legacy overrides "legacy": true in the config file).',
-)
-@click.option(
-    "--convert-config",
-    "convert",
-    is_flag=True,
-    help="Write _config.json from an expose.sh _config.sh (or --config FILE.sh) and exit.",
-)
-@click.option(
-    "--version",
-    is_flag=True,
-    expose_value=False,
-    is_eager=True,
-    callback=lambda ctx, _param, value: _print_version(ctx, value),
-    help="Show the version and exit.",
-)
-@click.pass_context
-def main(
+_BUILD_OPTIONS = [
+    click.option(
+        "-d", "--draft", is_flag=True, help="Draft mode: single resolution, fast encoding."
+    ),
+    click.option(
+        "-n", "--dry-run", is_flag=True, help="Show what would be built without writing anything."
+    ),
+    click.option(
+        "-c",
+        "--config",
+        "config_path",
+        type=click.Path(dir_okay=False, path_type=Path),
+        metavar="PATH",
+        help="Config file to use, .json or expose.sh .sh "
+        "(default: ./_config.json, else ./_config.sh).",
+    ),
+    click.option(
+        "-s",
+        "--set",
+        "overrides",
+        multiple=True,
+        metavar="KEY=VALUE",
+        help="Override a setting; VALUE is parsed as JSON when possible "
+        "(e.g. --set jpeg_quality=85 --set 'resolution=[1920,640]'). Repeatable.",
+    ),
+    click.option(
+        "-j",
+        "--jobs",
+        type=int,
+        metavar="N",
+        help="Parallel workers for images (default: one per CPU).",
+    ),
+    click.option(
+        "--ffmpeg",
+        metavar="auto|bundled|system|PATH",
+        help="Which ffmpeg to use for video: system if installed, else bundled (auto, the "
+        "default); only the bundled one; only the system one; or a path to an ffmpeg binary.",
+    ),
+    click.option(
+        "--sort",
+        metavar="MODE",
+        help="Order of galleries and photos: natural (1, 2, 10; the default), name (plain "
+        "alphabetical, like expose.sh), or capture (when taken); add -desc for the reverse.",
+    ),
+    click.option(
+        "--legacy/--no-legacy",
+        default=None,
+        help="Use expose.sh's default settings, so the output matches expose.sh "
+        '(--no-legacy overrides "legacy": true in the config file).',
+    ),
+]
+
+
+def build_options[F: Callable[..., Any]](f: F) -> F:
+    """The build options, shared by ``dorothea`` and ``dorothea serve``."""
+    for option in reversed(_BUILD_OPTIONS):
+        f = option(f)
+    return f
+
+
+def build(
     ctx: click.Context,
     draft: bool,
     dry_run: bool,
@@ -137,16 +133,12 @@ def main(
     ffmpeg: str | None,
     sort: str | None,
     legacy: bool | None,
-    convert: bool,
 ) -> None:
-    """Dorothea: a static photography website generator (a port of expose.sh)."""
-    prog = ctx.info_name or "dorothea"
+    """Build the site in the current directory (exits with 2 on a config error)."""
+    prog = ctx.find_root().info_name or "dorothea"
     topdir = Path.cwd()
     # scriptdir is the dorothea package directory; themes are bundled inside it
     scriptdir = Path(__file__).parent.resolve()
-
-    if convert:
-        ctx.exit(convert_config(topdir, config_path, prog))
 
     try:
         settings = dict(parse_override(item) for item in overrides)
@@ -184,11 +176,92 @@ def main(
         generator.cleanup()
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    previous = (
+        signal.signal(signal.SIGINT, signal_handler),
+        signal.signal(signal.SIGTERM, signal_handler),
+    )
     atexit.register(generator.cleanup)
 
     generator.run()
+    signal.signal(signal.SIGINT, previous[0])
+    signal.signal(signal.SIGTERM, previous[1])
+
+
+@click.group(
+    invoke_without_command=True,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    epilog="Run inside a folder of photos and videos; the site is written to ./_site. "
+    "Every setting is described in CONFIG.md.",
+)
+@build_options
+@click.option(
+    "--convert-config",
+    "convert",
+    is_flag=True,
+    help="Write _config.json from an expose.sh _config.sh (or --config FILE.sh) and exit.",
+)
+@click.option(
+    "--version",
+    is_flag=True,
+    expose_value=False,
+    is_eager=True,
+    callback=lambda ctx, _param, value: _print_version(ctx, value),
+    help="Show the version and exit.",
+)
+@click.pass_context
+def main(ctx: click.Context, convert: bool, **options: Any) -> None:
+    """Dorothea: a static photography website generator (a port of expose.sh).
+
+    Without a command, builds the site in the current directory.
+    """
+    if ctx.invoked_subcommand is not None:
+        ctx.obj = options  # build options given before the command, e.g. `dorothea -d serve`
+        return
+    if convert:
+        ctx.exit(convert_config(Path.cwd(), options["config_path"], ctx.info_name or "dorothea"))
+    build(ctx, **options)
+
+
+@main.command()
+@build_options
+@click.option("-p", "--port", type=int, default=8000, show_default=True, help="Port to listen on.")
+@click.option(
+    "--bind",
+    default="127.0.0.1",
+    show_default=True,
+    metavar="ADDRESS",
+    help="Address to listen on; 0.0.0.0 makes the preview reachable from other devices "
+    "(e.g. a phone on the same network).",
+)
+@click.option("--no-build", is_flag=True, help="Serve the existing _site without building.")
+@click.pass_context
+def serve(ctx: click.Context, port: int, bind: str, no_build: bool, **options: Any) -> None:
+    """Build the site, then preview it at http://localhost:8000/.
+
+    Gallery links point at folders, which only work through a web server: opened from disk,
+    they show a folder listing (see the link_index_html setting for that case).
+    """
+    from dorothea.serve import make_server, run
+
+    prog = ctx.find_root().info_name or "dorothea"
+    # Options given before `serve` count too; the ones after it win
+    for key, value in (ctx.obj or {}).items():
+        if options.get(key) in (None, False, ()):
+            options[key] = value
+    if options["dry_run"]:
+        raise click.UsageError("serve can't be combined with --dry-run")
+    if not no_build:
+        build(ctx, **options)
+    site = Path.cwd() / "_site"
+    if not (site / "index.html").is_file():
+        click.echo(f"{prog}: no site to serve: {site / 'index.html'} doesn't exist", err=True)
+        ctx.exit(2)
+    try:
+        server = make_server(site, bind, port)
+    except OSError as e:
+        click.echo(f"{prog}: can't listen on {bind}:{port}: {e.strerror or e}", err=True)
+        ctx.exit(2)
+    run(server, site)
 
 
 if __name__ == "__main__":

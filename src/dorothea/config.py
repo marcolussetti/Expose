@@ -59,6 +59,8 @@ EXPOSE_DEFAULTS = {
     "convert_to_srgb": False,
     # Dorothea-only: EXIF kept in resized images, see media.metadata.KEEP_METADATA_LEVELS
     "keep_metadata": "none",
+    # Dorothea-only: link galleries to .../index.html, so the site also works opened from disk
+    "link_index_html": False,
     # Dorothea-only: use these expose.sh defaults instead of DOROTHEA_DEFAULTS
     "legacy": True,
 }
@@ -345,8 +347,9 @@ class Config:
         if not isinstance(legacy, bool):
             errors.append(f"legacy must be true or false, got {legacy!r}")
 
-        if not isinstance(c.get("convert_to_srgb", False), bool):
-            errors.append(f"convert_to_srgb must be true or false, got {c['convert_to_srgb']!r}")
+        for key in ("convert_to_srgb", "link_index_html"):
+            if not isinstance(c.get(key, False), bool):
+                errors.append(f"{key} must be true or false, got {c[key]!r}")
 
         from dorothea.media.metadata import KEEP_METADATA_LEVELS
 
