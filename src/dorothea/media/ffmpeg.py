@@ -36,6 +36,7 @@ _choice = "auto"
 # such as "0x31637661" from matching.
 _VIDEO_DIMENSIONS = re.compile(r"Stream #.*?: Video: .*?\b(\d{2,5})x(\d{2,5})\b")
 _DURATION = re.compile(r"Duration: (\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
+_AUDIO_CODEC = re.compile(r"Stream #.*?: Audio: (\w+)")
 
 
 def set_ffmpeg(choice: str | None) -> None:
@@ -184,41 +185,43 @@ def _run_with_progress(exe: str, args: list[str], progress: Callable[[float], No
     return True
 
 
-def probe_dimensions(video_path: Path) -> tuple[int, int]:
-    """Return (width, height) of the first video stream, or (0, 0) if unknown.
+def _probe(video_path: Path) -> str:
+    """``ffmpeg -i``'s description of a file (its stderr), or "" without ffmpeg.
 
-    Parses ``ffmpeg -i`` output instead of using ffprobe, which imageio-ffmpeg doesn't ship.
-    The reported size is the coded size, matching ffprobe's ``stream=width,height``.
+    Used instead of ffprobe, which imageio-ffmpeg doesn't ship.
     """
     exe = ffmpeg_exe()
     if exe is None:
-        return 0, 0
+        return ""
     result = subprocess.run(
         [exe, "-hide_banner", "-nostdin", "-i", str(video_path)],
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
     )
-    stderr = result.stderr if isinstance(result.stderr, str) else ""
-    match = _VIDEO_DIMENSIONS.search(stderr)
+    return result.stderr if isinstance(result.stderr, str) else ""
+
+
+def probe_dimensions(video_path: Path) -> tuple[int, int]:
+    """Return (width, height) of the first video stream, or (0, 0) if unknown.
+
+    The reported size is the coded size, matching ffprobe's ``stream=width,height``.
+    """
+    match = _VIDEO_DIMENSIONS.search(_probe(video_path))
     if not match:
         return 0, 0
     return int(match.group(1)), int(match.group(2))
 
 
+def probe_audio_codec(video_path: Path) -> str | None:
+    """Codec of the first audio stream (e.g. ``aac``, ``opus``), or None if there's none."""
+    match = _AUDIO_CODEC.search(_probe(video_path))
+    return match.group(1) if match else None
+
+
 def probe_duration(video_path: Path) -> float:
     """Length of a video in seconds from ``ffmpeg -i``'s ``Duration:`` line, or 0 if unknown."""
-    exe = ffmpeg_exe()
-    if exe is None:
-        return 0.0
-    result = subprocess.run(
-        [exe, "-hide_banner", "-nostdin", "-i", str(video_path)],
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-    )
-    stderr = result.stderr if isinstance(result.stderr, str) else ""
-    match = _DURATION.search(stderr)
+    match = _DURATION.search(_probe(video_path))
     if not match:
         return 0.0
     hours, minutes, seconds = match.groups()

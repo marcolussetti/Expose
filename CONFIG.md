@@ -107,7 +107,7 @@ videos print which ffmpeg they use.
 | `video_formats` | `["h264", "vp9"]` (legacy: `["h264", "vp8"]`) | Formats to encode, in order of preference: `h264`, `h265`, `vp9`, `vp8`, `ogv`. |
 | `bitrate` | `[40, 24, 12, 7, 4, 2]` | Target bitrate in Mbit/s for each entry in `resolution` (the last value repeats if the list is shorter). |
 | `bitrate_maxratio` | `2` | Max bitrate as a multiple of the target (VBR). Must be ≥ 1; 1 means constant bitrate. |
-| `disable_audio` | `true` | Strip audio (otherwise it's copied as-is). |
+| `disable_audio` | `true` | Strip audio. When `false`, audio is copied where the format allows it and re-encoded otherwise: MP4 keeps AAC/MP3 (anything else becomes AAC), WebM keeps Opus/Vorbis (else Opus), Ogg keeps Vorbis/Opus (else Vorbis). |
 | `h264_encodespeed` | `"slow"` (legacy: `"veryslow"`) | x264/x265 preset: `ultrafast` … `veryslow`. Slower compresses better. |
 | `vp9_encodespeed` | `1` | VP9 speed, 0 (best, very slow) to 4 (fastest). |
 | `ffmpeg_threads` | `0` | ffmpeg `-threads` (0 = auto). Lower it to throttle CPU use. |

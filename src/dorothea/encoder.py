@@ -25,6 +25,7 @@ from dorothea.media.ffmpeg import (
     describe_ffmpeg,
     ffmpeg_exe,
     missing_encoders,
+    probe_audio_codec,
     probe_duration,
     run_ffmpeg,
 )
@@ -38,6 +39,27 @@ _FRAME_KIND = {".jpg": "jpg", ".jpeg": "jpg", ".png": "png", ".gif": "gif"}
 
 # Arguments shared by every ffmpeg invocation (expose.sh passes these on each call)
 FFMPEG_COMMON = ["-loglevel", "error", "-nostdin"]
+
+# Per output extension: source audio codecs copied as-is (the container takes them and
+# browsers play them), and the encoder for anything else (#13). expose.sh always copies, so
+# e.g. AAC from a phone video made every WebM/Ogg encode fail.
+CONTAINER_AUDIO = {
+    "mp4": (("aac", "mp3"), "aac"),
+    "webm": (("opus", "vorbis"), "libopus"),
+    "ogv": (("vorbis", "opus"), "libvorbis"),
+}
+
+
+def audio_args(extension: str, source_codec: str | None) -> list[str]:
+    """ffmpeg audio arguments for an output with this extension, keeping the source's audio.
+
+    Copies audio the container can hold (or when the source has none, which adds nothing);
+    re-encodes the rest.
+    """
+    copyable, encoder = CONTAINER_AUDIO.get(extension, CONTAINER_AUDIO["mp4"])
+    if source_codec is None or source_codec in copyable:
+        return ["-c:a", "copy"]
+    return ["-c:a", encoder]
 
 
 def part_path(output: Path) -> Path:
@@ -215,8 +237,19 @@ class MediaEncoder:
         if ok and self.cache is not None and output.exists():
             self.cache.put_output(output, fingerprint)
 
-    def _video_settings(self, index: int, vformat: str, res: int, j: int) -> dict[str, Any]:
-        """Settings that determine the bytes of one encoded video file."""
+    def _audio_args(self, vformat: str, source_codec: str | None) -> list[str]:
+        """Audio arguments for one output: none (``disable_audio``), or see ``audio_args``."""
+        if self.config["disable_audio"]:
+            return ["-an"]
+        return audio_args(VIDEO_FORMAT_EXTENSIONS.get(vformat, "mp4"), source_codec)
+
+    def _video_settings(
+        self, index: int, vformat: str, res: int, j: int, audio_codec: str | None = None
+    ) -> dict[str, Any]:
+        """Settings that determine the bytes of one encoded video file.
+
+        ``audio_codec`` is the source's (None for image sequences, which have no audio).
+        """
         bitrates = self.config["bitrate"]
         mbit = bitrates[j] if j < len(bitrates) else bitrates[-1]
         speed = None
@@ -233,7 +266,10 @@ class MediaEncoder:
             "speed": None if self.draft else speed,
             "filters": self._item(self.gallery_video_filters, index),
             "options": self._item(self.gallery_video_options, index),
-            "audio": not self.config["disable_audio"],
+            # False (not ["-an"]) keeps fingerprints recorded before #13 valid
+            "audio": False
+            if self.config["disable_audio"]
+            else self._audio_args(vformat, audio_codec),
         }
 
     # --- pipeline ---
@@ -466,14 +502,16 @@ class MediaEncoder:
         options = shlex.split(self._item(self.gallery_video_options, index))
         source = self._source(index, filepath)
 
-        audio_args = ["-an"] if self.config["disable_audio"] else ["-c:a", "copy"]
+        # Each container takes only some audio codecs, so audio is copied or re-encoded per
+        # format (#13); only probed when audio is kept
+        codec = None if self.config["disable_audio"] else probe_audio_codec(filepath)
 
         if self.draft:
             # Draft mode: single pass CRF with ultrafast preset
             res = self.config["resolution"][0]
             output_path = self.topdir / "_site" / url / f"{res}-h264.mp4"
 
-            fp = self._fingerprint(source, **self._video_settings(index, "h264", res, 0))
+            fp = self._fingerprint(source, **self._video_settings(index, "h264", res, 0, codec))
             reason = self._needs(output_path, fp, source, nonempty=True)
             if reason is None:
                 return
@@ -488,7 +526,7 @@ class MediaEncoder:
                 + ["-threads", str(self.config["ffmpeg_threads"]), *options]
                 + ["-vf", f"scale={res}:trunc(ow/a/2)*2{filters_arg}"]
                 + ["-profile:v", "high", "-pix_fmt", "yuv420p", "-preset", "ultrafast"]
-                + ["-crf", "26", *audio_args]
+                + ["-crf", "26", *self._audio_args("h264", codec)]
                 + ["-movflags", "+faststart", "-f", "mp4", str(part)],
                 label=f"h264 {res}px",
             )
@@ -505,6 +543,7 @@ class MediaEncoder:
         for vformat in self.config["video_formats"]:
             firstpass = False
             passlog = scratch / f"pass-{vformat}"
+            audio = self._audio_args(vformat, codec)
 
             for j, res in enumerate(self.config["resolution"]):
                 if width < res:
@@ -518,7 +557,8 @@ class MediaEncoder:
                 ext = VIDEO_FORMAT_EXTENSIONS.get(vformat, "mp4")
                 output_path = self.topdir / "_site" / url / f"{res}-{vformat}.{ext}"
 
-                fp = self._fingerprint(source, **self._video_settings(index, vformat, res, j))
+                settings = self._video_settings(index, vformat, res, j, codec)
+                fp = self._fingerprint(source, **settings)
                 reason = self._needs(output_path, fp, source, nonempty=True)
                 if reason is None:
                     continue
@@ -537,7 +577,7 @@ class MediaEncoder:
                         mbitmax,
                         filters_arg,
                         filters_full,
-                        audio_args,
+                        audio,
                         firstpass,
                         options=options,
                         passlog=passlog,
@@ -550,13 +590,15 @@ class MediaEncoder:
                         mbit,
                         mbitmax,
                         filters_arg,
-                        audio_args,
+                        audio,
                         options=options,
                     )
                 else:
                     success = True
 
                 if not success:
+                    # ffmpeg's own error is printed above; say what it cost
+                    print(f"\t{vformat}: skipped for {url} (ffmpeg failed encoding {res}px)")
                     break  # Skip this format entirely
 
                 self._built(output_path, fp)

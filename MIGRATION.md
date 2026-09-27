@@ -92,6 +92,7 @@ These are places where expose.sh has a bug or a platform quirk that Dorothea doe
 | An image sequence mixing formats (JPEG + PNG) or extensions (`.JPG` + `.jpg`) silently loses frames. | Every frame is used; mixed formats are converted to lossless PNG first. |
 | Download zips for image sequences fail (it `cp`s the folder). | The zip contains the compiled sequence video. |
 | Unknown video extensions are checked with `file -ib`, using a path relative to the wrong directory, so effectively never. | Detected from the file extension's MIME type. |
+| With `disable_audio=false`, always copies the audio track, so AAC audio (most phone/camera videos) makes every WebM and Ogg encode fail. | Copies audio where the format allows it and re-encodes otherwise (Opus for WebM, Vorbis for Ogg, AAC for MP4). |
 | Leaves `ffmpeg2pass-*.log` in the current folder while encoding. | Keeps 2-pass logs in a temporary folder. |
 | A non-text or non-UTF-8 caption file is skipped (`file` check). | Same, with a warning. Captions are always read and written as UTF-8. |
 | Requires ImageMagick and `zip`; video needs ffmpeg and ffprobe. | Needs nothing beyond `pip`/`uv`; ffprobe isn't used. |
