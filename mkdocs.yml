@@ -36,6 +36,13 @@ theme:
         icon: lucide/sun
         name: Switch to light mode
 
+# The configurator on configuration.md (#30); its schema/config.json is written by
+# scripts/build_schema.py before each build (make docs)
+extra_css:
+  - configurator.css
+extra_javascript:
+  - configurator.js
+
 markdown_extensions:
   - admonition
   - attr_list

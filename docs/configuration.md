@@ -1,10 +1,26 @@
+---
+hide:
+  - toc
+---
+
 # Configuration
 
-Site-wide settings go in a `_config.json` file in the top folder of your photos. Only include
-the settings you want to change:
+Site-wide settings go in a `_config.json` file in the top folder of your photos. Pick the
+settings you want to change below, then copy or download the file. It only contains what differs
+from the defaults, so improvements to the defaults in later versions still reach your site. To
+change a file you already have, paste it into "Edit an existing _config.json".
+
+<div id="configurator" data-schema="../schema/config.json">
+<p><em>Loading the configurator…</em> (it needs JavaScript; every setting is also described in
+the tables below)</p>
+</div>
+
+You can also write the file by hand. The `"$schema"` line is optional: it points editors like
+VS Code at the list of settings, so they complete and check `_config.json` as you type.
 
 ```json
 {
+  "$schema": "https://dorothea.readthedocs.io/schema/config.json",
   "site_title": "Iceland 2022",
   "theme_dir": "medium",
   "site_url": "https://example.com/photos/"
