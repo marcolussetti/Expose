@@ -41,7 +41,7 @@ In `photoessay` and `medium`, visitors can move between photos with the keyboard
 
 ## How to run it
 
-This is a Python application designed to run on Linux and macOs with Python 3.14+. It has not been currently tested on Windows, and does not support older versions of Python.
+This is a Python application for Linux, macOS and Windows with Python 3.14+ (older versions of Python aren't supported). Everything it needs installs with it, ffmpeg included; ImageMagick is optional on every platform.
 
 ### Installation
 

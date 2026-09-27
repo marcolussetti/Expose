@@ -13,14 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import REFDIR, make_gallery_tree
+from tests.conftest import HAS_IMAGEMAGICK, REFDIR, make_gallery_tree
 
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.final,
     pytest.mark.order("last"),  # Runs after all other tests
     pytest.mark.skipif(
-        shutil.which("convert") is None or shutil.which("identify") is None,
+        # expose.sh runs `convert` and `identify`; HAS_IMAGEMAGICK rules out Windows' convert.exe
+        not HAS_IMAGEMAGICK or shutil.which("convert") is None or shutil.which("identify") is None,
         reason="ImageMagick not available",
     ),
     pytest.mark.skipif(

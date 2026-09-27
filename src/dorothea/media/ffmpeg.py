@@ -87,7 +87,9 @@ def ffmpeg_kind(exe: str) -> str:
 def _run_text(args: list[str]) -> str:
     """Run a command and return its stdout ("" if it can't run)."""
     try:
-        result = subprocess.run(args, stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        result = subprocess.run(
+            args, stdin=subprocess.DEVNULL, capture_output=True, encoding="utf-8", errors="replace"
+        )
     except OSError:
         return ""
     return result.stdout if isinstance(result.stdout, str) else ""
@@ -150,7 +152,14 @@ def run_ffmpeg(args: list[str], progress: Callable[[float], None] | None = None)
         return False
     if progress is not None:
         return _run_with_progress(exe, args, progress)
-    result = subprocess.run([exe, *args], stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    # ffmpeg writes UTF-8 (file names), whatever the locale; Windows' default codec is cp1252
+    result = subprocess.run(
+        [exe, *args],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     if result.returncode != 0:
         stderr = result.stderr if isinstance(result.stderr, str) else ""
         if stderr.strip():
@@ -162,13 +171,14 @@ def run_ffmpeg(args: list[str], progress: Callable[[float], None] | None = None)
 def _run_with_progress(exe: str, args: list[str], progress: Callable[[float], None]) -> bool:
     """``run_ffmpeg`` with ``-progress pipe:1``: stream stdout, report ``out_time_us``."""
     # stderr goes to a file so a chatty ffmpeg can't block on a full pipe while we read stdout
-    with tempfile.TemporaryFile(mode="w+") as stderr:
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as stderr:
         process = subprocess.Popen(
             [exe, "-progress", "pipe:1", "-nostats", *args],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=stderr,
-            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         assert process.stdout is not None
         for line in process.stdout:
@@ -197,7 +207,8 @@ def _probe(video_path: Path) -> str:
         [exe, "-hide_banner", "-nostdin", "-i", str(video_path)],
         stdin=subprocess.DEVNULL,
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return result.stderr if isinstance(result.stderr, str) else ""
 

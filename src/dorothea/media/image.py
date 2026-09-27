@@ -3,13 +3,13 @@
 Provides abstraction layer for image operations (resize, identify dimensions).
 """
 
-import shutil
 import subprocess
 from pathlib import Path
 
 import pillow_heif
 from PIL import Image, ImageCms, ImageOps, JpegImagePlugin
 
+from dorothea.media import imagemagick
 from dorothea.media.base import MediaProcessor
 from dorothea.media.metadata import filtered_exif, is_srgb, srgb_profile_file, to_srgb
 
@@ -112,7 +112,7 @@ class ImageProcessor(MediaProcessor):
                 ``none``, an unconverted non-sRGB ICC profile is kept too.
         """
         if additional_args:
-            if shutil.which("convert"):
+            if imagemagick.imagemagick_command():
                 self._resize_imagemagick(
                     input_path,
                     output_path,
@@ -125,7 +125,7 @@ class ImageProcessor(MediaProcessor):
                 return
             if not ImageProcessor._warned_no_convert:
                 ImageProcessor._warned_no_convert = True
-                print("image-options ignored: ImageMagick 'convert' is not installed")
+                print("image-options ignored: ImageMagick is not installed")
 
         with Image.open(input_path) as img:
             subsampling = self.chroma_subsampling(img, quality)
@@ -207,10 +207,12 @@ class ImageProcessor(MediaProcessor):
         (it only assigns one when the image has none, so untagged images are unchanged).
         Metadata is always stripped on this path.
         """
-        cmd = ["convert"]
+        cmd = list(imagemagick.imagemagick_command() or ("convert",))
+        cmd += ["-size", f"{width}x{width}", str(input_path)]
+        # expose.sh puts -auto-orient first, which IM6/IM7 `convert` apply once the image is
+        # read; `magick` needs it after the input. Same bytes either way.
         if auto_orient:
             cmd.append("-auto-orient")
-        cmd += ["-size", f"{width}x{width}", str(input_path)]
         if convert_to_srgb:
             cmd += ["-profile", str(srgb_profile_file())]
         cmd += ["-resize", f"{width}x{width}"]

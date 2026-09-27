@@ -9,7 +9,13 @@ from unittest import mock
 import pytest
 from PIL import Image
 
-from tests.conftest import DATADIR, make_gallery_tree, make_generator, make_test_image
+from tests.conftest import (
+    DATADIR,
+    HAS_IMAGEMAGICK,
+    make_gallery_tree,
+    make_generator,
+    make_test_image,
+)
 
 
 def build(topdir, **overrides):
@@ -107,7 +113,7 @@ class TestIncrementalRebuild:
         assert out.stat().st_mtime > 1
 
 
-@pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick not installed")
+@pytest.mark.skipif(not HAS_IMAGEMAGICK, reason="ImageMagick not installed")
 class TestImageOptions:
     def _gallery_with_options(self, tmp_path, options):
         gallery = tmp_path / "gallery"
@@ -129,7 +135,7 @@ class TestImageOptions:
 
         out = self._gallery_with_options(tmp_path, "-negate")
         with (
-            mock.patch("dorothea.media.image.shutil.which", return_value=None),
+            mock.patch("dorothea.media.imagemagick.imagemagick_command", return_value=None),
             mock.patch.object(ImageProcessor, "_warned_no_convert", False),
         ):
             build(tmp_path)

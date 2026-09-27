@@ -7,6 +7,7 @@ from PIL import Image
 
 from dorothea.config import DEFAULT_CONFIG, Config
 from dorothea.generator import ExposeGenerator
+from dorothea.media.imagemagick import imagemagick_command
 
 # Directory containing the bash reference implementation (expose.sh) and its
 # dependencies. Used only by parity tests.
@@ -19,6 +20,9 @@ DATADIR = Path(__file__).resolve().parent / "data"
 # compatibility. Themes are resolved via resolve_theme_dir() so the actual
 # value no longer affects theme loading.
 SCRIPTDIR = Path(__file__).resolve().parent.parent
+
+# Real ImageMagick (not Windows' System32 convert.exe); see dorothea.media.imagemagick
+HAS_IMAGEMAGICK = imagemagick_command() is not None
 
 
 def make_test_image(path, width=640, height=480, color="blue"):
@@ -97,3 +101,10 @@ def _reset_ffmpeg_choice():
 
     yield
     set_ffmpeg("auto")
+
+
+@pytest.fixture(autouse=True)
+def _reset_imagemagick_lookup():
+    """The ImageMagick lookup is cached; a test that mocks it mustn't leak into others."""
+    yield
+    imagemagick_command.cache_clear()

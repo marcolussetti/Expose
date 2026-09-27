@@ -8,10 +8,10 @@ import pytest
 
 from dorothea.config import DEFAULT_CONFIG
 
-from .conftest import SCRIPTDIR, make_generator, make_test_image
+from .conftest import HAS_IMAGEMAGICK, SCRIPTDIR, make_generator, make_test_image
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("convert") is None or shutil.which("identify") is None,
+    not HAS_IMAGEMAGICK or shutil.which("identify") is None,
     reason="ImageMagick not available",
 )
 

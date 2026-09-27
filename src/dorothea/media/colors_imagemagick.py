@@ -4,6 +4,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from dorothea.media import imagemagick
+
 
 class ImageMagickColorExtractor:
     """Extract dominant color palette using ImageMagick's convert command."""
@@ -18,9 +20,12 @@ class ImageMagickColorExtractor:
         Returns:
             List of hex color strings (e.g., ["#ff0000", ...]).
         """
+        command = imagemagick.imagemagick_command()
+        if command is None:
+            return []  # the facade falls back to Pillow
         result = subprocess.run(
             [
-                "convert",
+                *command,
                 str(image_path),
                 "-resize",
                 "200x200",
@@ -33,7 +38,8 @@ class ImageMagickColorExtractor:
                 "txt:-",
             ],
             capture_output=True,
-            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
 
         palette = []

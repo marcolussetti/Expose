@@ -4,15 +4,15 @@ Prefers ImageMagick (byte-identical output for parity tests).
 Falls back to Pillow when ImageMagick is not available.
 """
 
-import shutil
 from pathlib import Path
 
+from dorothea.media import imagemagick
 from dorothea.media.colors_imagemagick import ImageMagickColorExtractor
 from dorothea.media.colors_pillow import PillowColorExtractor
 
 
 def _make_extractor() -> ImageMagickColorExtractor | PillowColorExtractor:
-    if shutil.which("convert"):
+    if imagemagick.imagemagick_command():
         return ImageMagickColorExtractor()
     return PillowColorExtractor()
 

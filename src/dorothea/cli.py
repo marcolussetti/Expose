@@ -5,6 +5,7 @@ and orchestrates the generation process.
 """
 
 import atexit
+import io
 import json
 import signal
 import sys
@@ -214,6 +215,11 @@ def main(ctx: click.Context, convert: bool, **options: Any) -> None:
 
     Without a command, builds the site in the current directory.
     """
+    # Gallery names can be in any script: a console or log in a legacy code page (cp1252 on
+    # Windows) shows what it can't encode as escapes instead of crashing the build
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(errors="backslashreplace")
     if ctx.invoked_subcommand is not None:
         ctx.obj = options  # build options given before the command, e.g. `dorothea -d serve`
         return

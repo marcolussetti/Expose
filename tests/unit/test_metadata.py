@@ -1,7 +1,6 @@
 """Metadata kept in resized images, and conversion of wide-gamut photos to sRGB (#12)."""
 
 import io
-import shutil
 
 import exifread
 import pytest
@@ -11,7 +10,7 @@ from PIL.TiffImagePlugin import IFDRational
 from dorothea.config import DEFAULT_CONFIG, Config, ConfigError
 from dorothea.media.image import ImageProcessor
 from dorothea.media.metadata import KEEP_METADATA_LEVELS
-from tests.conftest import DATADIR, make_generator
+from tests.conftest import DATADIR, HAS_IMAGEMAGICK, make_generator
 
 P3 = (DATADIR / "icc" / "DisplayP3-v2-micro.icc").read_bytes()
 SRGB = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
@@ -145,7 +144,7 @@ class TestColourConversion:
         out = resize(tmp_path, convert=True, icc=SRGB)
         assert all(abs(a - b) <= 3 for a, b in zip(centre(out), COLOUR, strict=True))
 
-    @pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick not installed")
+    @pytest.mark.skipif(not HAS_IMAGEMAGICK, reason="ImageMagick not installed")
     def test_image_options_path_converts_too(self, tmp_path):
         """Photos with image-options go through ImageMagick, which converts via -profile."""
         src = source_photo(tmp_path / "src.jpg")

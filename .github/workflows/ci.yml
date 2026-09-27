@@ -54,6 +54,33 @@ jobs:
       - run: uv sync
       - run: uv run pytest -m "not slow" --no-cov
 
+  test-windows:
+    # Windows (#19): no ImageMagick, but System32\convert.exe is on PATH and must not be
+    # mistaken for it; ffmpeg is the bundled imageio-ffmpeg binary. Parity tests need
+    # expose.sh's toolchain and stay Linux-only (they skip here).
+    name: Tests on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+      - run: uv sync
+      - run: uv run pytest -m "not slow" --no-cov
+      - name: Real video encodes (2-pass, audio, progress)
+        run: uv run pytest tests/unit/test_audio.py tests/unit/test_progress.py --no-cov
+      - name: Build a gallery from the wheel
+        shell: bash
+        run: |
+          uv build
+          wheel=$(ls dist/*.whl)
+          gallery=$(mktemp -d)
+          cp -r tests/data/test_run/. "$gallery"
+          rm -rf "$gallery/_site"
+          (cd "$gallery" && uvx --isolated --from "$GITHUB_WORKSPACE/$wheel" dorothea -d)
+          test -s "$gallery/_site/index.html"
+          test -s "$gallery/_site/nature/mountains/peak/1024.jpg"
+
   package:
     # Build the wheel and sdist and run them the way users will (`uvx dorothea`,
     # `pipx run dorothea`), outside the source tree, with no ffmpeg or ImageMagick installed.

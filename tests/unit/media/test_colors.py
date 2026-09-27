@@ -5,7 +5,6 @@ facade (fallback logic).
 """
 
 import math
-import shutil
 from pathlib import Path
 from unittest import mock
 
@@ -15,7 +14,9 @@ from PIL import Image
 from dorothea.media.colors import ColorExtractor
 from dorothea.media.colors_imagemagick import ImageMagickColorExtractor
 from dorothea.media.colors_pillow import PillowColorExtractor
-from tests.conftest import DATADIR
+from tests.conftest import DATADIR, HAS_IMAGEMAGICK
+
+IM_COMMAND = "dorothea.media.imagemagick.imagemagick_command"
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -91,7 +92,7 @@ class TestPillowColorExtractor:
 class TestImageMagickColorExtractor:
     @pytest.fixture
     def extractor(self):
-        if not shutil.which("convert"):
+        if not HAS_IMAGEMAGICK:
             pytest.skip("ImageMagick not available")
         return ImageMagickColorExtractor()
 
@@ -112,17 +113,17 @@ class TestImageMagickColorExtractor:
 
 class TestColorExtractorFacade:
     def test_uses_imagemagick_when_available(self):
-        with mock.patch("dorothea.media.colors.shutil.which", return_value="/usr/bin/convert"):
+        with mock.patch(IM_COMMAND, return_value=("/usr/bin/magick",)):
             extractor = ColorExtractor()
         assert isinstance(extractor.backend, ImageMagickColorExtractor)
 
     def test_falls_back_to_pillow_when_imagemagick_missing(self):
-        with mock.patch("dorothea.media.colors.shutil.which", return_value=None):
+        with mock.patch(IM_COMMAND, return_value=None):
             extractor = ColorExtractor()
         assert isinstance(extractor.backend, PillowColorExtractor)
 
     def test_extract_palette_delegates_to_backend(self, blue_image):
-        with mock.patch("dorothea.media.colors.shutil.which", return_value=None):
+        with mock.patch(IM_COMMAND, return_value=None):
             extractor = ColorExtractor()
         _assert_valid_palette(extractor.extract_palette(blue_image), 7)
 
@@ -162,7 +163,7 @@ class TestPillowVsImageMagickParity:
 
     @pytest.fixture(autouse=True)
     def require_imagemagick(self):
-        if not shutil.which("convert"):
+        if not HAS_IMAGEMAGICK:
             pytest.skip("ImageMagick not available")
 
     @pytest.mark.parametrize("image_path", _TEST_IMAGES, ids=lambda p: p.stem)

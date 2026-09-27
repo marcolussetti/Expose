@@ -21,6 +21,7 @@ from PIL import Image
 
 from dorothea.cache import BuildCache, Fingerprint, settings_hash, source_stat
 from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
+from dorothea.media import imagemagick
 from dorothea.media.ffmpeg import (
     describe_ffmpeg,
     ffmpeg_exe,
@@ -642,7 +643,7 @@ class MediaEncoder:
                 FFMPEG_COMMON
                 + ["-y", "-i", str(filepath), "-c:v", codec, *threads, *options, *filters_full]
                 + [*quality_pass1, *rate, "-pass", "1", *passlog_args]
-                + ["-an", "-f", container, "/dev/null"],
+                + ["-an", "-f", container, os.devnull],
                 label=f"{name} pass 1/2 (analysis)",
             )
             if not ok:
@@ -809,7 +810,9 @@ class MediaEncoder:
             "quality": self.config["jpeg_quality"],
             "autorotate": self.autorotate,
             "options": options,
-            "backend": "imagemagick" if extra_args and shutil.which("convert") else "pillow",
+            "backend": "imagemagick"
+            if extra_args and imagemagick.imagemagick_command()
+            else "pillow",
             "convert_to_srgb": self.config.get("convert_to_srgb", False),
             "keep_metadata": self.config.get("keep_metadata", "none"),
         }

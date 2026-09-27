@@ -3,13 +3,14 @@
 Tests the ImageProcessor class that uses Pillow.
 """
 
-import shutil
 import subprocess
 
 import pytest
 from PIL import Image, JpegImagePlugin
 
 from dorothea.media.image import ImageProcessor
+from dorothea.media.imagemagick import imagemagick_command
+from tests.conftest import HAS_IMAGEMAGICK
 
 
 @pytest.fixture
@@ -112,7 +113,7 @@ class TestChromaSubsampling:
             img.save(forced_444, "JPEG", quality=92, subsampling=0, optimize=True)
         assert out.stat().st_size < forced_444.stat().st_size
 
-    @pytest.mark.skipif(shutil.which("convert") is None, reason="ImageMagick not installed")
+    @pytest.mark.skipif(not HAS_IMAGEMAGICK, reason="ImageMagick not installed")
     @pytest.mark.parametrize(
         "name,save_kwargs,quality",
         [
@@ -128,7 +129,15 @@ class TestChromaSubsampling:
         ours, theirs = tmp_path / "ours.jpg", tmp_path / "im.jpg"
         image_processor.resize(src, ours, width=400, quality=quality)
         subprocess.run(
-            ["convert", str(src), "-resize", "400x400", "-quality", str(quality), str(theirs)],
+            [
+                *imagemagick_command(),
+                str(src),
+                "-resize",
+                "400x400",
+                "-quality",
+                str(quality),
+                str(theirs),
+            ],
             check=True,
             capture_output=True,
         )

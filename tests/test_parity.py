@@ -11,12 +11,13 @@ import sys
 
 import pytest
 
-from .conftest import DATADIR, REFDIR, make_gallery_tree
+from .conftest import DATADIR, HAS_IMAGEMAGICK, REFDIR, make_gallery_tree
 
 pytestmark = [
     pytest.mark.slow,
     pytest.mark.skipif(
-        shutil.which("convert") is None or shutil.which("identify") is None,
+        # expose.sh runs `convert` and `identify`; HAS_IMAGEMAGICK rules out Windows' convert.exe
+        not HAS_IMAGEMAGICK or shutil.which("convert") is None or shutil.which("identify") is None,
         reason="ImageMagick not available",
     ),
     pytest.mark.skipif(
