@@ -1,20 +1,43 @@
-## Dorothea
+# Dorothea
 
-A simple static site generator for photo essays. Dorothea is a Python port of Jack Qiao's
-[Exposé](https://github.com/Jack000/Expose) (expose.sh): same themes, same output, no system
-dependencies.
+Dorothea is a [static site generator](https://en.wikipedia.org/wiki/Static_site_generator) for photography websites, primarily photo essays.
 
-### Intro
+It is a port to Python of Jack Qiao's wonderful [Exposé](https://github.com/Jack000/Expose) project (originally in bash).
 
-If you're into photography, you probably have folders of images and videos like this:
+While over time bugfixes and new features will be added, it is output-compatible* with Exposé and our integration tests validate that on each commit.
 
-![a bunch of images](http://jack.works/exposeimages/folder.jpg)
+*=There are small tweaks in output because native python libraries have been preferred to OS-level packages were possible, but the difference is pretty minute.
 
-Dorothea turns those images *and videos* into a photo essay similar to [jack.ventures](http://jack.ventures) or [jack.works](http://jack.works) (Jack Qiao's blogs, made with the original Exposé).
+## Why a Python port of Exposé
 
-If you're not a fan of that look, a [Medium-style theme](http://jack.ventures/sample/inner-mongolia) is included.
+I wanted to make start addressing some of the pain points with the original package, branch out to new themes and tweaks, and found maintaining my own fork in Bash to be less work than porting it to Python, thanks to today's AI-assisted coding tools.
 
-Runs on Linux and macOS with Python 3.14+.
+## What is it
+
+If you're a photographer, you probably come back home from a trip and end up with photos that look like this:
+
+![a bunch of images in a single folder](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/folder.jpg)
+
+This tool (and the original Exposé) are designed to turn those folders into websites, including resizing and adjusting the files!
+
+
+Two themes are currently included, though I am aiming to add more to the original ones:
+
+### theme1 example
+
+- [Jack Qiao's work blog](https://web.archive.org/web/20260607123708/http://jack.works/)
+- [Jack Qiao's photography site](https://jack.ventures/)
+
+
+### theme2 example
+
+This is an alternative Medium-style theme, called `theme2`:
+
+- [Jack Qiao's Inner Mongolia](http://jack.ventures/sample/inner-mongolia)
+
+## How to run it
+
+This is a Python application designed to run on Linux and macOs with Python 3.14+. It has not been currently tested on Windows, and does not support older versions of Python.
 
 ### Installation
 
@@ -23,27 +46,41 @@ Run it without installing, or install it as a command:
 	uvx dorothea                 # or: pipx run dorothea
 	uv tool install dorothea     # or: pipx install dorothea
 
-Everything it needs, including an ffmpeg binary, comes with the package; no system packages are
-required. A system `ffmpeg` on your PATH is used in preference to the bundled one. ImageMagick is
-optional: when installed it's used for colour extraction and for per-image `image-options`.
 
-Before the first PyPI release, run it straight from GitHub:
+If you do not have `uvx/uvx`, you can install it from the [official uv website](https://docs.astral.sh/uv/getting-started/installation/) -- alternatively [`pipx`](https://github.com/pypa/pipx) is also supported.
 
-	uvx --from git+https://github.com/marcolussetti/dorothea dorothea
+It will bring with it everything it needs including `ffmpeg`. However if you have `ffmpeg` already installed, it will use it; and if you have `ImageMagick`, it may use that for some features instead of `Pillow` for better compatibility with the original (colour extraction and image-options).
 
-### Basic usage
+### How to use it
 
-	cd ~/folderofimages
-	dorothea
+Navigate to the folder full of images, and run the tool:
 
-The command is also available as `expose`, for anyone coming from expose.sh.
+```bash
+cd ~/my-trip-to-ecuador
+uvx dorothea
+```
 
-The script operates on your current working directory, and outputs a _site directory.
+A folder called `_site` will contain the output HTML/jpeg/etc. You can take that folder and put it on any webserver that serves static HTML website (including S3 buckets, etc.).
+
+### Adding text
+
+To add text, you simply have to create a `.txt` file whose name matches the image: if your image is called `DSC0001.jpg`, you can put the text in `DSC0001.txt`.
+
+### Sorting
+
+Images are sorted by alphabetical order. If you wish to set a different order, add a numberical prefix in front of the file name (e.g. `0001_DSC0003.jpg`, `0002_DSC0002.jpg`, etc.).
+
+### Organization
+
+You can put images in folder to organize them. The folder can be nester arbitrarily. This generates a nested HTML menu for navigation.
+
+To set the order, again put a numerical prefix in front of them.
+
+![folders](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/folders.jpg)
 
 ### Configuration
 
-Site title, theme, jpeg quality and other config values go in a `_config.json` in the top level
-of your project, eg:
+To configure the name of the site and some basic settings, you need to create a `_config.json` file in the top folder:
 
 ```json
 {
@@ -56,6 +93,68 @@ of your project, eg:
 
 An expose.sh-style `_config.sh` still works (and `dorothea --convert-config` converts it). Every
 option is described in [CONFIG.md](CONFIG.md).
+
+## Advanced options
+
+This section is generated.
+
+### Text metadata
+
+YAML in the text file is read and made available to the theme. The variables depend on the theme used.
+
+
+### Theme-1 specific options
+
+	---
+	top: 30
+	left: 5
+	width: 30
+	height: 20
+	textcolor: #ffffff
+	---
+
+![content dimensions](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/dimensionvariables.jpg)
+
+The units are in percentages
+
+	---
+	top: 12
+	left: 50
+	width: 40
+	height: 50
+	polygon:[{"x":5, "y":0},{"x":100, "y":0},{"x":100, "y":100},{"x":7, "y":55}, {"x":0, "y":16}]
+	textcolor: #ff9518
+	---
+
+Use a polygon to wrap text around shapes. The polygon is defined by 3 or more points in a JSON blob. Units are again in percentages.
+
+![content polygon](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/polygon2.jpg)
+
+### Theme-2 specific options
+
+	---
+	width: 32.5
+	---
+
+In theme-2 the width variable acts on the image rather than the content. You can use this to tile images in a row:
+
+![image row](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/widthoption.jpg)
+
+Clicking on each image shows it in full screen mode.
+
+Note that in this theme the text goes above its associated image, except the first image which is used as a masthead.
+
+CSS classes can be passed to the template via the "class" property. eg: use `class: textafter` to add a CSS class that makes the text go after the image.
+
+### Metadata file
+
+If you want certain variables to apply to an entire gallery, place a metadata.txt (this is configurable) file in the gallery directory. eg. in metadata.txt:
+
+	width: 19
+
+![image grid](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/grid.jpg)
+
+This sets all image widths to form a grid. Metadata file parameters are overriden by metadata in individual posts.
 
 ### Flags
 
@@ -78,85 +177,6 @@ coming from expose.sh, see [MIGRATION.md](MIGRATION.md).
 
 To do a completely clean build, delete the existing _site directory first.
 
-### Adding text
-
-The text associated with each image is read from any text file with the same filename as the image, eg:
-
-![images and text files](http://jack.works/exposeimages/imagetext2.jpg)
-
-### Sorting
-
-Images are sorted by alphabetical order. To arbitrarily order images, add a numerical prefix
-
-### Organization
-
-You can put images in folders to organize them. The folders can be nested any number of times, and are also sorted alphabetically. The folder structure is used to generate a nested html menu.
-
-To arbitrarily order folders, add a numerical prefix to the folder name. Any numerical prefixes are stripped from the url.
-
-Any folders, images or videos with an "_" prefix are ignored and excluded from the build.
-
-![folders](http://jack.works/exposeimages/folders.jpg)
-
-### Text metadata
-
-YAML in the text file is read and made available to the theme. The variables depend on the theme used.
-
-### Theme-1 specific options
-
-	---
-	top: 30
-	left: 5
-	width: 30
-	height: 20
-	textcolor: #ffffff
-	---
-
-![content dimensions](http://jack.works/exposeimages/dimensionvariables.jpg)
-
-The units are in percentages
-
-	---
-	top: 12
-	left: 50
-	width: 40
-	height: 50
-	polygon:[{"x":5, "y":0},{"x":100, "y":0},{"x":100, "y":100},{"x":7, "y":55}, {"x":0, "y":16}]
-	textcolor: #ff9518
-	---
-
-Use a polygon to wrap text around shapes. The polygon is defined by 3 or more points in a JSON blob. Units are again in percentages.
-
-![content polygon](http://jack.works/exposeimages/polygon2.jpg)
-
-### Theme-2 specific options
-
-	---
-	width: 32.5
-	---
-
-In theme-2 the width variable acts on the image rather than the content. You can use this to tile images in a row:
-
-![image row](http://jack.works/exposeimages/widthoption.jpg)
-
-Clicking on each image shows it in full screen mode.
-
-Note that in this theme the text goes above its associated image, except the first image which is used as a masthead.
-
-CSS classes can be passed to the template via the "class" property. eg: use `class: textafter` to add a CSS class that makes the text go after the image.
-
-### Metadata file
-
-If you want certain variables to apply to an entire gallery, place a metadata.txt (this is configurable) file in the gallery directory. eg. in metadata.txt:
-
-	width: 19
-
-![image grid](http://jack.works/exposeimages/grid.jpg)
-
-This sets all image widths to form a grid. Metadata file parameters are overriden by metadata in individual posts.
-
-### Advanced usage
-
 ### Video options
 
 Since we're using FFMpeg for video, we can leverage its filter framework for quick effects. This also saves a re-encode from a video editor workflow. Not all the FFmpeg options are applicable, but here are a few I found useful:
@@ -174,7 +194,7 @@ This will cut the video 10 seconds from the start, with a duration of 5 seconds.
 If you're like me and shoot video in log profile, doing post work can be a pain. I like to globally apply a [film print emulation LUT](http://juanmelara.com.au/print-film-emulation-luts-for-download/) for a consistent look. Note that FFmpeg will look for the LUT file in the working directory you started the script in.
 FFmpeg does not support .look LUTs, so you'll have to convert them to one of .cube .3dl .dat or .m3d
 
-![3d LUT](http://jack.works/exposeimages/lut3d.png)
+![3d LUT](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/lut3d.png)
 
 Here I use a nice low-contrast LUT I [found online](http://caseywilsondp.com/2015/03/25/a7s-slog2-rec709-lut/) with excellent highlight rolloff for a cinematic look.
 
@@ -222,7 +242,7 @@ A full list of Imagemagick options can be [found here](http://www.imagemagick.or
 
 Timelapse and stop-motion are a great way to add motion to a scene. If your folder contains the key word "imagesequence" (this is configurable), the images in the folder will be converted to a video. Video options and filters may be applied to image sequences.
 
-![Image sequence](http://jack.works/exposeimages/imagesequence.gif)
+![Image sequence](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/imagesequence.gif)
 
 By default the video is encoded at 24fps.
 
