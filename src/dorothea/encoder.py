@@ -21,9 +21,16 @@ from PIL import Image
 
 from dorothea.cache import BuildCache, Fingerprint, settings_hash, source_stat
 from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
-from dorothea.media.ffmpeg import describe_ffmpeg, ffmpeg_exe, missing_encoders, run_ffmpeg
+from dorothea.media.ffmpeg import (
+    describe_ffmpeg,
+    ffmpeg_exe,
+    missing_encoders,
+    probe_duration,
+    run_ffmpeg,
+)
 from dorothea.media.image import ImageProcessor, jpeg_compatible
 from dorothea.media.video import VideoProcessor
+from dorothea.progress import Reporter, Task
 from dorothea.utils import sequence_frames, site_path
 
 # Sequence frame extension -> image2 codec family (.jpg and .jpeg decode the same)
@@ -93,6 +100,7 @@ class MediaEncoder:
         gallery_video_options: list[str] | None = None,
         cache: BuildCache | None = None,
         dry_run: bool = False,
+        progress: Reporter | None = None,
     ):
         """Initialize the media encoder.
 
@@ -112,6 +120,7 @@ class MediaEncoder:
             gallery_video_options: FFmpeg options per gallery item.
             cache: Build cache for output fingerprints (None: rebuild on missing/stale only).
             dry_run: Record what would be encoded in ``planned`` instead of encoding.
+            progress: Progress display (default: none, plain output).
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
@@ -142,7 +151,16 @@ class MediaEncoder:
         # (output path relative to _site, reason) for every file a dry run would build
         self.planned: list[tuple[str, str]] = []
 
+        self.progress = progress or Reporter(enabled=False)
+        self._items = Task()  # the "Encoding x/y" bar while encode_media runs
+        self._duration = 0.0  # length of the video being encoded, for its progress bars
+
     # --- helpers ---
+
+    def _ffmpeg(self, args: list[str], label: str, duration: float | None = None) -> bool:
+        """``run_ffmpeg`` with a progress bar for this run (when progress is shown)."""
+        with self.progress.ffmpeg(label, self._duration if duration is None else duration) as cb:
+            return run_ffmpeg(args, progress=cb)
 
     @staticmethod
     def _item(values: list, index: int, default: Any = "") -> Any:
@@ -234,6 +252,8 @@ class MediaEncoder:
         videos = [i for i in range(total) if self.gallery_type[i] != 0]
         if videos and not self.dry_run:
             self._report_ffmpeg()
+        if not self.dry_run:
+            self._items = self.progress.task(f"Encoding 0/{total}", total=total)
 
         jobs = self.config.worker_count()
         # A dry run only stats files; keep it sequential so the plan lists in gallery order
@@ -273,7 +293,11 @@ class MediaEncoder:
         file_path = self.gallery_files[i]
         url = f"{self.nav_url[self.gallery_nav[i]]}/{self.gallery_url[i]}"
         if not self.dry_run:
-            print(f"[{i + 1}/{len(self.gallery_files)}] {self.gallery_url[i]}")
+            total = len(self.gallery_files)
+            if self.progress.active:
+                self._items.describe(f"Encoding {i + 1}/{total} {self.gallery_url[i]}")
+            else:
+                print(f"[{i + 1}/{total}] {self.gallery_url[i]}")
             site_path(self.topdir / "_site", url).mkdir(parents=True, exist_ok=True)
 
         scratch = self.scratchdir / f"item-{i}"
@@ -329,6 +353,7 @@ class MediaEncoder:
             print(f"\tError encoding {file_path}: {e}")
         finally:
             shutil.rmtree(scratch, ignore_errors=True)
+            self._items.advance()
 
     def _planning_dims(self, index: int, file_path: Path) -> tuple[int, int]:
         """Source dimensions for a dry run: probe videos, read a sequence's first frame."""
@@ -398,14 +423,17 @@ class MediaEncoder:
         sequence_video = scratch / "sequencevideo.mp4"
         maxres = max(self.config["resolution"])
 
-        run_ffmpeg(
+        self._ffmpeg(
             FFMPEG_COMMON
             + ["-f", "image2", "-y", "-i", str(scratch / f"%04d{ext}")]
             + ["-c:v", "libx264", "-threads", str(self.config["ffmpeg_threads"])]
             + ["-vf", f"scale={maxres}:trunc(ow/a/2)*2", "-profile:v", "high"]
             + ["-pix_fmt", "yuv420p", "-preset", self.config["h264_encodespeed"]]
             + ["-crf", "15", "-r", str(self.config["sequence_framerate"])]
-            + ["-f", "mp4", str(sequence_video)]
+            + ["-f", "mp4", str(sequence_video)],
+            label=f"compiling {len(images)} frames",
+            # image2 reads frames at ffmpeg's default 25 fps (-r only resamples the output)
+            duration=len(images) / 25,
         )
 
         return sequence_video if sequence_video.exists() else None
@@ -429,6 +457,8 @@ class MediaEncoder:
         """
         scratch = scratch or self.scratchdir
         width, height = dims if dims is not None else self.video_processor.probe(filepath)
+        # Only needed to draw progress bars, so only probed when they're shown
+        self._duration = probe_duration(filepath) if self.progress.active else 0.0
 
         filters = self._item(self.gallery_video_filters, index)
         filters_arg = f",{filters}" if filters else ""
@@ -452,14 +482,15 @@ class MediaEncoder:
                 return
 
             part = part_path(output_path)
-            ok = run_ffmpeg(
+            ok = self._ffmpeg(
                 FFMPEG_COMMON
                 + ["-y", "-i", str(filepath), "-c:v", "libx264"]
                 + ["-threads", str(self.config["ffmpeg_threads"]), *options]
                 + ["-vf", f"scale={res}:trunc(ow/a/2)*2{filters_arg}"]
                 + ["-profile:v", "high", "-pix_fmt", "yuv420p", "-preset", "ultrafast"]
                 + ["-crf", "26", *audio_args]
-                + ["-movflags", "+faststart", "-f", "mp4", str(part)]
+                + ["-movflags", "+faststart", "-f", "mp4", str(part)],
+                label=f"h264 {res}px",
             )
             self._built(output_path, fp, _finalize(part, output_path, ok))
             return
@@ -563,24 +594,27 @@ class MediaEncoder:
         rate = ["-b:v", f"{mbit}M", "-maxrate", f"{mbitmax}M", "-bufsize", f"{mbitmax}M"]
         passlog_args = ["-passlogfile", str(passlog or self.scratchdir / "ffmpeg2pass")]
 
+        name = output.stem.split("-", 1)[-1]  # e.g. "h264" from "1280-h264"
         if not firstpass:
-            ok = run_ffmpeg(
+            ok = self._ffmpeg(
                 FFMPEG_COMMON
                 + ["-y", "-i", str(filepath), "-c:v", codec, *threads, *options, *filters_full]
                 + [*quality_pass1, *rate, "-pass", "1", *passlog_args]
-                + ["-an", "-f", container, "/dev/null"]
+                + ["-an", "-f", container, "/dev/null"],
+                label=f"{name} pass 1/2 (analysis)",
             )
             if not ok:
                 return False
 
         part = part_path(output)
-        ok = run_ffmpeg(
+        ok = self._ffmpeg(
             FFMPEG_COMMON
             + ["-y", "-i", str(filepath), "-c:v", codec, *threads, *options]
             + ["-vf", f"scale={res}:trunc(ow/a/2)*2{filters_arg}"]
             + [*quality_pass2, *rate, "-pass", "2", *passlog_args, *audio_args]
             + (["-movflags", "+faststart"] if faststart else [])
-            + ["-f", container, str(part)]
+            + ["-f", container, str(part)],
+            label=f"{name} {res}px pass 2/2",
         )
         return _finalize(part, output, ok)
 
@@ -697,13 +731,14 @@ class MediaEncoder:
             True if encoding succeeded.
         """
         part = part_path(output)
-        ok = run_ffmpeg(
+        ok = self._ffmpeg(
             FFMPEG_COMMON
             + ["-y", "-i", str(filepath), "-c:v", "libtheora"]
             + ["-threads", str(self.config["ffmpeg_threads"]), *options]
             + ["-vf", f"scale={res}:trunc(ow/a/2)*2{filters_arg}", "-pix_fmt", "yuv420p"]
             + ["-b:v", f"{mbit}M", "-maxrate", f"{mbitmax}M", "-bufsize", f"{mbitmax}M"]
-            + [*audio_args, str(part)]
+            + [*audio_args, str(part)],
+            label=f"ogv {res}px",
         )
         return _finalize(part, output, ok)
 

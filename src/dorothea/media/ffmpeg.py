@@ -14,7 +14,8 @@ import os
 import re
 import shutil
 import subprocess
-from collections.abc import Iterable
+import tempfile
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 FFMPEG_CHOICES = ("auto", "bundled", "system")
@@ -34,6 +35,7 @@ _choice = "auto"
 # First "WxH" after "Video:" on an ffmpeg stream line. Word boundaries keep codec tags
 # such as "0x31637661" from matching.
 _VIDEO_DIMENSIONS = re.compile(r"Stream #.*?: Video: .*?\b(\d{2,5})x(\d{2,5})\b")
+_DURATION = re.compile(r"Duration: (\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
 
 
 def set_ffmpeg(choice: str | None) -> None:
@@ -127,10 +129,16 @@ def missing_encoders(exe: str, formats: Iterable[str]) -> dict[str, str]:
     }
 
 
-def run_ffmpeg(args: list[str]) -> bool:
+def run_ffmpeg(args: list[str], progress: Callable[[float], None] | None = None) -> bool:
     """Run ffmpeg with the given arguments (excluding the executable).
 
     Stderr is captured and printed only when ffmpeg fails.
+
+    Args:
+        args: ffmpeg arguments.
+        progress: Called with the seconds of output written so far, from ffmpeg's
+            ``-progress`` reports (which only affect reporting, not the output). Without it,
+            ffmpeg runs exactly as before.
 
     Returns:
         True if ffmpeg exited successfully.
@@ -139,12 +147,40 @@ def run_ffmpeg(args: list[str]) -> bool:
     if exe is None:
         print(f"ffmpeg not available (ffmpeg setting: {_choice}); skipping video step")
         return False
+    if progress is not None:
+        return _run_with_progress(exe, args, progress)
     result = subprocess.run([exe, *args], stdin=subprocess.DEVNULL, capture_output=True, text=True)
     if result.returncode != 0:
         stderr = result.stderr if isinstance(result.stderr, str) else ""
         if stderr.strip():
             print(stderr.strip())
         return False
+    return True
+
+
+def _run_with_progress(exe: str, args: list[str], progress: Callable[[float], None]) -> bool:
+    """``run_ffmpeg`` with ``-progress pipe:1``: stream stdout, report ``out_time_us``."""
+    # stderr goes to a file so a chatty ffmpeg can't block on a full pipe while we read stdout
+    with tempfile.TemporaryFile(mode="w+") as stderr:
+        process = subprocess.Popen(
+            [exe, "-progress", "pipe:1", "-nostats", *args],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=stderr,
+            text=True,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            key, _, value = line.strip().partition("=")
+            if key == "out_time_us" and value.isdigit():
+                progress(int(value) / 1_000_000)
+        returncode = process.wait()
+        if returncode != 0:
+            stderr.seek(0)
+            message = stderr.read().strip()
+            if message:
+                print(message)
+            return False
     return True
 
 
@@ -168,3 +204,22 @@ def probe_dimensions(video_path: Path) -> tuple[int, int]:
     if not match:
         return 0, 0
     return int(match.group(1)), int(match.group(2))
+
+
+def probe_duration(video_path: Path) -> float:
+    """Length of a video in seconds from ``ffmpeg -i``'s ``Duration:`` line, or 0 if unknown."""
+    exe = ffmpeg_exe()
+    if exe is None:
+        return 0.0
+    result = subprocess.run(
+        [exe, "-hide_banner", "-nostdin", "-i", str(video_path)],
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+    )
+    stderr = result.stderr if isinstance(result.stderr, str) else ""
+    match = _DURATION.search(stderr)
+    if not match:
+        return 0.0
+    hours, minutes, seconds = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)

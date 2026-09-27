@@ -210,6 +210,10 @@ Other flags:
 	dorothea --convert-config             # turn an expose.sh _config.sh into _config.json
 	dorothea --version
 
+On a terminal, the build shows progress bars: files read and encoded so far (e.g.
+`Encoding 12/80`), and the percentage and time left of each video encoding pass. Output
+redirected to a file or a CI log stays plain text.
+
 Re-running only rebuilds what changed: edited photos, changed settings, or changed post
 metadata. There's no need to delete `_site`. All settings are listed in [CONFIG.md](CONFIG.md);
 coming from expose.sh, see [MIGRATION.md](MIGRATION.md).

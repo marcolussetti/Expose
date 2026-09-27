@@ -16,6 +16,7 @@ from dorothea.config import Config
 from dorothea.encoder import MediaEncoder
 from dorothea.media.ffmpeg import set_ffmpeg
 from dorothea.media.image import ImageProcessor
+from dorothea.progress import Reporter
 from dorothea.scanner import Scanner
 from dorothea.themes import resolve_theme_dir
 
@@ -55,6 +56,7 @@ class ExposeGenerator:
         draft: bool = False,
         dry_run: bool = False,
         use_cache: bool = True,
+        progress: Reporter | None = None,
     ):
         """Initialize the generator.
 
@@ -65,6 +67,8 @@ class ExposeGenerator:
             draft: Whether to run in draft mode.
             dry_run: Work out what would be built without writing anything.
             use_cache: Use ``.dorothea-cache.json`` for palettes and output fingerprints.
+            progress: Progress display for ``run()`` (default: none, plain output; the CLI
+                shows bars on a terminal).
         """
         if isinstance(config, dict):
             config = Config(config)
@@ -78,8 +82,11 @@ class ExposeGenerator:
         # Choose the ffmpeg binary before anything (Scanner's VideoProcessor) looks it up
         set_ffmpeg(config.get("ffmpeg", "auto"))
 
+        self.progress = progress or Reporter(enabled=False)
         self.cache = BuildCache(self.topdir) if use_cache else None
-        self.scanner = Scanner(topdir, scriptdir, config, cache=self.cache, dry_run=dry_run)
+        self.scanner = Scanner(
+            topdir, scriptdir, config, cache=self.cache, dry_run=dry_run, progress=self.progress
+        )
         self._image_processor = ImageProcessor()
         # Filled by a dry run: HTML pages and (output, reason) pairs that would be written
         self.planned_pages = 0
@@ -118,7 +125,9 @@ class ExposeGenerator:
             self.scanner.gallery_video_options,
             self.scanner.gallery_video_filters,
         )
-        self.planned_pages = builder.build_html(write=not self.dry_run)
+        self.planned_pages = builder.build_html(
+            write=not self.dry_run, dots=not self.progress.active
+        )
 
     def encode_media(self) -> None:
         """Encode all images and videos (a dry run records ``planned`` instead)."""
@@ -145,13 +154,14 @@ class ExposeGenerator:
                 shutil.copy2(item, dest)
 
     def run(self) -> None:
-        """Run the full generation pipeline."""
-        self.scan_directories()
-        self.read_files()
-        self.build_html()
-        self.encode_media()
-        if not self.dry_run:
-            self.copy_resources()
+        """Run the full generation pipeline (with progress bars, if enabled)."""
+        with self.progress.live():
+            self.scan_directories()
+            self.read_files()
+            self.build_html()
+            self.encode_media()
+            if not self.dry_run:
+                self.copy_resources()
         self.cleanup()
 
     def _save_cache(self) -> None:
@@ -195,6 +205,7 @@ class ExposeGenerator:
             gallery_video_options=self.scanner.gallery_video_options,
             cache=self.cache,
             dry_run=self.dry_run,
+            progress=self.progress,
         )
 
     def _encode_video(self, filepath: Path, url: str, index: int) -> None:

@@ -19,6 +19,7 @@ from dorothea.media.colors import ColorExtractor
 from dorothea.media.exif import read_photo_info
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
+from dorothea.progress import Reporter
 from dorothea.sorting import SORT_MODES, sort_items
 from dorothea.utils import (
     IMAGE_EXTENSIONS,
@@ -90,6 +91,7 @@ class Scanner:
         config: Config,
         cache: BuildCache | None = None,
         dry_run: bool = False,
+        progress: Reporter | None = None,
     ):
         """Initialize the scanner.
 
@@ -99,12 +101,14 @@ class Scanner:
             config: Configuration object.
             cache: Build cache for palettes/dimensions (None: always analyse).
             dry_run: Create no directories and skip expensive palette extraction.
+            progress: Progress display (default: none; dots are printed instead).
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
         self.config = config
         self.cache = cache
         self.dry_run = dry_run
+        self.progress = progress or Reporter(enabled=False)
 
         # Navigation structures
         self.paths: list[Path] = []
@@ -137,9 +141,25 @@ class Scanner:
         # Check video support
         self.video_enabled = self.video_processor.available
 
+    def _heading(self, text: str) -> None:
+        """Start a phase: ``text`` followed by dots, or a line of its own under progress bars."""
+        if self.progress.active:
+            print(text.lstrip("\n"))
+        else:
+            print(text, end="", flush=True)
+
+    def _dot(self) -> None:
+        """One step of progress in plain output (bars show progress otherwise)."""
+        if not self.progress.active:
+            print(".", end="", flush=True)
+
+    def _end_line(self) -> None:
+        if not self.progress.active:
+            print()
+
     def scan_directories(self) -> None:
         """Scan working directory to populate navigation structures."""
-        print("Scanning directories", end="", flush=True)
+        self._heading("Scanning directories")
 
         root_depth = len(self.topdir.parts)
         sequence_keyword = self.config.get("sequence_keyword", "")
@@ -160,7 +180,7 @@ class Scanner:
             all_dirs = [self.topdir] + self._ordered_dirs(self.topdir, children, mode)
 
         for node in all_dirs:
-            print(".", end="", flush=True)
+            self._dot()
 
             # Skip _site directory
             if node == self.topdir / "_site" or str(node).startswith(str(self.topdir / "_site")):
@@ -237,10 +257,10 @@ class Scanner:
         url_rel = ""
         self.nav_url.append(".")  # First item is topdir
 
-        print("\nPopulating nav", end="", flush=True)
+        self._heading("\nPopulating nav")
 
         for i in range(1, len(self.paths)):
-            print(".", end="", flush=True)
+            self._dot()
 
             if i > 1:
                 if self.nav_depth[i] > self.nav_depth[i - 1]:
@@ -260,7 +280,7 @@ class Scanner:
                 site_path(self.topdir / "_site", url).mkdir(parents=True, exist_ok=True)
             self.nav_url.append(url)
 
-        print()
+        self._end_line()
 
     def read_files(self) -> None:
         """Read files to populate gallery structures.
@@ -268,7 +288,7 @@ class Scanner:
         Files are discovered sequentially (ordering matters for parity), then colour
         palettes and dimensions are extracted in parallel with order preserved.
         """
-        print("Reading files", end="", flush=True)
+        self._heading("Reading files")
 
         sequence_keyword = self.config.get("sequence_keyword", "")
         entries: list[GalleryEntry] = []
@@ -287,7 +307,7 @@ class Scanner:
 
             gallery: list[GalleryEntry] = []
             for file_path in files:
-                print(".", end="", flush=True)
+                self._dot()
                 entry = self._classify(i, file_path, sequence_keyword)
                 if entry:
                     gallery.append(entry)
@@ -299,15 +319,24 @@ class Scanner:
             )
             entries.extend(self._unique_urls(gallery))
 
+        # Colours and dimensions (the slow part on a first run): a bar under progress display
+        bar = self.progress.task(f"Reading {len(entries)} files", total=len(entries))
+
+        def analyze(k: int, entry: GalleryEntry) -> tuple[list[str], int, int]:
+            try:
+                return self._analyze(k, entry)
+            finally:
+                bar.advance()
+
         jobs = self.config.worker_count()
         if jobs > 1 and len(entries) > 1:
             pool = ThreadPoolExecutor(max_workers=jobs)
             try:
-                results = list(pool.map(self._analyze, range(len(entries)), entries))
+                results = list(pool.map(analyze, range(len(entries)), entries))
             finally:
                 pool.shutdown(wait=True, cancel_futures=True)
         else:
-            results = [self._analyze(k, e) for k, e in enumerate(entries)]
+            results = [analyze(k, e) for k, e in enumerate(entries)]
 
         counts: dict[int, int] = {}
         for entry, (palette, maxwidth, maxheight) in zip(entries, results, strict=True):
@@ -328,7 +357,7 @@ class Scanner:
             if self.nav_type[i] >= 1:
                 self.nav_count[i] = counts.get(i, 0)
 
-        print()
+        self._end_line()
 
     def _ordered_dirs(self, top: Path, children: dict[Path, list[Path]], mode: str) -> list[Path]:
         """All directories below ``top`` in depth-first order, siblings sorted by ``mode``."""

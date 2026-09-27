@@ -136,18 +136,20 @@ class HTMLBuilder:
         self.template_html = (theme_dir / "template.html").read_text(encoding="utf-8")
         self.post_template_html = (theme_dir / "post-template.html").read_text(encoding="utf-8")
 
-    def build_html(self, write: bool = True) -> int:
+    def build_html(self, write: bool = True, dots: bool = True) -> int:
         """Build HTML pages for all galleries.
 
         Args:
             write: Write the pages. With False (dry run) metadata is still parsed, which
                 fills the per-item image/video options, but nothing is written.
+            dots: Print a dot per post (off while progress bars are drawn).
 
         Returns:
             Number of pages (including the top-level index.html).
         """
+        dots = dots and write
         if write:
-            print("Building html", end="", flush=True)
+            print("Building html", end="" if dots else "\n", flush=True)
         pages = 0
 
         gallery_index = 0
@@ -165,7 +167,7 @@ class HTMLBuilder:
 
             nav_count = self.nav_count[i]
             for j in range(nav_count):
-                if write:
+                if dots:
                     print(".", end="", flush=True)
 
                 k = j + 1
@@ -337,7 +339,7 @@ class HTMLBuilder:
                 (self.topdir / "_site").mkdir(parents=True, exist_ok=True)
                 (self.topdir / "_site" / "index.html").write_text(root_html, encoding="utf-8")
 
-        if write:
+        if dots:
             print()
         return pages
 

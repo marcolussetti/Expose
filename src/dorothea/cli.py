@@ -17,6 +17,7 @@ import click
 from dorothea import __version__
 from dorothea.config import Config, ConfigError, parse_config_sh, parse_override
 from dorothea.generator import ExposeGenerator
+from dorothea.progress import Reporter
 
 
 def format_plan(pages: int, planned: list[tuple[str, str]]) -> str:
@@ -167,7 +168,11 @@ def main(
     if draft:
         config.apply_draft_mode()
 
-    generator = ExposeGenerator(topdir, scriptdir, config, draft=draft, dry_run=dry_run)
+    # Progress bars on an interactive terminal (plain output in logs/pipes); a dry run only lists
+    progress = Reporter(enabled=False) if dry_run else Reporter()
+    generator = ExposeGenerator(
+        topdir, scriptdir, config, draft=draft, dry_run=dry_run, progress=progress
+    )
 
     if dry_run:
         generator.run()
