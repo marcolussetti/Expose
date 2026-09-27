@@ -11,6 +11,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import time
 import zipfile
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
@@ -19,6 +20,7 @@ from typing import Any
 
 from PIL import Image
 
+from dorothea.album import album_enabled, album_members, album_zip_name
 from dorothea.cache import BuildCache, Fingerprint, settings_hash, source_stat
 from dorothea.config import VIDEO_FORMAT_EXTENSIONS, Config
 from dorothea.media import imagemagick
@@ -308,6 +310,19 @@ class MediaEncoder:
 
         for i in videos:
             self._encode_item(i)
+
+        # Whole-gallery zips (#9): per download_album, or a gallery's own ``download:``; never
+        # in draft mode
+        if not self.draft:
+            albums: dict[int, list[int]] = {}
+            for i, nav in enumerate(self.gallery_nav):
+                albums.setdefault(nav, []).append(i)
+            default = self.config.get("download_album", False)
+            for nav, items in albums.items():
+                if album_enabled(default, self.gallery_files[items[0]].parent):
+                    self._create_album_zip(nav, items)
+                else:
+                    self._remove_album_zip(nav)
 
     def _report_ffmpeg(self) -> None:
         """Say which ffmpeg encodes the videos, and warn about formats it can't produce."""
@@ -894,6 +909,76 @@ class MediaEncoder:
         with zipfile.ZipFile(part, "w", zipfile.ZIP_DEFLATED) as zf:
             for f in zip_dir.iterdir():
                 zf.write(f, f.name)
+        self._built(zip_path, fp, _finalize(part, zip_path, True))
+
+    def _album_zip_path(self, nav: int) -> Path:
+        url = self.nav_url[nav]
+        return self.topdir / "_site" / url / album_zip_name(url, self.config["site_title"])
+
+    def _remove_album_zip(self, nav: int) -> None:
+        """Delete the zip of a gallery that no longer gets one (turned off, or ``download:
+        false``), so its originals stop being published. Only a zip the cache says Dorothea
+        built is removed."""
+        zip_path = self._album_zip_path(nav)
+        if self.cache is None or self.cache.get_output(zip_path) is None:
+            return
+        if self.dry_run:
+            self._plan(zip_path, "remove")
+            return
+        zip_path.unlink(missing_ok=True)
+        self.cache.drop_output(zip_path)
+        print(f"Removed {zip_path.relative_to(self.topdir / '_site').as_posix()}")
+
+    def _create_album_zip(self, nav: int, items: list[int]) -> None:
+        """Zip a gallery's originals and the readme into ``<gallery>/<gallery>.zip`` (#9).
+
+        Stored, not deflated: photos and videos are already compressed. Rebuilt only when the
+        gallery's files (names, sizes, times) or the readme change, since it can be gigabytes.
+
+        Args:
+            nav: Navigation index of the gallery.
+            items: Its gallery indexes, in page order.
+        """
+        url = self.nav_url[nav]
+        zip_path = self._album_zip_path(nav)
+        members = album_members(
+            [self.gallery_files[i] for i in items], [self.gallery_type[i] for i in items]
+        )
+        if not members:
+            return
+        stats = [source_stat(path) for _name, path in members]
+        newest = max(range(len(members)), key=lambda k: stats[k][0])
+        fp = Fingerprint(
+            [stats[newest][0], len(members)],
+            settings_hash(
+                kind="album",
+                readme=self.config["download_readme"],
+                files=[[name, *stat] for (name, _path), stat in zip(members, stats, strict=True)],
+            ),
+        )
+        reason = self._needs(zip_path, fp, members[newest][1])
+        if reason is None:
+            return
+        if self.dry_run:
+            self._plan(zip_path, reason)
+            return
+
+        print(f"Zipping {url} ({len(members)} files)")
+        site_path(self.topdir / "_site", url).mkdir(parents=True, exist_ok=True)
+        part = part_path(zip_path)
+        # Dated like the newest photo, so rebuilding unchanged files gives the same bytes; zip
+        # can't store times before 1980 (strict_timestamps=False clamps the members' too)
+        when = max(time.localtime(stats[newest][0] / 1e9)[:6], (1980, 1, 1, 0, 0, 0))
+        readme = zipfile.ZipInfo("readme.txt", when)
+        try:
+            with zipfile.ZipFile(part, "w", zipfile.ZIP_STORED, strict_timestamps=False) as zf:
+                for name, path in members:
+                    zf.write(path, name)
+                zf.writestr(readme, self.config["download_readme"])
+        except OSError as e:
+            part.unlink(missing_ok=True)
+            print(f"\tError zipping {url}: {e}")
+            return
         self._built(zip_path, fp, _finalize(part, zip_path, True))
 
     def cleanup(self) -> None:

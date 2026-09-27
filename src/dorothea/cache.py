@@ -126,6 +126,12 @@ class BuildCache:
             }
             self._dirty = True
 
+    def drop_output(self, output: Path) -> None:
+        """Forget an output that was deleted."""
+        with self._lock:
+            if self._outputs.pop(self.key(output), None) is not None:
+                self._dirty = True
+
     def save(self) -> None:
         """Write the cache atomically if anything changed. Failures only warn."""
         with self._lock:

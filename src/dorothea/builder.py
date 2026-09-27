@@ -4,10 +4,12 @@ Builds the HTML gallery pages by loading templates, processing markdown,
 and substituting variables.
 """
 
+import contextlib
 import re
 from html import escape as html_escape
 from pathlib import Path
 
+from dorothea.album import album_enabled, album_members, album_zip_name, human_size
 from dorothea.captions import caption_file, metadata_values, read_text_file, split_caption
 from dorothea.config import Config
 from dorothea.feed import feed_url_for, gallery_feed_enabled
@@ -78,6 +80,7 @@ class HTMLBuilder:
         gallery_image_options: list[str],
         gallery_video_options: list[str],
         gallery_video_filters: list[str],
+        draft: bool = False,
     ):
         """Initialize the HTML builder.
 
@@ -101,6 +104,7 @@ class HTMLBuilder:
             gallery_image_options: Image options (updated as side effect of text file parsing).
             gallery_video_options: Video options (updated as side effect of text file parsing).
             gallery_video_filters: Video filters (updated as side effect of text file parsing).
+            draft: Draft mode, which builds no album zips, so pages don't link them.
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
@@ -146,6 +150,13 @@ class HTMLBuilder:
                     button.read_text(encoding="utf-8").strip(), "feedurl", feed_url
                 )
 
+        # Whole-gallery zip (#9): {{album_download}}, from the theme's album-download.html, on
+        # pages of galleries that get one (download_album, or their own ``download:``)
+        self.album_button = ""
+        album = theme_dir / "album-download.html"
+        if not draft and album.is_file():
+            self.album_button = album.read_text(encoding="utf-8").strip()
+
     def build_html(self, write: bool = True, dots: bool = True) -> int:
         """Build HTML pages for all galleries.
 
@@ -176,6 +187,7 @@ class HTMLBuilder:
             gallery_metadata = read_text_file(path / "metadata.txt")
 
             nav_count = self.nav_count[i]
+            first_item = gallery_index
             for j in range(nav_count):
                 if dots:
                     print(".", end="", flush=True)
@@ -296,6 +308,11 @@ class HTMLBuilder:
             if self.feed_link:
                 html = TemplateEngine.substitute(html, "feed_link", self._page_feed_links(i, path))
                 html = TemplateEngine.substitute(html, "feed_button", self.feed_button)
+            if self.album_button and album_enabled(self.config.get("download_album", False), path):
+                items = range(first_item, first_item + nav_count)
+                html = TemplateEngine.substitute(
+                    html, "album_download", self._album_button(i, items)
+                )
 
             # Build navigation
             navigation_html = self._build_navigation(i)
@@ -392,6 +409,23 @@ class HTMLBuilder:
         page = self.config["site_url"].rstrip("/") + "/" + href(self.nav_url[nav_idx]) + "/"
         title = f"{self.config['site_title']}: {self.nav_name[nav_idx]}"
         return self.feed_link + " " + _feed_link_tag(title, feed_url_for(page))
+
+    def _album_button(self, nav_idx: int, items: range) -> str:
+        """``{{album_download}}`` for a gallery page: the theme's markup with the zip's URL
+        (under ``{{resourcepath}}``, so the top-level copy of the first page links into its
+        folder) and its size, which is about the originals' (the zip stores them as they are)."""
+        members = album_members(
+            [self.gallery_files[k] for k in items], [self.gallery_type[k] for k in items]
+        )
+        size = 0
+        for _name, path in members:
+            with contextlib.suppress(OSError):
+                size += path.stat().st_size
+        name = album_zip_name(self.nav_url[nav_idx], self.config["site_title"])
+        button = TemplateEngine.substitute(
+            self.album_button, "albumurl", "{{resourcepath}}" + href(name)
+        )
+        return TemplateEngine.substitute(button, "albumsize", human_size(size))
 
     def _nav_link(self, nav_idx: int) -> str:
         """A gallery's link: its directory (like expose.sh), or its index.html with

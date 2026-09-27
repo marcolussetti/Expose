@@ -23,6 +23,9 @@ from dorothea.scanner import Scanner
 from dorothea.themes import resolve_theme_dir
 from dorothea.utils import site_path
 
+# Theme files the builder reads markup from, which aren't copied to _site
+THEME_SNIPPETS = {"template.html", "post-template.html", "feed-button.html", "album-download.html"}
+
 
 class _ScannerField[T]:
     """An attribute of ``ExposeGenerator.scanner`` exposed on the generator itself."""
@@ -128,6 +131,7 @@ class ExposeGenerator:
             self.scanner.gallery_image_options,
             self.scanner.gallery_video_options,
             self.scanner.gallery_video_filters,
+            draft=self.draft,
         )
         self.planned_pages = builder.build_html(
             write=not self.dry_run, dots=not self.progress.active
@@ -174,7 +178,7 @@ class ExposeGenerator:
         theme_dir = resolve_theme_dir(self.config["theme_dir"], self.topdir)
         site_dir = self.topdir / "_site"
         for item in theme_dir.iterdir():
-            if item.name in ["template.html", "post-template.html", "feed-button.html"]:
+            if item.name in THEME_SNIPPETS:
                 continue
             dest = site_dir / item.name
             if item.is_dir():
