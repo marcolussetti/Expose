@@ -7,7 +7,7 @@ packages = ["src/dorothea"]
 
 [project]
 name = "dorothea"
-version = "2.0.0"
+version = "1.9.0"
 description = "Static photography website generator: turn folders of photos and videos into a photo essay. A Python port of expose.sh"
 readme = "readme.md"
 license = "MIT"
@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/marcolussetti/Expose"
+Homepage = "https://github.com/marcolussetti/dorothea"
 
 [project.scripts]
 dorothea = "dorothea.cli:main"

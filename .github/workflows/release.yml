@@ -1,9 +1,9 @@
 name: Release
 
-# Publishes to PyPI when a GitHub release is published (tag like v2.0.0).
+# Publishes to PyPI when a GitHub release is published (tag like v1.9.0).
 # Uses PyPI trusted publishing: no API token is stored in the repository. One-time setup on
 # pypi.org: add a (pending) trusted publisher for project "dorothea" with owner
-# "marcolussetti", repository "Expose", workflow "release.yml", environment "pypi".
+# "marcolussetti", repository "dorothea", workflow "release.yml", environment "pypi".
 
 on:
   release:

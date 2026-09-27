@@ -29,7 +29,7 @@ optional: when installed it's used for colour extraction and for per-image `imag
 
 Before the first PyPI release, run it straight from GitHub:
 
-	uvx --from git+https://github.com/marcolussetti/Expose@port-to-python dorothea
+	uvx --from git+https://github.com/marcolussetti/dorothea dorothea
 
 ### Basic usage
 
