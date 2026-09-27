@@ -56,6 +56,8 @@ Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both mo
 | `social_button` | `false` (legacy: `true`) | Show the social sharing button. |
 | `disqus_shortname` | `""` | Disqus forum name for comments; empty disables them. |
 | `link_index_html` | `false` | Link galleries to `…/gallery/index.html` instead of `…/gallery`. Gallery links point at folders, which a web server (or `dorothea serve`) answers with the folder's `index.html`; opened straight from disk, or on a host without directory indexes, they show a folder listing instead. Turn this on for a site browsed from disk (e.g. copied onto a USB stick). Dorothea-only. |
+| `site_url` | `""` | The site's public address, e.g. `"https://example.com/photos/"`. When set, the build also writes `feed.xml`, an Atom feed with one entry per gallery (newest first, with its first photo and text), so people can follow new galleries in a feed reader; `photoessay` and `medium` show a feed link and announce the feed to browsers and reader extensions. Feeds need absolute links, which is why this is needed; the rest of the site stays relative. See `date` and `description` under per-post metadata. Dorothea-only. |
+| `gallery_feeds` | `true` | With `site_url`, each gallery also gets its own `feed.xml` (e.g. `…/iceland/feed.xml`) with one entry per photo or video, for galleries that keep growing; its pages announce it next to the site feed. `false` turns them off; a gallery's `metadata.txt` can override either way with `feed: false` / `feed: true`. Dorothea-only. |
 
 ## Images
 
@@ -167,6 +169,10 @@ Caption in *Markdown*.
 | `video-options` | Extra ffmpeg arguments, e.g. `-ss 10 -t 5` to cut a clip. |
 | `video-filters` | ffmpeg filters appended after scaling, e.g. `hflip`. |
 | `textbackground` | A CSS colour drawn behind the caption text (with a little padding), e.g. `rgba(0,0,0,.5)` to keep white text readable over a bright photo. Works in both bundled themes; put it in `metadata.txt` to apply it to a whole gallery. Values containing `"`, `<`, `>`, `;`, `{`, `}` or `\` are ignored with a warning. Dorothea-only. |
+| `date` | For the feeds (`site_url`). In a gallery's `metadata.txt`: when the gallery was published, as `2022-07-14`, `2022-07-14 18:30` or full ISO 8601; without it, a gallery's date is when its newest photo was taken (EXIF), else its newest file's time. In a photo's caption: its date in the gallery's own feed, instead of when it was taken. Dorothea-only. |
+| `title` | In a photo's caption: its title in the gallery's own feed (default: the file name without its number). Themes may show it too. |
+| `feed` | Only in a gallery's `metadata.txt`: `false` to not give this gallery its own feed, or `true` to give it one when `gallery_feeds` is off. Dorothea-only. |
+| `description` | Only in a gallery's `metadata.txt`, for the feed (`site_url`): the gallery's text in feed readers (Markdown). Without it, the first photo's caption is used. Dorothea-only. |
 | `sort` | Only in a gallery's `metadata.txt`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. Dorothea-only. |
 | anything else | Available to the theme as `{{key}}`. theme1 uses `top`, `left`, `width`, `height` (percent), `polygon` and `textcolor`; theme2 uses `width` and `class`. `color1`…`color7` come from the extracted palette. |
 

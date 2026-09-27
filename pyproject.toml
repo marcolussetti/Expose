@@ -45,7 +45,14 @@ dorothea = "dorothea.cli:main"
 expose = "dorothea.cli:main"  # familiar name for expose.sh users
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "pytest-order", "ruff==0.16.9", "ty==0.0.84"]  # keep in sync with .pre-commit-config.yaml
+dev = [
+    "feedparser>=6.0.14",
+    "pytest",
+    "pytest-cov",
+    "pytest-order",
+    "ruff==0.16.9",
+    "ty==0.0.84",
+]  # keep in sync with .pre-commit-config.yaml
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -385,6 +385,30 @@ float: right;
 margin-top: 0.45em;
 }
 
+/* Feed link (#11), next to "More Stories" when site_url is set */
+#feed_button{
+color: #fff;
+margin: 25px 0 0 1em;
+float: right;
+text-decoration: none;
+}
+
+.feed_icon{
+float: left;
+width: 18px;
+height: 16px;
+margin: 0.6em 0.5em 0 0;
+/* the icon's shape, filled with the link's colour (which global.js sets from the palette) */
+background-color: currentColor;
+-webkit-mask: url(img/feed_mask.png) no-repeat;
+mask: url(img/feed_mask.png) no-repeat;
+}
+
+.feedtext{
+float: right;
+margin-top: 0.45em;
+}
+
 #footer{
 float: left;
 width: 100%;

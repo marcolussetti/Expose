@@ -61,6 +61,10 @@ EXPOSE_DEFAULTS = {
     "keep_metadata": "none",
     # Dorothea-only: link galleries to .../index.html, so the site also works opened from disk
     "link_index_html": False,
+    # Dorothea-only: the site's public address (https://…); when set, writes an Atom feed.xml
+    "site_url": "",
+    # Dorothea-only: with site_url, each gallery also gets its own feed.xml (one entry per photo)
+    "gallery_feeds": True,
     # Dorothea-only: use these expose.sh defaults instead of DOROTHEA_DEFAULTS
     "legacy": True,
 }
@@ -347,9 +351,18 @@ class Config:
         if not isinstance(legacy, bool):
             errors.append(f"legacy must be true or false, got {legacy!r}")
 
-        for key in ("convert_to_srgb", "link_index_html"):
+        for key in ("convert_to_srgb", "link_index_html", "gallery_feeds"):
             if not isinstance(c.get(key, False), bool):
                 errors.append(f"{key} must be true or false, got {c[key]!r}")
+
+        site_url = c.get("site_url", "")
+        if not isinstance(site_url, str) or (
+            site_url and not re.fullmatch(r"https?://[^\s\"<>]+", site_url)
+        ):
+            errors.append(
+                f"site_url must be the site's address, like https://example.com/photos/ "
+                f"(or empty), got {site_url!r}"
+            )
 
         from dorothea.media.metadata import KEEP_METADATA_LEVELS
 

@@ -37,7 +37,7 @@ $(document).ready(function(){
 	// set ui colors to first image
 	var color = $('.image.index1').data('color6');
 	$('#top .author img, .arrow_circle').css('border-color',color);
-	$('#top .title .subscript, #nav_toggle').css('color',color);
+	$('#top .title .subscript, #nav_toggle, #feed_button').css('color',color);
 
 	$('.image.index1').append('<div class="overlay" style="background-color: '+$('.image.index1').data('color2')+'"></div>');
 	$('.image').not('.index1, .fullwidth').click(function(){

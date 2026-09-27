@@ -143,6 +143,21 @@ To configure the name of the site and some basic settings, you need to create a 
 An expose.sh-style `_config.sh` still works (and `dorothea --convert-config` converts it). Every
 option is described in [CONFIG.md](CONFIG.md).
 
+### Feed
+
+Set `site_url` to the site's public address and the build also writes an Atom feed (`feed.xml`), so people can follow new galleries in a feed reader. Each gallery is one entry, with its first photo and text. The `photoessay` and `medium` themes then show a feed link and announce the feed to browsers and reader extensions.
+
+```json
+{ "site_url": "https://example.com/photos/" }
+```
+
+Galleries are ordered by when their newest photo was taken. To control the order (say, a trip you publish months later), add a `date:` line to the gallery's `metadata.txt`:
+
+	date: 2022-07-14
+	description: Two weeks driving around Iceland.
+
+Each gallery also gets its own feed (e.g. `https://example.com/photos/iceland/feed.xml`) with one entry per photo, handy for a gallery you keep adding to. Its pages announce it next to the site feed. Turn these off with `"gallery_feeds": false`, or for one gallery with `feed: false` in its `metadata.txt`.
+
 ### Photo metadata and privacy
 
 The resized photos keep the photographer's copyright and the camera information (camera, lens, aperture, shutter speed, ISO, date taken), but **not the GPS location**. To choose differently, set `keep_metadata` in `_config.json`: `"none"`, `"copyright"`, `"camera"` (the default), `"location"`, `"cameralocation"` or `"all"`. The last three publish where each photo was taken, which anyone can read from the downloaded image.

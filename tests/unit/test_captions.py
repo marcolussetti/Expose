@@ -46,7 +46,8 @@ class TestSplitCaption:
         assert (meta, caption, ignored) == ("---\ntitle: Peak\n---", "A peak.", [])
 
     def test_bom(self):
-        meta, caption, ignored = split_caption("﻿---\ntitle: Peak\n---\nA peak.")
+        bom = "\N{ZERO WIDTH NO-BREAK SPACE}"
+        meta, caption, ignored = split_caption(f"{bom}---\ntitle: Peak\n---\nA peak.")
         assert "title: Peak" in meta
         assert caption == "A peak."
         assert ignored == []

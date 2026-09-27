@@ -179,6 +179,16 @@ $(document).ready(function(){
 
 	}
 
+	// A link to slide N (#N: the marker dots, or a gallery feed entry) is followed before the
+	// slides get their heights above, so the browser's own jump lands in the wrong place; redo it
+	var target = /^#(\d+)$/.exec(window.location.hash);
+	if(target){
+		var slide = $('.slide').eq(parseInt(target[1], 10) - 1);
+		if(slide.length){
+			$(window).scrollTop(slide.offset().top);
+		}
+	}
+
 	scrollcheck();
 
 	// add back hover behavior erased by color changes

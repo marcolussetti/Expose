@@ -11,7 +11,7 @@
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 		<script src="{{basepath}}cookie.js"></script>
 		<script src="{{basepath}}global.js"></script>
-		<script src="{{basepath}}keyboard.js" data-slides=".slide"></script>
+		<script src="{{basepath}}keyboard.js" data-slides=".slide"></script>{{feed_link}}
 	</head>
 <body data-resolution="{{resolution}}" data-respath="{{resourcepath}}">
 
@@ -31,7 +31,7 @@
 	<li><a href="#" id="resbutton"><span class="monitor icon"></span><span class="restext"></span></a></li>
 	<li style="display: {{text_toggle}}"><a href="#" id="textbutton" class="active"><span class="toggle icon"></span><span class="text">hide text</span></a></li>
 	<li style="display: {{social_button}}"><a href="#" id="sharebutton"><span class="heart icon"></span>share</a></li>
-	<li  style="display: {{download_button}}"><a href="#" id="download"><span class="download icon"></span>download</a></li>
+	<li  style="display: {{download_button}}"><a href="#" id="download"><span class="download icon"></span>download</a></li>{{feed_button}}
 	</ul>
 
 	<div class="background"></div>

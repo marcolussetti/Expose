@@ -263,6 +263,15 @@ clear: both;
 	-webkit-mask-box-image: url(img/download_mask.png);
 }
 
+.icon.feed{
+	background: transparent url(img/feed.png) no-repeat;
+}
+
+.icon.feed.webkit{
+	background-image: none;
+	-webkit-mask-box-image: url(img/feed_mask.png);
+}
+
 .icon.webkit{
 	background-color: #ccc;
 }

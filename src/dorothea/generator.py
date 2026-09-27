@@ -7,6 +7,7 @@ component APIs so tests and callers don't need to know the internals.
 
 import contextlib
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,11 +15,13 @@ from dorothea.builder import HTMLBuilder
 from dorothea.cache import BuildCache
 from dorothea.config import Config
 from dorothea.encoder import MediaEncoder
+from dorothea.feed import FEED_NAME, build_feed, collect_galleries
 from dorothea.media.ffmpeg import set_ffmpeg
 from dorothea.media.image import ImageProcessor
 from dorothea.progress import Reporter
 from dorothea.scanner import Scanner
 from dorothea.themes import resolve_theme_dir
+from dorothea.utils import site_path
 
 
 class _ScannerField[T]:
@@ -91,6 +94,7 @@ class ExposeGenerator:
         # Filled by a dry run: HTML pages and (output, reason) pairs that would be written
         self.planned_pages = 0
         self.planned: list[tuple[str, str]] = []
+        self.planned_feeds = 0
 
     # --- Pipeline stages ---
 
@@ -128,6 +132,33 @@ class ExposeGenerator:
         self.planned_pages = builder.build_html(
             write=not self.dry_run, dots=not self.progress.active
         )
+        if self.config.get("site_url"):
+            self._write_feed(builder.markdown_processor.render)
+
+    def _write_feed(self, render_markdown: Callable[[str], str]) -> None:
+        """Write _site/feed.xml and the galleries' own feeds (#11).
+
+        A dry run only counts them (``planned_feeds``).
+        """
+        s = self.scanner
+        galleries = collect_galleries(
+            self.config["site_url"], self.config["resolution"],
+            self.config.get("gallery_feeds", True), s.paths, s.nav_type, s.nav_count,
+            s.nav_name, s.nav_url, s.gallery_files, s.gallery_type, s.gallery_url,
+            s.gallery_maxwidth, render_markdown,
+        )  # fmt: skip
+        own = [g for g in galleries if g.enabled]
+        if self.dry_run:
+            self.planned_feeds = 1 + len(own)
+            return
+        title = self.config["site_title"]
+        site = self.topdir / "_site"
+        site.mkdir(parents=True, exist_ok=True)
+        entries = [g.entry for g in galleries]
+        (site / FEED_NAME).write_bytes(build_feed(title, self.config["site_url"], title, entries))
+        for g in own:
+            feed = build_feed(f"{title}: {g.entry.title}", g.url, title, g.items)
+            site_path(site, f"{g.site_path}/{FEED_NAME}").write_bytes(feed)
 
     def encode_media(self) -> None:
         """Encode all images and videos (a dry run records ``planned`` instead)."""
@@ -143,7 +174,7 @@ class ExposeGenerator:
         theme_dir = resolve_theme_dir(self.config["theme_dir"], self.topdir)
         site_dir = self.topdir / "_site"
         for item in theme_dir.iterdir():
-            if item.name in ["template.html", "post-template.html"]:
+            if item.name in ["template.html", "post-template.html", "feed-button.html"]:
                 continue
             dest = site_dir / item.name
             if item.is_dir():

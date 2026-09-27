@@ -23,11 +23,14 @@ from dorothea.generator import ExposeGenerator
 from dorothea.progress import Reporter
 
 
-def format_plan(pages: int, planned: list[tuple[str, str]]) -> str:
+def format_plan(pages: int, planned: list[tuple[str, str]], feeds: int = 0) -> str:
     """Human-readable dry-run summary."""
     reasons = Counter(reason for _path, reason in planned)
     breakdown = ", ".join(f"{n} {reason}" for reason, n in sorted(reasons.items()))
-    lines = [f"Would write {pages} HTML pages; would encode {len(planned)} files"]
+    written = f"{pages} HTML pages"
+    if feeds:
+        written += f" and {feeds} feed{'s' if feeds > 1 else ''}"
+    lines = [f"Would write {written}; would encode {len(planned)} files"]
     if breakdown:
         lines[0] += f" ({breakdown})"
     lines += [f"  {path}  [{reason}]" for path, reason in planned]
@@ -169,7 +172,9 @@ def build(
 
     if dry_run:
         generator.run()
-        click.echo(format_plan(generator.planned_pages, generator.planned))
+        feeds = generator.planned_feeds
+        feeds = feeds if isinstance(feeds, int) else 0  # (a mocked generator's is a Mock)
+        click.echo(format_plan(generator.planned_pages, generator.planned, feeds))
         return
 
     # Set up signal handlers for cleanup

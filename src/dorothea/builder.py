@@ -5,58 +5,26 @@ and substituting variables.
 """
 
 import re
+from html import escape as html_escape
 from pathlib import Path
 
+from dorothea.captions import caption_file, metadata_values, read_text_file, split_caption
 from dorothea.config import Config
+from dorothea.feed import feed_url_for, gallery_feed_enabled
 from dorothea.media.markdown import MarkdownProcessor
 from dorothea.template import TemplateEngine
 from dorothea.themes import resolve_theme_dir
 from dorothea.utils import href
 
-
-def _read_text_file(path: Path) -> str:
-    """Return a caption/metadata file's text, or "" if it's missing or not UTF-8 text.
-
-    expose.sh only reads files that ``file`` reports as text; a binary or mis-encoded
-    ``.txt`` is skipped rather than aborting the build.
-    """
-    try:
-        # utf-8-sig drops the byte-order mark Windows editors (Notepad) often add
-        return path.read_text(encoding="utf-8-sig")
-    except FileNotFoundError:
-        return ""
-    except UnicodeDecodeError, OSError:
-        print(f"\n\tSkipping {path.name}: not a UTF-8 text file")
-        return ""
+__all__ = ["HTMLBuilder", "caption_file", "read_text_file", "split_caption"]
 
 
-# A metadata/caption separator; expose.sh only accepts "---" exactly, so "--- " (trailing
-# spaces, invisible in most editors) used to leak the metadata into the caption (#17)
-_SEPARATOR = re.compile(r"---[ \t]*")
-# A "key: value" metadata line (keys like title, image-options, color1, polygon)
-_METADATA_LINE = re.compile(r"\s*[\w-]+\s*:")
-
-
-def split_caption(text: str) -> tuple[str, str, list[str]]:
-    """Split a caption file into (metadata, Markdown caption, ignored lines), like expose.sh.
-
-    Lines up to and including the second ``---`` (or the only one) are metadata, the rest is
-    the caption. ``ignored`` lists non-blank metadata lines that aren't ``key: value``, which
-    are dropped: usually caption text put before the metadata block by mistake.
-    """
-    text = text.removeprefix("﻿").replace("\r", "").rstrip("\n")
-    lines = text.split("\n")
-    separators = [idx for idx, line in enumerate(lines) if _SEPARATOR.fullmatch(line)]
-    if not separators:
-        return "", text, []
-    end = separators[1] if len(separators) >= 2 else separators[0]
-    head = lines[: end + 1]
-    ignored = [
-        line
-        for line in head
-        if line.strip() and not _SEPARATOR.fullmatch(line) and not _METADATA_LINE.match(line)
-    ]
-    return "\n".join(head), "\n".join(lines[end + 1 :]), ignored
+def _feed_link_tag(title: str, feed_url: str) -> str:
+    """Feed autodiscovery, for browsers and feed reader extensions."""
+    return (
+        f'<link rel="alternate" type="application/atom+xml" '
+        f'title="{html_escape(title, quote=True)}" href="{feed_url}" />'
+    )
 
 
 # Characters that could end the style attribute/tag or add further CSS declarations
@@ -166,6 +134,18 @@ class HTMLBuilder:
         self.template_html = (theme_dir / "template.html").read_text(encoding="utf-8")
         self.post_template_html = (theme_dir / "post-template.html").read_text(encoding="utf-8")
 
+        # Feed (#11): with site_url, {{feed_link}} (autodiscovery for feed readers) and, in themes
+        # that provide feed-button.html, {{feed_button}}. Both vanish without site_url.
+        self.feed_link = self.feed_button = ""
+        if site_url := self.config.get("site_url", ""):
+            feed_url = feed_url_for(site_url)
+            self.feed_link = _feed_link_tag(self.config["site_title"], feed_url)
+            button = theme_dir / "feed-button.html"
+            if button.is_file():
+                self.feed_button = TemplateEngine.substitute(
+                    button.read_text(encoding="utf-8").strip(), "feedurl", feed_url
+                )
+
     def build_html(self, write: bool = True, dots: bool = True) -> int:
         """Build HTML pages for all galleries.
 
@@ -193,7 +173,7 @@ class HTMLBuilder:
             html = self.template_html
 
             # Read gallery metadata
-            gallery_metadata = _read_text_file(path / "metadata.txt")
+            gallery_metadata = read_text_file(path / "metadata.txt")
 
             nav_count = self.nav_count[i]
             for j in range(nav_count):
@@ -203,23 +183,15 @@ class HTMLBuilder:
                 k = j + 1
                 file_path = self.gallery_files[gallery_index]
                 file_type = self.gallery_type[gallery_index]
-                filename = file_path.stem
-                filedir = file_path.parent
 
                 media_type = "image" if file_type == 0 else "video"
 
-                # Look for .txt or .md file
-                textfile = None
-                for ext in [".txt", ".md"]:
-                    candidate = filedir / (filename + ext)
-                    if candidate.exists() and candidate != file_path:
-                        textfile = candidate
-                        break
+                textfile = caption_file(file_path)
 
                 item_metadata = ""
                 content = ""
 
-                text = _read_text_file(textfile) if textfile else ""
+                text = read_text_file(textfile) if textfile else ""
                 if text and textfile:
                     item_metadata, content, ignored = split_caption(text)
                     if ignored:
@@ -321,6 +293,9 @@ class HTMLBuilder:
             html = TemplateEngine.substitute(
                 html, "download_button", "block" if self.config["download_button"] else "none"
             )
+            if self.feed_link:
+                html = TemplateEngine.substitute(html, "feed_link", self._page_feed_links(i, path))
+                html = TemplateEngine.substitute(html, "feed_button", self.feed_button)
 
             # Build navigation
             navigation_html = self._build_navigation(i)
@@ -408,6 +383,15 @@ class HTMLBuilder:
             depth += 1
 
         return navigation
+
+    def _page_feed_links(self, nav_idx: int, path: Path) -> str:
+        """``{{feed_link}}`` for a gallery page: the site feed, then the gallery's own feed."""
+        metadata = metadata_values(read_text_file(path / "metadata.txt"))
+        if not gallery_feed_enabled(self.config.get("gallery_feeds", True), metadata):
+            return self.feed_link
+        page = self.config["site_url"].rstrip("/") + "/" + href(self.nav_url[nav_idx]) + "/"
+        title = f"{self.config['site_title']}: {self.nav_name[nav_idx]}"
+        return self.feed_link + " " + _feed_link_tag(title, feed_url_for(page))
 
     def _nav_link(self, nav_idx: int) -> str:
         """A gallery's link: its directory (like expose.sh), or its index.html with
