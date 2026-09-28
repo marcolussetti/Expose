@@ -238,6 +238,22 @@ def parse_caption(text: str, name: str = "", front_matter: bool = True) -> Capti
     return Caption(head, values, body, front_matter=True, lines=lines_in_file)
 
 
+def embedded_as_caption(title: str, description: str) -> Caption:
+    """The caption for a photo with no caption file, from its own title/description (#51).
+
+    All or nothing: a caption file, if there is one, is used instead, title included. The title
+    is the photo's ``title`` (feeds, themes' ``{{title}}``) and a heading above the description,
+    so both show in every theme.
+    """
+    if not (title or description):
+        return Caption()
+    title = " ".join(title.split())
+    parts = [f"## {title}"] if title else []
+    body = "\n\n".join([*parts, description] if description else parts)
+    values = {"title": title} if title else {}
+    return Caption(f"title: {title}" if title else "", values, body)
+
+
 def read_caption(path: Path, front_matter: bool = True) -> Caption:
     """``parse_caption`` for a file (empty if it's missing or not UTF-8 text)."""
     return parse_caption(read_text_file(path), path.name, front_matter)

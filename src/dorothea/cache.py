@@ -6,6 +6,7 @@ never scanned or published). It holds:
 - **analysis**: colour palette and dimensions per source file, so unchanged photos skip
   palette extraction (the slowest part of reading a gallery).
 - **details**: shooting details (camera, lens, exposure) read from each photo's EXIF (#20).
+- **captions**: the title and description stored in each photo (XMP/IPTC, #51).
 - **outputs**: a fingerprint per generated file: the source file's stat plus a hash of every
   setting that affects the bytes (resolution, quality, per-post options...). A changed
   fingerprint means the output is rebuilt even if it already exists.
@@ -67,6 +68,7 @@ class BuildCache:
         self._dirty = False
         self._analysis: dict[str, dict[str, Any]] = {}
         self._details: dict[str, dict[str, Any]] = {}
+        self._captions: dict[str, dict[str, Any]] = {}
         self._outputs: dict[str, dict[str, Any]] = {}
         self._load()
 
@@ -79,10 +81,11 @@ class BuildCache:
                 raise ValueError(f"unsupported version {data.get('version')!r}")
             self._analysis = dict(data.get("analysis", {}))
             self._details = dict(data.get("details", {}))
+            self._captions = dict(data.get("captions", {}))
             self._outputs = dict(data.get("outputs", {}))
         except (OSError, ValueError, AttributeError) as e:
             print(f"Ignoring unreadable build cache {self.path.name}: {e}")
-            self._analysis, self._details, self._outputs = {}, {}, {}
+            self._analysis, self._details, self._captions, self._outputs = {}, {}, {}, {}
 
     def key(self, path: Path) -> str:
         """Cache key for a path: relative to the gallery root when possible."""
@@ -126,6 +129,23 @@ class BuildCache:
             self._details[self.key(path)] = {"stat": stat, "details": details}
             self._dirty = True
 
+    # --- embedded captions ---
+
+    def get_caption(self, path: Path, stat: list[int]) -> tuple[str, str] | None:
+        """Return a photo's cached embedded (title, description) if the file is unchanged."""
+        with self._lock:
+            entry = self._captions.get(self.key(path))
+        if not entry or entry.get("stat") != stat:
+            return None
+        return str(entry["title"]), str(entry["description"])
+
+    def put_caption(self, path: Path, stat: list[int], title: str, description: str) -> None:
+        """Record a photo's embedded title and description (empty when it has none)."""
+        with self._lock:
+            entry = {"stat": stat, "title": title, "description": description}
+            self._captions[self.key(path)] = entry
+            self._dirty = True
+
     # --- outputs ---
 
     def get_output(self, output: Path) -> Fingerprint | None:
@@ -160,6 +180,7 @@ class BuildCache:
                 "version": CACHE_VERSION,
                 "analysis": self._analysis,
                 "details": self._details,
+                "captions": self._captions,
                 "outputs": self._outputs,
             }
             tmp = self.path.with_name(self.path.name + ".tmp")

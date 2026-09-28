@@ -11,7 +11,9 @@ from pathlib import Path
 
 from dorothea.album import album_enabled, album_members, album_zip_name, human_size
 from dorothea.captions import (
+    Caption,
     caption_file,
+    embedded_as_caption,
     gallery_metadata,
     gallery_metadata_text,
     is_comment,
@@ -22,7 +24,7 @@ from dorothea.captions import (
 )
 from dorothea.config import Config
 from dorothea.feed import feed_url_for, gallery_feed_enabled
-from dorothea.media.exif import DETAIL_KEYS
+from dorothea.media.exif import DETAIL_KEYS, EmbeddedCaption
 from dorothea.media.markdown import MarkdownProcessor
 from dorothea.template import TemplateEngine
 from dorothea.themes import resolve_theme_dir
@@ -152,6 +154,7 @@ class HTMLBuilder:
         gallery_video_filters: list[str],
         draft: bool = False,
         gallery_details: list[dict[str, str]] | None = None,
+        gallery_captions: list[EmbeddedCaption] | None = None,
     ):
         """Initialize the HTML builder.
 
@@ -177,6 +180,7 @@ class HTMLBuilder:
             gallery_video_filters: Video filters (updated as side effect of text file parsing).
             draft: Draft mode, which builds no album zips, so pages don't link them.
             gallery_details: Shooting details read from EXIF (parallel to gallery_files; #20).
+            gallery_captions: Photos' own titles/descriptions (parallel to gallery_files; #51).
         """
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
@@ -204,6 +208,7 @@ class HTMLBuilder:
         self.gallery_video_options = gallery_video_options
         self.gallery_video_filters = gallery_video_filters
         self.gallery_details = gallery_details or []
+        self.gallery_captions = gallery_captions or []
 
         # Initialize processors
         self.markdown_processor = MarkdownProcessor(scriptdir)
@@ -278,9 +283,9 @@ class HTMLBuilder:
                 item_metadata = ""
                 content = ""
 
+                caption = Caption()
                 if textfile is not None:
                     caption = read_caption(textfile, front_matter=self.front_matter)
-                    item_metadata, content = caption.head, caption.body
                     for warning in caption.warning_lines(textfile.name):
                         print(f"\n\tWarning: {warning}")
                     if caption.ignored:
@@ -289,6 +294,10 @@ class HTMLBuilder:
                             "line(s) in the metadata section that aren't 'key: value' (first: "
                             f"{caption.ignored[0]!r}); put the caption after the second '---'"
                         )
+                elif gallery_index < len(self.gallery_captions):  # the photo's own (#51)
+                    own = self.gallery_captions[gallery_index]
+                    caption = embedded_as_caption(own.title, own.description)
+                item_metadata, content = caption.head, caption.body
 
                 # Combine metadata: item + gallery + colors
                 metadata = item_metadata + "\n" + gallery_metadata + "\n"

@@ -186,6 +186,7 @@ class TestLegacyDefaults:
             "convert_to_srgb",
             "keep_metadata",
             "exif_display",
+            "embedded_captions",
             "legacy",
         }
         assert DOROTHEA_DEFAULTS["exif_display"] == "icon"

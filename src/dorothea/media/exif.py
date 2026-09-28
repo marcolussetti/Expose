@@ -1,12 +1,19 @@
-"""EXIF metadata, read with ExifRead.
+"""Photo metadata: EXIF read with ExifRead, and embedded captions read with Pillow.
 
 ``read_photo_info`` reads a photo's EXIF once into a ``PhotoInfo``: the capture time (used to
 order items whose URLs collide) and the shooting details shown with ``exif_display`` (#20).
 GPS (#21, #23) will be added here too.
+
+``embedded_caption`` reads the title and description photo editors store in the file
+(``embedded_captions``, #51): XMP's ``dc:title``/``dc:description`` (Lightroom, Capture One,
+Apple Photos, darktable), else IPTC's ObjectName/Caption-Abstract. EXIF's own ImageDescription
+is left out on purpose: many cameras fill it with "OLYMPUS DIGITAL CAMERA" or spaces.
 """
 
+import contextlib
 import logging
 import re
+import xml.etree.ElementTree as ElementTree
 from dataclasses import dataclass, field
 from datetime import datetime
 from fractions import Fraction
@@ -14,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import exifread
+from PIL import Image, IptcImagePlugin, UnidentifiedImageError
 
 # ExifRead logs a warning for every file without EXIF ("File format not recognized"), e.g.
 # videos; missing metadata is normal here, so only let real errors through.
@@ -127,3 +135,77 @@ def read_photo_info(path: Path) -> PhotoInfo:
                 break
 
     return PhotoInfo(capture_time=capture_time, details=shooting_details(tags))
+
+
+_RDF = "{http://www.w3.org/1999/02/22-rdf-syntax-ns#}"
+_DC = "{http://purl.org/dc/elements/1.1/}"
+_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
+
+
+def _clean(text: str | None) -> str:
+    """Line endings normalised, blank lines at the ends dropped."""
+    return (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _xmp_packet(image: Image.Image) -> bytes | None:
+    """The XMP packet, where Pillow keeps it for each format (JPEG/WebP/HEIC, PNG, TIFF)."""
+    for key in ("xmp", "XML:com.adobe.xmp"):
+        if value := image.info.get(key):
+            return value.encode() if isinstance(value, str) else value
+    tags = getattr(image, "tag_v2", None)
+    value = tags.get(700) if tags is not None else None  # TIFF's XMP tag
+    return value if isinstance(value, bytes) else None
+
+
+def _xmp_text(root: ElementTree.Element, name: str) -> str:
+    """``dc:title``/``dc:description``: the default-language entry of its ``rdf:Alt``."""
+    element = root.find(f".//{_DC}{name}")
+    if element is None:
+        return ""
+    entries = element.findall(f".//{_RDF}li")
+    for entry in entries:
+        if entry.get(_LANG) == "x-default":
+            return _clean(entry.text)
+    return _clean(entries[0].text if entries else element.text)
+
+
+def _iptc_text(info: dict, dataset: int) -> str:
+    """An IPTC application record field (2:05 ObjectName, 2:120 Caption-Abstract)."""
+    value = info.get((2, dataset))
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if not isinstance(value, bytes):
+        return ""
+    try:
+        return _clean(value.decode("utf-8"))
+    except UnicodeDecodeError:  # older files: Latin-1 unless they declare UTF-8
+        return _clean(value.decode("latin-1"))
+
+
+@dataclass(frozen=True)
+class EmbeddedCaption:
+    """A photo's title and description, as a photo editor stored them ("" when it has none)."""
+
+    title: str = ""
+    description: str = ""
+
+
+def embedded_caption(path: Path) -> EmbeddedCaption:
+    """The title and description stored in a photo (see the module docstring); XMP first."""
+    try:
+        with Image.open(path) as image:
+            packet = _xmp_packet(image)
+            iptc = IptcImagePlugin.getiptcinfo(image) or {}
+    except OSError, UnidentifiedImageError, ValueError, SyntaxError:
+        return EmbeddedCaption()
+
+    title = description = ""
+    if packet:
+        # ElementTree (expat) refuses external entities and limits entity expansion
+        with contextlib.suppress(ElementTree.ParseError):
+            root = ElementTree.fromstring(packet.rstrip(b"\x00 \n\r\t"))
+            title, description = _xmp_text(root, "title"), _xmp_text(root, "description")
+    return EmbeddedCaption(
+        title or _iptc_text(iptc, 5),
+        description or _iptc_text(iptc, 120),
+    )

@@ -75,6 +75,8 @@ EXPOSE_DEFAULTS = {
     "gallery_feeds": True,
     # Dorothea-only: show photos' camera/lens/exposure from EXIF (#20), see EXIF_DISPLAY_MODES
     "exif_display": "off",
+    # Dorothea-only: use the title/description stored in a photo (Lightroom…) as its caption (#51)
+    "embedded_captions": False,
     # Dorothea-only: use these expose.sh defaults instead of DOROTHEA_DEFAULTS
     "legacy": True,
 }
@@ -89,6 +91,7 @@ DOROTHEA_CHANGES = {
     "convert_to_srgb": True,  # Display P3 / Adobe RGB photos keep their colours (#12)
     "keep_metadata": "camera",  # copyright + camera settings; never location unless asked (#12)
     "exif_display": "icon",  # photo details behind an ⓘ, in themes that support it (#20)
+    "embedded_captions": True,  # a photo's own title/description when it has no caption (#51)
     "legacy": False,
 }
 
@@ -430,7 +433,10 @@ class Config:
         if not isinstance(legacy, bool):
             errors.append(f"legacy must be true or false, got {legacy!r}")
 
-        for key in ("convert_to_srgb", "link_index_html", "gallery_feeds", "download_album"):
+        for key in (
+            "convert_to_srgb", "link_index_html", "gallery_feeds", "download_album",
+            "embedded_captions",
+        ):  # fmt: skip
             if not isinstance(c.get(key, False), bool):
                 errors.append(f"{key} must be true or false, got {c[key]!r}")
 

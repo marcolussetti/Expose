@@ -7,6 +7,11 @@ All notable changes to Dorothea are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Captions from the photo itself (#51): the title and description Lightroom, Capture One, Apple
+  Photos, darktable and others store in the file (XMP, else IPTC) become the photo's caption,
+  the title as a heading above the description, and its title in the gallery's feed, when the
+  photo has no caption file; a `.md` or `.txt` caption replaces them entirely. On by default (`embedded_captions`), off with `--legacy`; read once per photo and
+  cached. EXIF's ImageDescription isn't used, since cameras fill it with their model name.
 - `dorothea check` (#46): looks through the settings, every `gallery.yml` / `metadata.txt` and
   every caption without building, and lists mistakes with their file and line: unknown keys
   (suggesting the one you probably meant; the theme's keys are the placeholders in its
