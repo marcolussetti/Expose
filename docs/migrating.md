@@ -13,7 +13,7 @@ plus keyboard navigation; `theme1` and `theme2` are still bundled, unchanged), n
 order (`1, 2, 10`), vp9 instead of vp8 video, a faster h264 preset, no share menu, wide-gamut
 photos converted to sRGB, and camera information (but never location) kept in the resized
 photos. To keep exactly what expose.sh
-made, run `dorothea --legacy`, or add `"legacy": true` to `_config.json`. Settings you set
+made, run `dorothea --legacy`, or add `legacy: true` to `_config.yml`. Settings you set
 explicitly win either way. The full list is in
 [Configuration](configuration.md#legacy-exposesh-defaults).
 
@@ -39,7 +39,7 @@ command is also installed as `expose`, so `expose -d` keeps working.
 
 ## Configuration
 
-Your `_config.sh` keeps working: without a `_config.json`, Dorothea reads it. It's parsed,
+Your `_config.sh` keeps working: without a `_config.yml`, Dorothea reads it. It's parsed,
 never executed, so only plain assignments are supported:
 
 ```sh
@@ -49,18 +49,32 @@ autorotate=false                 # true/false become booleans, numbers become nu
 ```
 
 Anything else (`$(...)`, `${VAR}`, `export`, `if`) is skipped with a warning naming the line.
-To switch to JSON, the recommended format:
+To switch to Dorothea's formats (YAML settings, Markdown captions):
 
 ```sh
-dorothea --convert-config        # writes _config.json from _config.sh
+dorothea --convert-config
+# _config.sh → _config.yml, each metadata.txt → gallery.yml,
+# each .txt caption → a .md with its settings as front matter
 ```
 
-If both files exist, `_config.json` wins. Every setting is described in
-[Configuration](configuration.md).
+It deletes each original once the new file gives exactly the same settings (and caption), and
+leaves alone anything it can't convert that way, saying why: a `_config.sh` with shell code in
+it, a folder that already has a `gallery.yml`, a photo that already has a `.md` caption. Values
+YAML would read differently are quoted (`textcolor: '#ff9518'`), comments are kept, and caption
+text that sat before the metadata (never shown) becomes a comment. Captions are left as `.txt`
+if the site uses `legacy: true`, since expose.sh's reading doesn't understand front matter. Every
+setting is described in [Configuration](configuration.md), which can also build a `_config.yml`
+for you.
 
 > **Note:** expose.sh ignores `resolution`, `bitrate`, `video_formats` and `default_palette` set
 > in `_config.sh` (it reassigns them after reading the file). Dorothea honours them, so a
 > gallery that set them will now actually use those values.
+
+Your galleries' `metadata.txt` files and `.txt` captions keep working as they are, read as
+expose.sh reads them. The Dorothea versions are a `gallery.yml` per gallery and `.md` captions
+with YAML front matter (see [Captions](galleries.md#captions)); `--convert-config` above makes
+them, and `#` lines are comments in all of them. Run `dorothea check` to list any mistakes, with
+the file and line.
 
 ## New in Dorothea
 

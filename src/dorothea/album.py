@@ -3,19 +3,19 @@
 With ``download_album``, each gallery gets ``_site/<gallery>/<gallery>.zip`` holding its
 originals (an image sequence's frames in a folder of their own) plus ``readme.txt``. Pages link
 it through the theme's optional ``album-download.html`` (``{{album_download}}``). A gallery's
-``metadata.txt`` can opt out (``download: false``) or in (``download: true``).
+``gallery.yml`` (or ``metadata.txt``) can opt out (``download: false``) or in
+(``download: true``).
 """
 
 from pathlib import Path
 
-from dorothea.captions import metadata_flag, metadata_values, read_text_file
+from dorothea.captions import gallery_metadata, metadata_flag
 from dorothea.utils import sequence_frames, slug_or_fallback
 
 
 def album_enabled(default: bool, gallery_dir: Path) -> bool:
-    """Whether a gallery gets a zip: ``download:`` in its metadata.txt, else the setting."""
-    metadata = metadata_values(read_text_file(gallery_dir / "metadata.txt"))
-    return metadata_flag(metadata, "download", default)
+    """Whether a gallery gets a zip: ``download:`` in its gallery file, else the setting."""
+    return metadata_flag(gallery_metadata(gallery_dir), "download", default)
 
 
 def album_zip_name(gallery_url: str, site_title: str) -> str:

@@ -1,6 +1,6 @@
 """Full build of tests/data/showcase, the multi-gallery site used to check theme layouts.
 
-Regenerate it with ``scripts/make_showcase_gallery.py``. Its ``_config.json`` turns on the feed
+Regenerate it with ``scripts/make_showcase_gallery.py``. Its ``_config.yml`` turns on the feed
 and whole-gallery downloads, so the pages carry every optional link.
 """
 

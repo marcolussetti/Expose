@@ -1,12 +1,12 @@
 """Tests for reading expose.sh ``_config.sh`` files and ``--convert-config``."""
 
-import json
 from unittest import mock
 
 import pytest
 
 from dorothea.cli import main
 from dorothea.config import Config, parse_config_sh
+from dorothea.yamlfile import SCHEMA_URL
 
 
 class TestParseConfigSh:
@@ -67,17 +67,18 @@ class TestParseConfigSh:
 
 
 class TestLoadConfigSh:
-    def test_config_sh_used_when_no_json(self, tmp_path):
+    def test_config_sh_used_when_no_yaml(self, tmp_path):
         (tmp_path / "_config.sh").write_text('site_title="From Shell"\n')
         config = Config.load(tmp_path, tmp_path)
         assert config["site_title"] == "From Shell"
         assert any("--convert-config" in w for w in config.load_warnings)
 
-    def test_json_wins_over_sh(self, tmp_path):
+    @pytest.mark.parametrize("name", ["_config.yml", "_config.yaml"])
+    def test_yaml_wins_over_sh(self, tmp_path, name):
         (tmp_path / "_config.sh").write_text('site_title="From Shell"\n')
-        (tmp_path / "_config.json").write_text(json.dumps({"site_title": "From JSON"}))
+        (tmp_path / name).write_text("site_title: From YAML\n")
         config = Config.load(tmp_path, tmp_path)
-        assert config["site_title"] == "From JSON"
+        assert config["site_title"] == "From YAML"
         assert config.load_warnings == []
 
     def test_explicit_sh_path(self, tmp_path):
@@ -97,17 +98,36 @@ class TestConvertConfig:
             main()
         return e.value.code
 
-    def test_writes_json(self, tmp_path, monkeypatch):
-        (tmp_path / "_config.sh").write_text('site_title="Trip"\nresolution=(1280 640)\nbad=$(x)\n')
+    def test_writes_yaml(self, tmp_path, monkeypatch):
+        (tmp_path / "_config.sh").write_text(
+            'site_title="Trip"\nresolution=(1280 640)\ntheme_dir=theme2\nbad=$(x)\n'
+        )
         assert self.run(tmp_path, monkeypatch) == 0
-        data = json.loads((tmp_path / "_config.json").read_text())
-        assert data == {"site_title": "Trip", "resolution": [1280, 640]}
+        text = (tmp_path / "_config.yml").read_text()
+        assert text.startswith("# Dorothea settings: https://dorothea.readthedocs.io/")
+        assert f"# yaml-language-server: $schema={SCHEMA_URL}\n" in text
+        assert "site_title: Trip\nresolution: [1280, 640]\ntheme_dir: theme2\n" in text
+        # and Dorothea reads it back as it was
+        config = Config.load(tmp_path, tmp_path)
+        assert (config["site_title"], config["resolution"]) == ("Trip", [1280, 640])
+        # `bad=$(x)` couldn't be converted, so the original is kept
+        assert (tmp_path / "_config.sh").exists()
 
-    def test_refuses_to_overwrite(self, tmp_path, monkeypatch):
+    def test_deletes_the_original_when_everything_converted(self, tmp_path, monkeypatch):
+        (tmp_path / "_config.sh").write_text('site_title="Trip"\njpeg_quality=85\n')
+        assert self.run(tmp_path, monkeypatch) == 0
+        assert not (tmp_path / "_config.sh").exists()
+        assert Config.load(tmp_path, tmp_path)["jpeg_quality"] == 85
+
+    def test_leaves_an_existing_yml_alone(self, tmp_path, monkeypatch):
         (tmp_path / "_config.sh").write_text('site_title="Trip"\n')
-        (tmp_path / "_config.json").write_text("{}")
-        assert self.run(tmp_path, monkeypatch) == 2
-        assert (tmp_path / "_config.json").read_text() == "{}"
+        (tmp_path / "_config.yml").write_text("site_title: Mine\n")
+        assert self.run(tmp_path, monkeypatch) == 0
+        assert (tmp_path / "_config.yml").read_text() == "site_title: Mine\n"
+        assert (tmp_path / "_config.sh").exists()
 
-    def test_missing_source(self, tmp_path, monkeypatch):
-        assert self.run(tmp_path, monkeypatch) == 2
+    def test_nothing_to_convert(self, tmp_path, monkeypatch):
+        assert self.run(tmp_path, monkeypatch) == 0
+
+    def test_missing_explicit_source(self, tmp_path, monkeypatch):
+        assert self.run(tmp_path, monkeypatch, "--config", "other.sh") == 2

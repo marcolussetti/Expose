@@ -88,7 +88,7 @@ class TestDates:
     def test_unreadable_date_warns_and_falls_back(self, tmp_path, capsys):
         photo = tmp_path / "a.jpg"
         photo_taken(photo, "2020:01:01 12:00:00")
-        date = gallery_date({"date": "next tuesday"}, [photo], "iceland")
+        date = gallery_date({"date": "next tuesday"}, [photo], "iceland/metadata.txt")
         assert date.year == 2020
         assert "iceland/metadata.txt: can't read date 'next tuesday'" in capsys.readouterr().out
 

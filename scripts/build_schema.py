@@ -1,7 +1,8 @@
-"""Write the JSON Schema of ``_config.json`` for the docs site (#30).
+"""Write the JSON Schema of ``_config.yml`` for the docs site (#30, #46).
 
-The schema drives the configurator on docs/configuration.md, and ``"$schema"`` in a
-``_config.json`` gives editors (VS Code, …) completion and checks. Nothing about a setting is
+The schema drives the configurator on docs/configuration.md, and a
+``# yaml-language-server: $schema=…`` line in ``_config.yml`` gives editors (VS Code's YAML
+extension, …) completion and checks. Nothing about a setting is
 written twice: keys, types and defaults come from ``config.DOROTHEA_DEFAULTS`` /
 ``EXPOSE_DEFAULTS``, choices from the constants the code already uses, ranges from
 ``config.SETTING_HINTS``, and sections and descriptions from the settings tables in
@@ -28,11 +29,11 @@ from dorothea.media.ffmpeg import FFMPEG_CHOICES
 from dorothea.media.metadata import KEEP_METADATA_LEVELS
 from dorothea.sorting import SORT_MODES
 from dorothea.themes import BUNDLED_THEMES_DIR
+from dorothea.yamlfile import SCHEMA_URL
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS_PAGE = ROOT / "docs" / "configuration.md"
 OUTPUT = ROOT / "docs" / "schema" / "config.json"
-SCHEMA_URL = "https://dorothea.readthedocs.io/schema/config.json"
 
 _TABLE_HEADER = "| Key | Default | Description |"
 _ROW = re.compile(r"^\| `(?P<key>[^`]+)` \| (?P<default>.*?) \| (?P<description>.*) \|$")
@@ -137,7 +138,7 @@ def build_schema(page: str) -> dict[str, Any]:
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": SCHEMA_URL,
-        "title": "Dorothea _config.json",
+        "title": "Dorothea _config.yml",
         "description": "Settings for Dorothea, https://dorothea.readthedocs.io/configuration/",
         "type": "object",
         "properties": properties,

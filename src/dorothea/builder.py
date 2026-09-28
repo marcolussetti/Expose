@@ -10,7 +10,16 @@ from html import escape as html_escape
 from pathlib import Path
 
 from dorothea.album import album_enabled, album_members, album_zip_name, human_size
-from dorothea.captions import caption_file, metadata_values, read_text_file, split_caption
+from dorothea.captions import (
+    caption_file,
+    gallery_metadata,
+    gallery_metadata_text,
+    is_comment,
+    metadata_values,
+    read_caption,
+    read_text_file,
+    split_caption,
+)
 from dorothea.config import Config
 from dorothea.feed import feed_url_for, gallery_feed_enabled
 from dorothea.media.exif import DETAIL_KEYS
@@ -31,7 +40,7 @@ def _feed_link_tag(title: str, feed_url: str) -> str:
 
 
 # Characters that could end the style attribute/tag or add further CSS declarations
-_UNSAFE_CSS_VALUE = set('"<>;{}\\')
+UNSAFE_CSS_VALUE = set('"<>;{}\\')
 
 
 def _textbackground_attr(value: str, source: Path) -> str:
@@ -42,7 +51,7 @@ def _textbackground_attr(value: str, source: Path) -> str:
     the page is byte-identical to one without the feature. When set, the snippet closes the
     class value and adds a style attribute.
     """
-    if _UNSAFE_CSS_VALUE & set(value):
+    if UNSAFE_CSS_VALUE & set(value):
         print(f"\n\tIgnoring textbackground for {source.name}: {value!r} is not a CSS colour")
         return ""
     return f'" style="background-color: {value}; padding: 0.5em 1em'
@@ -172,6 +181,8 @@ class HTMLBuilder:
         self.topdir = Path(topdir)
         self.scriptdir = Path(scriptdir)
         self.config = config
+        # .md captions' YAML front matter (#52); --legacy reads every caption as expose.sh does
+        self.front_matter = not config.get("legacy", False)
 
         # Navigation structures
         self.paths = paths
@@ -248,7 +259,7 @@ class HTMLBuilder:
             html = self.template_html
 
             # Read gallery metadata
-            gallery_metadata = read_text_file(path / "metadata.txt")
+            gallery_metadata = gallery_metadata_text(path)
 
             nav_count = self.nav_count[i]
             first_item = gallery_index
@@ -262,19 +273,21 @@ class HTMLBuilder:
 
                 media_type = "image" if file_type == 0 else "video"
 
-                textfile = caption_file(file_path)
+                textfile = caption_file(file_path, legacy=not self.front_matter)
 
                 item_metadata = ""
                 content = ""
 
-                text = read_text_file(textfile) if textfile else ""
-                if text and textfile:
-                    item_metadata, content, ignored = split_caption(text)
-                    if ignored:
+                if textfile is not None:
+                    caption = read_caption(textfile, front_matter=self.front_matter)
+                    item_metadata, content = caption.head, caption.body
+                    for warning in caption.warning_lines(textfile.name):
+                        print(f"\n\tWarning: {warning}")
+                    if caption.ignored:
                         print(
-                            f"\n\tWarning: {textfile.name}: ignoring {len(ignored)} line(s) in the "
-                            f"metadata section that aren't 'key: value' (first: {ignored[0]!r}); "
-                            "put the caption after the second '---'"
+                            f"\n\tWarning: {textfile.name}: ignoring {len(caption.ignored)} "
+                            "line(s) in the metadata section that aren't 'key: value' (first: "
+                            f"{caption.ignored[0]!r}); put the caption after the second '---'"
                         )
 
                 # Combine metadata: item + gallery + colors
@@ -302,7 +315,7 @@ class HTMLBuilder:
                 # Parse and apply metadata to post
                 textbackground = None
                 for line in metadata.split("\n"):
-                    if ":" not in line:
+                    if ":" not in line or is_comment(line):
                         continue
                     parts = line.split(":", 1)
                     key = parts[0].strip()
@@ -488,7 +501,7 @@ class HTMLBuilder:
 
     def _page_feed_links(self, nav_idx: int, path: Path) -> str:
         """``{{feed_link}}`` for a gallery page: the site feed, then the gallery's own feed."""
-        metadata = metadata_values(read_text_file(path / "metadata.txt"))
+        metadata = gallery_metadata(path)
         if not gallery_feed_enabled(self.config.get("gallery_feeds", True), metadata):
             return self.feed_link
         page = self.config["site_url"].rstrip("/") + "/" + href(self.nav_url[nav_idx]) + "/"

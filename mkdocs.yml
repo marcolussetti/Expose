@@ -41,6 +41,7 @@ theme:
 extra_css:
   - configurator.css
 extra_javascript:
+  - vendor/js-yaml.min.js  # js-yaml (MIT, vendor/js-yaml.LICENSE): reads/writes _config.yml
   - configurator.js
 
 markdown_extensions:

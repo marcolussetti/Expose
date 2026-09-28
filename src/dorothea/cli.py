@@ -6,7 +6,6 @@ and orchestrates the generation process.
 
 import atexit
 import io
-import json
 import signal
 import sys
 from collections import Counter
@@ -18,7 +17,8 @@ from typing import Any
 import click
 
 from dorothea import __version__
-from dorothea.config import Config, ConfigError, parse_config_sh, parse_override
+from dorothea.config import Config, ConfigError, parse_override
+from dorothea.convert import convert_site
 from dorothea.generator import ExposeGenerator
 from dorothea.progress import Reporter
 
@@ -38,22 +38,20 @@ def format_plan(pages: int, planned: list[tuple[str, str]], feeds: int = 0) -> s
 
 
 def convert_config(topdir: Path, source: Path | None, prog: str = "dorothea") -> int:
-    """Convert an expose.sh ``_config.sh`` to ``_config.json``. Returns an exit code."""
-    source = source or topdir / "_config.sh"
-    target = topdir / "_config.json"
-    if not source.exists():
-        click.echo(f"{prog}: {source} not found", err=True)
-        return 2
-    if target.exists():
-        click.echo(f"{prog}: {target} already exists; not overwriting", err=True)
-        return 2
-    values, warnings = parse_config_sh(source.read_text(encoding="utf-8"))
-    for warning in warnings:
-        click.echo(f"Warning: {warning}", err=True)
-    text = json.dumps(values, indent=2, ensure_ascii=False) + "\n"
-    target.write_text(text, encoding="utf-8")
-    click.echo(f"Wrote {target}:\n{text}", nl=False)
-    return 0
+    """Convert expose.sh's ``_config.sh`` and every ``metadata.txt`` to YAML (#46).
+
+    Returns an exit code: 2 if something couldn't be done, else 0.
+    """
+    report = convert_site(topdir, source)
+    for line in report.written:
+        click.echo(f"Wrote {line}")
+    for note in report.notes:
+        click.echo(f"Note: {note}", err=True)
+    for error in report.errors:
+        click.echo(f"{prog}: {error}", err=True)
+    if not (report.written or report.notes or report.errors):
+        click.echo("Nothing to convert: no _config.sh or metadata.txt here")
+    return 2 if report.errors else 0
 
 
 def _print_version(ctx: click.Context, value: bool) -> None:
@@ -80,8 +78,8 @@ _BUILD_OPTIONS = [
         "config_path",
         type=click.Path(dir_okay=False, path_type=Path),
         metavar="PATH",
-        help="Config file to use, .json or expose.sh .sh "
-        "(default: ./_config.json, else ./_config.sh).",
+        help="Config file to use, .yml or expose.sh .sh "
+        "(default: ./_config.yml, else ./_config.sh).",
     ),
     click.option(
         "-s",
@@ -115,7 +113,7 @@ _BUILD_OPTIONS = [
         "--legacy/--no-legacy",
         default=None,
         help="Use expose.sh's default settings, so the output matches expose.sh "
-        '(--no-legacy overrides "legacy": true in the config file).',
+        "(--no-legacy overrides legacy: true in the config file).",
     ),
 ]
 
@@ -125,6 +123,49 @@ def build_options[F: Callable[..., Any]](f: F) -> F:
     for option in reversed(_BUILD_OPTIONS):
         f = option(f)
     return f
+
+
+def load_config(
+    ctx: click.Context,
+    config_path: Path | None,
+    overrides: tuple[str, ...],
+    jobs: int | None,
+    ffmpeg: str | None,
+    sort: str | None,
+    legacy: bool | None,
+) -> tuple[Config, list[str]]:
+    """The config for the current directory, validated, and its warnings (already printed).
+
+    Exits with 2 on a config error.
+    """
+    prog = ctx.find_root().info_name or "dorothea"
+    topdir = Path.cwd()
+    try:
+        settings = dict(parse_override(item) for item in overrides)
+        if jobs is not None:
+            settings["jobs"] = jobs
+        if ffmpeg is not None:
+            settings["ffmpeg"] = ffmpeg
+        if sort is not None:
+            settings["sort"] = sort
+        if legacy is not None:
+            settings["legacy"] = legacy
+        config = Config.load(topdir, Path(__file__).parent, config_path, overrides=settings)
+        warnings = config.load_warnings + config.validate(topdir)
+    except ConfigError as e:
+        click.echo(f"{prog}: {e}", err=True)
+        ctx.exit(2)
+    for warning in warnings:
+        click.echo(f"Warning: {warning}", err=True)
+    return config, warnings
+
+
+def merge_parent_options(ctx: click.Context, options: dict[str, Any]) -> dict[str, Any]:
+    """Options given before a command count too (`dorothea -d serve`); the ones after it win."""
+    for key, value in (ctx.obj or {}).items():
+        if options.get(key) in (None, False, ()):
+            options[key] = value
+    return options
 
 
 def build(
@@ -139,27 +180,10 @@ def build(
     legacy: bool | None,
 ) -> None:
     """Build the site in the current directory (exits with 2 on a config error)."""
-    prog = ctx.find_root().info_name or "dorothea"
     topdir = Path.cwd()
     # scriptdir is the dorothea package directory; themes are bundled inside it
     scriptdir = Path(__file__).parent.resolve()
-
-    try:
-        settings = dict(parse_override(item) for item in overrides)
-        if jobs is not None:
-            settings["jobs"] = jobs
-        if ffmpeg is not None:
-            settings["ffmpeg"] = ffmpeg
-        if sort is not None:
-            settings["sort"] = sort
-        if legacy is not None:
-            settings["legacy"] = legacy
-        config = Config.load(topdir, scriptdir, config_path=config_path, overrides=settings)
-        for warning in config.load_warnings + config.validate(topdir):
-            click.echo(f"Warning: {warning}", err=True)
-    except ConfigError as e:
-        click.echo(f"{prog}: {e}", err=True)
-        ctx.exit(2)
+    config, _warnings = load_config(ctx, config_path, overrides, jobs, ffmpeg, sort, legacy)
 
     if draft:
         config.apply_draft_mode()
@@ -204,7 +228,9 @@ def build(
     "--convert-config",
     "convert",
     is_flag=True,
-    help="Write _config.json from an expose.sh _config.sh (or --config FILE.sh) and exit.",
+    help="Convert expose.sh's _config.sh (or --config FILE.sh) to _config.yml and each "
+    "gallery's metadata.txt to gallery.yml, deleting the originals once the new files give "
+    "the same settings; then exit.",
 )
 @click.option(
     "--version",
@@ -255,10 +281,7 @@ def serve(ctx: click.Context, port: int, bind: str, no_build: bool, **options: A
     from dorothea.serve import make_server, run
 
     prog = ctx.find_root().info_name or "dorothea"
-    # Options given before `serve` count too; the ones after it win
-    for key, value in (ctx.obj or {}).items():
-        if options.get(key) in (None, False, ()):
-            options[key] = value
+    options = merge_parent_options(ctx, options)
     if options["dry_run"]:
         raise click.UsageError("serve can't be combined with --dry-run")
     if not no_build:
@@ -273,6 +296,38 @@ def serve(ctx: click.Context, port: int, bind: str, no_build: bool, **options: A
         click.echo(f"{prog}: can't listen on {bind}:{port}: {e.strerror or e}", err=True)
         ctx.exit(2)
     run(server, site)
+
+
+@main.command()
+@build_options
+@click.pass_context
+def check(ctx: click.Context, **options: Any) -> None:
+    """Check the settings, gallery files and captions for mistakes, without building.
+
+    Lists each problem with its file and line (typos in keys, keys in the wrong place, values
+    Dorothea can't use, captions that match no photo). Exits with 1 if there are any.
+    """
+    from dorothea.check import check_site
+
+    options = merge_parent_options(ctx, options)
+    config, warnings = load_config(
+        ctx, options["config_path"], options["overrides"], options["jobs"],
+        options["ffmpeg"], options["sort"], options["legacy"],
+    )  # fmt: skip
+    topdir = Path.cwd()
+    checker = check_site(topdir, config)
+    for problem in checker.problems:
+        click.echo(problem.show(topdir))
+    count = len(checker.problems) + len(warnings)
+
+    def some(n: int, one: str, many: str) -> str:
+        return f"{n} {one if n == 1 else many}"
+
+    galleries = some(checker.galleries, "gallery", "galleries")
+    captions = some(checker.captions, "caption", "captions")
+    found = some(count, "problem", "problems") + "." if count else "no problems found."
+    click.echo(f"Checked the settings, {galleries} and {captions}: {found}")
+    ctx.exit(1 if count else 0)
 
 
 if __name__ == "__main__":

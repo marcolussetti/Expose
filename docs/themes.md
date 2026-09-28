@@ -12,7 +12,7 @@ Full-screen photos with the text laid over them. Examples made with the original
 - [Jack Qiao's photography site](https://jack.ventures/)
 
 Place the text with these metadata keys, in percent of the photo (in a caption, or in
-`metadata.txt` for a whole gallery):
+`gallery.yml` for a whole gallery):
 
 ```
 ---
@@ -107,9 +107,12 @@ is the easiest start.
 - `{{exif_icon}}`, `{{exif_caption}}`: the photo details markup, per `exif_display`; or place
   `{{camera}}`, `{{lens}}`, `{{focal_length}}`, `{{aperture}}`, `{{shutter_speed}}`, `{{iso}}`
   and `{{exif_summary}}` yourself
-- any key from the caption's or `metadata.txt`'s metadata, e.g. `mycustomvar: foo` fills
+- any key from the caption's or `gallery.yml`'s metadata, e.g. `mycustomvar: foo` fills
   `{{mycustomvar}}`
 
 `{{foo:bar}}` uses `bar` when `foo` isn't set, e.g. `{{width:50}}`. Variables left unset without a
-default are removed from the page. Metadata values are plain `key: value` lines, and templates
-are plain substitution: there are no loops or conditions.
+default are removed from the page. Templates are plain substitution: there are no loops or
+conditions. A list in `gallery.yml` (like theme1's `polygon`) reaches the template as JSON.
+
+`dorothea check` treats the placeholders in your `post-template.html` as the keys your theme
+reads, so it can point out typos in captions without any extra setup.

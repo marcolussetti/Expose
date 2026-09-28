@@ -1,6 +1,5 @@
 """Tests for CLI entry points and main functions."""
 
-import json
 import signal
 from unittest import mock
 
@@ -22,14 +21,11 @@ class TestLoadConfig:
         assert config["theme_dir"] == DEFAULT_CONFIG["theme_dir"]
 
     def test_load_config_from_file(self, tmp_path):
-        """Test load_config loads from _config.json."""
-        config_file = tmp_path / "_config.json"
-        custom_config = {
-            "site_title": "Custom Title",
-            "theme_dir": "custom_theme",
-            "jpeg_quality": 85,
-        }
-        config_file.write_text(json.dumps(custom_config))
+        """Test load_config loads from _config.yml."""
+        config_file = tmp_path / "_config.yml"
+        config_file.write_text(
+            "site_title: Custom Title\ntheme_dir: custom_theme\njpeg_quality: 85\n"
+        )
 
         config = load_config(tmp_path, tmp_path)
         assert config["site_title"] == "Custom Title"
@@ -40,8 +36,8 @@ class TestLoadConfig:
 
     def test_load_config_partial_override(self, tmp_path):
         """Test load_config merges partial config with defaults."""
-        config_file = tmp_path / "_config.json"
-        config_file.write_text(json.dumps({"site_title": "Only Title"}))
+        config_file = tmp_path / "_config.yml"
+        config_file.write_text("site_title: Only Title\n")
 
         config = load_config(tmp_path, tmp_path)
         assert config["site_title"] == "Only Title"
@@ -107,7 +103,7 @@ class TestCliOptions:
         assert result.output.strip() == f"{prog} {__version__}"
 
     def test_set_overrides_file_and_parses_json(self, tmp_path, monkeypatch):
-        (tmp_path / "_config.json").write_text(json.dumps({"jpeg_quality": 70}))
+        (tmp_path / "_config.yml").write_text("jpeg_quality: 70\n")
         result, gen_class = invoke(
             ["--set", "jpeg_quality=85", "--set", "resolution=[1920, 640]",
              "--set", "site_title=My Trip"],
@@ -121,8 +117,8 @@ class TestCliOptions:
         assert config["site_title"] == "My Trip"
 
     def test_config_path(self, tmp_path, monkeypatch):
-        other = tmp_path / "elsewhere.json"
-        other.write_text(json.dumps({"site_title": "From Elsewhere"}))
+        other = tmp_path / "elsewhere.yml"
+        other.write_text("site_title: From Elsewhere\n")
         _, gen_class = invoke(["--config", str(other)], monkeypatch, tmp_path)
         assert passed_config(gen_class)["site_title"] == "From Elsewhere"
 
@@ -142,7 +138,7 @@ class TestCliOptions:
         assert passed_config(gen_class)["ffmpeg"] == choice
 
     def test_ffmpeg_flag_overrides_config_file(self, tmp_path, monkeypatch):
-        (tmp_path / "_config.json").write_text(json.dumps({"ffmpeg": "system"}))
+        (tmp_path / "_config.yml").write_text("ffmpeg: system\n")
         _, gen_class = invoke(["--ffmpeg", "bundled"], monkeypatch, tmp_path)
         assert passed_config(gen_class)["ffmpeg"] == "bundled"
 
@@ -153,7 +149,7 @@ class TestCliOptions:
             (["--set", 'video_formats=["av1"]'], "video_formats"),
             (["--set", "theme_dir=nope"], "Theme 'nope' not found"),
             (["--set", "novalue"], "KEY=VALUE"),
-            (["--config", "missing.json"], "Config file not found"),
+            (["--config", "missing.yml"], "Config file not found"),
             (["--ffmpeg", "/no/such/ffmpeg"], "is not an executable file"),
         ],
     )
@@ -166,4 +162,20 @@ class TestCliOptions:
 
     def test_unknown_key_warns(self, tmp_path, monkeypatch):
         result, _ = invoke(["--set", "site_titel=typo"], monkeypatch, tmp_path)
-        assert "Unknown config key ignored: site_titel" in result.stderr
+        assert "Unknown setting site_titel ignored; did you mean site_title?" in result.stderr
+
+    def test_errors_name_the_line(self, tmp_path, monkeypatch):
+        (tmp_path / "_config.yml").write_text("site_title: Trip\n\njpeg_quality: 500\n")
+        result, _ = invoke([], monkeypatch, tmp_path)
+        assert result.exit_code == 2
+        assert "jpeg_quality must be an integer from 1 to 100, got 500 (_config.yml line 3)" in (
+            result.stderr
+        )
+
+    def test_old_json_config_says_how_to_fix_it(self, tmp_path, monkeypatch):
+        """A _config.json from Dorothea 1.9 isn't silently ignored (#46)."""
+        (tmp_path / "_config.json").write_text('{"site_title": "Trip"}')
+        result, gen_class = invoke([], monkeypatch, tmp_path)
+        assert result.exit_code == 2
+        assert "rename _config.json to _config.yml" in result.stderr
+        gen_class.assert_not_called()
