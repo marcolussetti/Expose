@@ -273,6 +273,21 @@ class TestConfigEdgeCases:
         assert isinstance(config["site_title"], str)
 
 
+class TestCaptionPosition:
+    """caption_position (#28): where tile themes (contactsheet) show captions."""
+
+    def test_default_is_overlay_in_both_modes(self):
+        assert DOROTHEA_DEFAULTS["caption_position"] == "overlay"
+        assert EXPOSE_DEFAULTS["caption_position"] == "overlay"
+
+    def test_below_is_valid(self):
+        Config({**DEFAULT_CONFIG, "caption_position": "below"}).validate()
+
+    def test_invalid_value(self):
+        with pytest.raises(ConfigError, match="caption_position must be one of overlay, below"):
+            Config({**DEFAULT_CONFIG, "caption_position": "side"}).validate()
+
+
 def test_every_setting_is_documented():
     """The configuration page must mention every key in DEFAULT_CONFIG (keeps the docs from
     drifting)."""

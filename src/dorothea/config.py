@@ -75,6 +75,8 @@ EXPOSE_DEFAULTS = {
     "gallery_feeds": True,
     # Dorothea-only: show photos' camera/lens/exposure from EXIF (#20), see EXIF_DISPLAY_MODES
     "exif_display": "off",
+    # Dorothea-only: captions over their photo on hover, or below it (#28), see CAPTION_POSITIONS
+    "caption_position": "overlay",
     # Dorothea-only: use the title/description stored in a photo (Lightroom…) as its caption (#51)
     "embedded_captions": False,
     # Dorothea-only: use these expose.sh defaults instead of DOROTHEA_DEFAULTS
@@ -97,6 +99,10 @@ DOROTHEA_CHANGES = {
 
 # exif_display (#20): nothing, an ⓘ with a details panel on each photo, or a line under its text
 EXIF_DISPLAY_MODES = ("off", "icon", "caption")
+
+# caption_position (#28): in themes that show photos as tiles (contactsheet), a caption shows over
+# its tile on hover, or below it
+CAPTION_POSITIONS = ("overlay", "below")
 
 # x264/x265 presets, fastest to slowest (h264_encodespeed)
 H264_PRESETS = (
@@ -124,6 +130,7 @@ SETTING_HINTS: dict[str, dict[str, Any]] = {
     "jobs": {"minimum": 0},
     "sequence_framerate": {"exclusiveMinimum": 0},
     "exif_display": {"enum": list(EXIF_DISPLAY_MODES)},
+    "caption_position": {"enum": list(CAPTION_POSITIONS)},
     "site_url": {"pattern": r'^(https?://[^\s"<>]+)?$'},
 }
 
@@ -460,6 +467,11 @@ class Config:
         if exif_display not in EXIF_DISPLAY_MODES:
             modes = ", ".join(EXIF_DISPLAY_MODES)
             errors.append(f"exif_display must be one of {modes}; got {exif_display!r}")
+
+        caption_position = c.get("caption_position", "overlay")
+        if caption_position not in CAPTION_POSITIONS:
+            positions = ", ".join(CAPTION_POSITIONS)
+            errors.append(f"caption_position must be one of {positions}; got {caption_position!r}")
 
         warnings = []
         ffmpeg = c.get("ffmpeg", "auto")

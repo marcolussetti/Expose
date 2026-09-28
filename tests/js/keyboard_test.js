@@ -45,6 +45,7 @@ function page(offsets, { attrs = {}, blocked = false } = {}) {
 	}
 	return {
 		press,
+		keys: context.window.dorotheaKeys,
 		get y() { return scrollY; },
 		scrollTo(y) { scrollY = y; },
 		wait() { now += 1000; }, // let any smooth scroll "finish"
@@ -123,6 +124,33 @@ const tests = {
 		const p = page([0, 1000], { attrs: { 'data-blocked-by': '#fullscreen.active' }, blocked: true });
 		assert.strictEqual(p.press('j'), false);
 		assert.strictEqual(p.y, 0);
+	},
+	'data-slides="" scrolls nothing (contactsheet, #28)'() {
+		const p = page([0, 1000], { attrs: { 'data-slides': '' } });
+		assert.strictEqual(p.press('j'), false);
+		assert.strictEqual(p.y, 0);
+	},
+	'window.dorotheaKeys.action names what a key asks for'() {
+		const { action } = page([0]).keys;
+		const key = (k, extra = {}) => action({
+			key: k,
+			shiftKey: false, altKey: false, ctrlKey: false, metaKey: false,
+			defaultPrevented: false,
+			target: { tagName: 'DIALOG', isContentEditable: false },
+			...extra,
+		});
+		for (const k of ['ArrowDown', 'PageDown', 'ArrowRight', 'j', ' ']) {
+			assert.strictEqual(key(k), 'next', k);
+		}
+		for (const k of ['ArrowUp', 'PageUp', 'ArrowLeft', 'k']) {
+			assert.strictEqual(key(k), 'previous', k);
+		}
+		assert.strictEqual(key(' ', { shiftKey: true }), 'previous');
+		assert.strictEqual(key('Home'), 'first');
+		assert.strictEqual(key('End'), 'last');
+		assert.strictEqual(key('Escape'), null);
+		assert.strictEqual(key('j', { metaKey: true }), null);
+		assert.strictEqual(key('ArrowRight', { target: { tagName: 'VIDEO', isContentEditable: false } }), null);
 	},
 };
 

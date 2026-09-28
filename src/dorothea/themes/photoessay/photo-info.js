@@ -5,7 +5,7 @@
  * tap pins the panel open, which is how touch screens see it; clicking it again, clicking
  * anywhere else or pressing Escape closes it.
  *
- * Shared by the photoessay and medium themes: keep the two copies identical.
+ * Shared by the photoessay, medium and contactsheet themes: keep the copies identical.
  */
 (function () {
 	'use strict';
@@ -29,7 +29,7 @@
 	}
 
 	// Capture phase, so a click on the details never reaches the photo's own handlers (medium
-	// opens a photo full screen when it's clicked)
+	// and contactsheet open a photo full screen when it's clicked)
 	document.addEventListener('click', function (event) {
 		var info = find(event.target, '.photo-info');
 		if (!info) {

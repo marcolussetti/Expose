@@ -17,7 +17,7 @@ SHOWCASE = DATADIR / "showcase"
 PAGES = ["travel/iceland", "travel/norway", "portraits"]
 
 
-@pytest.fixture(scope="module", params=["photoessay", "medium"])
+@pytest.fixture(scope="module", params=["photoessay", "medium", "contactsheet"])
 def site(request, tmp_path_factory):
     """The showcase built (not draft) with one of Dorothea's themes."""
     topdir = tmp_path_factory.mktemp(request.param) / "showcase"
