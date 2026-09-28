@@ -22,10 +22,10 @@ from pathlib import Path
 from dorothea import __version__
 from dorothea.captions import (
     caption_file,
+    gallery_file,
+    gallery_metadata,
     metadata_flag,
-    metadata_values,
-    read_text_file,
-    split_caption,
+    read_caption,
 )
 from dorothea.media.exif import read_photo_info
 from dorothea.utils import href, strip_numeric_prefix
@@ -91,9 +91,9 @@ def _explicit_date(metadata: dict[str, str], where: str) -> datetime | None:
     return parsed
 
 
-def gallery_date(metadata: dict[str, str], files: Sequence[Path], name: str) -> datetime:
+def gallery_date(metadata: dict[str, str], files: Sequence[Path], where: str) -> datetime:
     """When a gallery was published, for ordering the feed (see the module docstring)."""
-    if (explicit := _explicit_date(metadata, f"{name}/metadata.txt")) is not None:
+    if (explicit := _explicit_date(metadata, where)) is not None:
         return explicit
     captures = [t for f in files if (t := _capture_time(f)) is not None]
     if captures:
@@ -181,8 +181,12 @@ def collect_galleries(
     gallery_url: Sequence[str],
     gallery_maxwidth: Sequence[int],
     render_markdown: Callable[[str], str],
+    front_matter: bool = True,
 ) -> list[GalleryFeed]:
-    """Every gallery's feed data, from the scanner's arrays (galleries' items are consecutive)."""
+    """Every gallery's feed data, from the scanner's arrays (galleries' items are consecutive).
+
+    ``front_matter``: read ``.md`` captions' YAML front matter (off with ``--legacy``).
+    """
     _capture_time.cache_clear()  # shared by the gallery and item dates of this build only
     base = site_url.rstrip("/") + "/"
     galleries = []
@@ -194,7 +198,7 @@ def collect_galleries(
         index += nav_count[i]
         if not positions:
             continue
-        metadata = metadata_values(read_text_file(path / "metadata.txt"))
+        metadata = gallery_metadata(path)
         page = base + href(nav_url[i]) + "/"
         enabled = gallery_feed_enabled(gallery_feeds, metadata)
 
@@ -203,10 +207,10 @@ def collect_galleries(
         for number, k in enumerate(positions, 1):
             item_meta: dict[str, str] = {}
             caption_html = ""
-            if (textfile := caption_file(gallery_files[k])) is not None:
-                head, caption, _ignored = split_caption(read_text_file(textfile))
-                item_meta = metadata_values(head)
-                caption_html = render_markdown(caption) if caption.strip() else ""
+            if (textfile := caption_file(gallery_files[k], legacy=not front_matter)) is not None:
+                caption = read_caption(textfile, front_matter)  # (the builder prints warnings)
+                item_meta = caption.values
+                caption_html = render_markdown(caption.body) if caption.body.strip() else ""
             captions.append(caption_html)
             width = thumbnail_width(resolutions, gallery_maxwidth[k])
             # item URLs are relative to their gallery's page
@@ -239,7 +243,9 @@ def collect_galleries(
             f"{thumbnail_width(resolutions, gallery_maxwidth[first])}.jpg",
             summary_html=summary,
             updated=gallery_date(
-                metadata, photos or [gallery_files[k] for k in positions], nav_url[i]
+                metadata,
+                photos or [gallery_files[k] for k in positions],
+                f"{nav_url[i]}/{source.name}" if (source := gallery_file(path)) else nav_url[i],
             ),
         )
         galleries.append(GalleryFeed(entry, page, nav_url[i], enabled, items))

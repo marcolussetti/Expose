@@ -1,15 +1,21 @@
 """Configuration management for Dorothea.
 
-Handles loading configuration from _config.json files and applying
-defaults and validation.
+Loads ``_config.yml`` (or expose.sh's ``_config.sh``) over the defaults, and validates the
+result, naming the file and line of each problem.
 """
 
+import difflib
 import json
 import os
 import re
 import shlex
 from pathlib import Path
 from typing import Any, TypeIs
+
+from dorothea.yamlfile import YamlError, load_mapping
+
+# Config files looked for in the gallery folder, in order (#46): YAML, else expose.sh's format
+CONFIG_FILES = ("_config.yml", "_config.yaml", "_config.sh")
 
 # Video format -> container extension
 VIDEO_FORMAT_EXTENSIONS = {"h264": "mp4", "h265": "mp4", "vp9": "webm", "vp8": "webm", "ogv": "ogv"}
@@ -142,12 +148,25 @@ class ConfigError(ValueError):
 
 
 def find_config_file(topdir: Path) -> Path | None:
-    """Return ``_config.json`` if present, else expose.sh's ``_config.sh``, else None."""
-    for name in ("_config.json", "_config.sh"):
+    """The first of ``CONFIG_FILES`` in ``topdir``, else None.
+
+    Raises:
+        ConfigError: For a ``_config.json`` from Dorothea 1.9 (read before #46), so its settings
+            aren't silently ignored.
+    """
+    for name in CONFIG_FILES:
         candidate = topdir / name
         if candidate.exists():
             return candidate
+    if (topdir / "_config.json").exists():
+        raise ConfigError(_JSON_HINT)
     return None
+
+
+_JSON_HINT = (
+    "Settings now go in _config.yml: rename _config.json to _config.yml "
+    "(JSON is valid YAML, so it works as it is)"
+)
 
 
 def parse_override(item: str) -> tuple[str, Any]:
@@ -250,25 +269,34 @@ def parse_config_sh(text: str) -> tuple[dict[str, Any], list[str]]:
     return values, warnings
 
 
-def read_config_file(path: Path) -> tuple[dict[str, Any], list[str]]:
-    """Read a ``.json`` or ``.sh`` config file.
+def read_config_file(path: Path) -> tuple[dict[str, Any], list[str], dict[str, int]]:
+    """Read a ``.yml``/``.yaml`` or expose.sh ``.sh`` config file.
 
     Returns:
-        (values, warnings)
+        (values, warnings, key -> line number); ``.sh`` files have no line numbers.
 
     Raises:
-        ConfigError: If a JSON file is malformed.
+        ConfigError: If a YAML file can't be read, or the file is of another kind.
     """
     path = Path(path)
     if path.suffix == ".sh":
-        return parse_config_sh(path.read_text(encoding="utf-8"))
+        values, warnings = parse_config_sh(path.read_text(encoding="utf-8"))
+        return values, warnings, {}
+    if path.suffix not in (".yml", ".yaml"):
+        hint = _JSON_HINT if path.suffix == ".json" else "use a .yml file (or expose.sh's .sh)"
+        raise ConfigError(f"{path}: {hint}")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        raise ConfigError(f"{path}: invalid JSON ({e})") from e
-    if not isinstance(data, dict):
-        raise ConfigError(f"{path}: expected a JSON object at the top level")
-    return data, []
+        values, lines = load_mapping(path.read_text(encoding="utf-8"))
+    except YamlError as e:
+        raise ConfigError(f"{path.name} {e}") from e
+
+    # `key:` with nothing after it: most likely a placeholder, so the default applies
+    warnings = [
+        f"{key} has no value in {path.name} (line {lines.get(key)}); using the default"
+        for key, value in values.items()
+        if value is None
+    ]
+    return {k: v for k, v in values.items() if v is not None}, warnings, lines
 
 
 class Config:
@@ -283,6 +311,9 @@ class Config:
         self._config = config_dict
         # Notes produced while loading (e.g. _config.sh lines that were skipped)
         self.load_warnings: list[str] = []
+        # Where settings from a config file were written, e.g. "_config.yml line 3", so
+        # validate() can point at them
+        self.sources: dict[str, str] = {}
 
     @classmethod
     def load(
@@ -298,21 +329,23 @@ class Config:
         e.g. ``--legacy``, or else in the config file).
 
         Args:
-            topdir: Top-level directory (where _config.json might be).
+            topdir: Top-level directory (where _config.yml might be).
             scriptdir: Script directory (for resolving theme paths).
-            config_path: Explicit config file (``.json`` or ``.sh``). Must exist if given.
-                Defaults to ``topdir/_config.json``, else expose.sh's ``topdir/_config.sh``.
+            config_path: Explicit config file (``.yml`` or ``.sh``). Must exist if given.
+                Defaults to the first of ``CONFIG_FILES`` in ``topdir``.
             overrides: Values that take precedence over the file (e.g. from ``--set``).
 
         Returns:
-            Config instance. ``load_warnings`` holds any notes for the user.
+            Config instance. ``load_warnings`` holds any notes for the user, ``sources`` the
+            line each file setting came from.
 
         Raises:
-            ConfigError: If the config file is missing (when explicit) or not valid JSON.
+            ConfigError: If the config file is missing (when explicit) or can't be read.
         """
         user_config: dict[str, Any] = {}
         overrides = overrides or {}
         warnings: list[str] = []
+        lines: dict[str, int] = {}
 
         if config_path is not None:
             config_path = Path(config_path)
@@ -322,12 +355,12 @@ class Config:
             config_path = find_config_file(Path(topdir))
             if config_path is not None and config_path.suffix == ".sh":
                 warnings.append(
-                    "Using _config.sh (expose.sh format); run `expose --convert-config` "
-                    "to switch to _config.json"
+                    "Using _config.sh (expose.sh format); run `dorothea --convert-config` "
+                    "to switch to _config.yml"
                 )
 
         if config_path is not None:
-            user_config, file_warnings = read_config_file(config_path)
+            user_config, file_warnings, lines = read_config_file(config_path)
             warnings += file_warnings
 
         legacy = overrides.get("legacy", user_config.get("legacy", False))
@@ -337,6 +370,12 @@ class Config:
 
         result = cls(config)
         result.load_warnings = warnings
+        if config_path is not None:
+            result.sources = {
+                key: f"{config_path.name} line {line}"
+                for key, line in lines.items()
+                if key in user_config and key not in overrides
+            }
         return result
 
     def validate(self, topdir: Path | None = None) -> list[str]:
@@ -440,16 +479,28 @@ class Config:
             try:
                 resolve_theme_dir(c.get("theme_dir", ""), Path(topdir))
             except FileNotFoundError as e:
-                errors.append(str(e))
+                errors.append(f"theme_dir: {e}")
 
         if errors:
+            errors = [self._located(error) for error in errors]
             raise ConfigError("Invalid configuration:\n  - " + "\n  - ".join(errors))
 
         return warnings + [
-            f"Unknown config key ignored: {k}"
-            for k in c
-            if k not in DEFAULT_CONFIG and k not in NON_SETTING_KEYS
+            self._unknown(k) for k in c if k not in DEFAULT_CONFIG and k not in NON_SETTING_KEYS
         ]
+
+    def _located(self, message: str) -> str:
+        """``message`` about a setting (it starts with its name), plus the line it's on."""
+        key = re.match(r"\w+", message)
+        source = self.sources.get(key.group()) if key else None
+        return f"{message} ({source})" if source else message
+
+    def _unknown(self, key: str) -> str:
+        """The warning for an unknown key, suggesting the setting it's probably a typo of."""
+        source = self.sources.get(key)
+        message = f"Unknown setting {key} ignored" + (f" ({source})" if source else "")
+        close = difflib.get_close_matches(key, list(DEFAULT_CONFIG), n=1, cutoff=0.75)
+        return message + (f"; did you mean {close[0]}?" if close else "")
 
     def worker_count(self) -> int:
         """Number of parallel workers to use (``jobs`` config, 0 = one per CPU)."""

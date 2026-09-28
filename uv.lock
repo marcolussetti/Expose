@@ -84,6 +84,7 @@ dependencies = [
     { name = "markdown" },
     { name = "pillow" },
     { name = "pillow-heif" },
+    { name = "pyyaml" },
     { name = "rich" },
 ]
 
@@ -109,6 +110,7 @@ requires-dist = [
     { name = "markdown", specifier = ">=3.9" },
     { name = "pillow", specifier = ">=11.3.0" },
     { name = "pillow-heif", specifier = ">=1.8" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=15" },
 ]
 

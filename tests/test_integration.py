@@ -1,6 +1,5 @@
 """Integration tests — require ImageMagick (convert/identify)."""
 
-import json
 import re
 import shutil
 
@@ -285,8 +284,7 @@ def test_encode_images_idempotent(tmp_gallery):
 
 
 def test_config_override(tmp_gallery):
-    config = {"site_title": "Custom Title"}
-    (tmp_gallery / "_config.json").write_text(json.dumps(config))
+    (tmp_gallery / "_config.yml").write_text("site_title: Custom Title\n")
 
     from dorothea.config import load_config
 

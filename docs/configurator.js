@@ -1,7 +1,8 @@
 /*
  * The configurator on the Configuration page (#30): a form built from the JSON Schema
- * (schema/config.json, written by scripts/build_schema.py) that makes a _config.json holding only
+ * (schema/config.json, written by scripts/build_schema.py) that makes a _config.yml holding only
  * the settings that differ from the defaults, so future improvements to the defaults still apply.
+ * YAML is read and written with js-yaml (vendor/js-yaml.min.js, YAML 1.2 like Dorothea, #46).
  *
  * The functions before mount() hold the logic and are tested with node
  * (tests/js/configurator_test.js); mount() builds the form in the browser.
@@ -10,6 +11,12 @@
 	'use strict';
 
 	var SCHEMA_URL = 'https://dorothea.readthedocs.io/schema/config.json';
+	/* global jsyaml */
+	var yaml = typeof jsyaml !== 'undefined' ? jsyaml : require('./vendor/js-yaml.min.js');
+
+	// At the top of the file: where settings are described, and the schema for editor completion
+	var HEADER = '# Dorothea settings: https://dorothea.readthedocs.io/configuration/\n' +
+		'# yaml-language-server: $schema=' + SCHEMA_URL + '\n';
 
 	function same(a, b) {
 		return JSON.stringify(a) === JSON.stringify(b);
@@ -103,11 +110,11 @@
 		return error ? { error: error } : { value: value };
 	}
 
-	// The config file: "$schema", "legacy" if starting from expose.sh's defaults, then only the
+	// The settings for the file: "legacy" if starting from expose.sh's defaults, then only the
 	// settings that differ from the defaults it starts from
 	function configFor(schema, legacy, values) {
 		var base = defaults(schema, legacy);
-		var config = { $schema: SCHEMA_URL };
+		var config = {};
 		if (legacy) { config.legacy = true; }
 		settings(schema).forEach(function (entry) {
 			var key = entry[0];
@@ -118,18 +125,27 @@
 		return config;
 	}
 
-	// JSON with short lists on one line: "resolution": [2560, 1280]
+	// The _config.yml text: `key: value` lines, lists on one line (resolution: [2560, 1280]), and
+	// text quoted where it would otherwise read as something else ('off', '#000000')
 	function format(config) {
-		return JSON.stringify(config, null, 2).replace(/\[\n\s*([^\[\]{}]*?)\n\s*\]/g, function (match, inner) {
-			return '[' + inner.split(/,\n\s*/).join(', ') + ']';
-		}) + '\n';
+		var keys = Object.keys(config);
+		return HEADER + (keys.length ? yaml.dump(config, { flowLevel: 1, lineWidth: -1 }) : '');
 	}
 
-	// An existing _config.json → {legacy, values, warnings}; throws an Error if it isn't JSON
+	// An existing _config.yml (or JSON, which is valid YAML) → {legacy, values, warnings}; throws
+	// an Error with the line if it can't be read
 	function importConfig(schema, text) {
-		var data = JSON.parse(text);
-		if (!data || typeof data !== 'object' || Array.isArray(data)) {
-			throw new Error('expected a JSON object: { "key": value, … }');
+		var data = null;
+		try {
+			// js-yaml rejects a file with only comments; Dorothea reads it as no settings
+			if (text.replace(/^\s*#.*$/gm, '').trim()) { data = yaml.load(text); }
+		} catch (error) {
+			// "line 2: deficient indentation", as Dorothea words it, rather than js-yaml's snippet
+			throw error.mark ? new Error('line ' + (error.mark.line + 1) + ': ' + error.reason) : error;
+		}
+		if (data === null || data === undefined) { data = {}; }
+		if (typeof data !== 'object' || Array.isArray(data)) {
+			throw new Error('expected `key: value` lines');
 		}
 		var result = { legacy: data.legacy === true, values: {}, warnings: [] };
 		Object.keys(data).forEach(function (key) {
@@ -176,7 +192,7 @@
 		root.appendChild(start);
 
 		// Import
-		var importText = element('textarea', { rows: '6', 'aria-label': 'Existing _config.json', placeholder: '{ "site_title": "My trip" }' });
+		var importText = element('textarea', { rows: '6', 'aria-label': 'Existing _config.yml', placeholder: 'site_title: My trip' });
 		var importMessage = element('p', { class: 'cfg-message', role: 'status' });
 		var importButton = element('button', { type: 'button', class: 'md-button', text: 'Load' });
 		importButton.addEventListener('click', function () {
@@ -194,7 +210,7 @@
 			}
 		});
 		root.appendChild(element('details', { class: 'cfg-import' }, [
-			element('summary', { text: 'Edit an existing _config.json' }),
+			element('summary', { text: 'Edit an existing _config.yml' }),
 			importText, importButton, importMessage,
 		]));
 
@@ -214,17 +230,17 @@
 		var output = element('code');
 		var summary = element('p', { class: 'cfg-message', role: 'status' });
 		var copy = element('button', { type: 'button', class: 'md-button md-button--primary', text: 'Copy' });
-		var download = element('button', { type: 'button', class: 'md-button', text: 'Download _config.json' });
+		var download = element('button', { type: 'button', class: 'md-button', text: 'Download _config.yml' });
 		copy.addEventListener('click', function () {
 			navigator.clipboard.writeText(output.textContent).then(function () { summary.textContent = 'Copied.'; });
 		});
 		download.addEventListener('click', function () {
-			var link = element('a', { href: URL.createObjectURL(new Blob([output.textContent], { type: 'application/json' })), download: '_config.json' });
+			var link = element('a', { href: URL.createObjectURL(new Blob([output.textContent], { type: 'application/yaml' })), download: '_config.yml' });
 			link.click();
 			URL.revokeObjectURL(link.href);
 		});
-		var result = element('aside', { class: 'cfg-output', 'aria-label': 'Your _config.json' }, [
-			element('p', { class: 'cfg-output-title', text: '_config.json' }),
+		var result = element('aside', { class: 'cfg-output', 'aria-label': 'Your _config.yml' }, [
+			element('p', { class: 'cfg-output-title', text: '_config.yml' }),
 			element('pre', {}, [output]), copy, download, summary,
 		]);
 
@@ -325,7 +341,7 @@
 
 			var config = configFor(schema, state.legacy, state.values);
 			output.textContent = format(config);
-			var count = Object.keys(config).length - 1 - (state.legacy ? 1 : 0);
+			var count = Object.keys(config).length - (state.legacy ? 1 : 0);
 			var errors = Object.keys(state.errors).length;
 			summary.textContent = (count ? count + ' setting(s) changed.' : 'Everything at its default so far.') +
 				(errors ? ' ' + errors + ' field(s) need fixing and are left out.' : '');

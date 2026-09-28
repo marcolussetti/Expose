@@ -2,7 +2,7 @@
 
 Landscape and portrait photos (gradients, so resized images look like photos rather than flat
 colour), short and long captions, a title caption on each gallery's first photo, and nested
-galleries. Its _config.json turns on the feed and whole-gallery downloads, so theme headers
+galleries. Its _config.yml turns on the feed and whole-gallery downloads, so theme headers
 show every optional link.
 
     uv run python scripts/make_showcase_gallery.py tests/data/showcase
@@ -39,12 +39,11 @@ GALLERIES: dict[str, list[tuple[tuple[int, int], Colour, Colour, str]]] = {
     ],
 }
 
-CONFIG = """{
-  "site_title": "Showcase",
-  "site_url": "https://example.com/photos/",
-  "download_album": true,
-  "resolution": [1600, 1024, 640]
-}
+CONFIG = """\
+site_title: Showcase
+site_url: https://example.com/photos/
+download_album: true
+resolution: [1600, 1024, 640]
 """
 
 
@@ -68,7 +67,7 @@ def main(root: Path) -> None:
         for i, (size, top, bottom, caption) in enumerate(photos, 1):
             photo(folder / f"{i:02d}.jpg", size, top, bottom)
             (folder / f"{i:02d}.txt").write_text(caption + "\n", encoding="utf-8")
-    (root / "_config.json").write_text(CONFIG, encoding="utf-8")
+    (root / "_config.yml").write_text(CONFIG, encoding="utf-8")
 
 
 if __name__ == "__main__":

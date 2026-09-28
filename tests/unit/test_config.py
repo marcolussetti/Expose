@@ -3,8 +3,6 @@
 Tests the Config class that handles configuration loading and management.
 """
 
-import json
-
 import pytest
 
 from dorothea.config import (
@@ -57,7 +55,7 @@ class TestConfigLoad:
     """Test Config.load() method."""
 
     def test_load_without_config_file(self, tmp_path):
-        """Test loading config when _config.json doesn't exist."""
+        """Test loading config when _config.yml doesn't exist."""
         config = Config.load(tmp_path, tmp_path)
 
         # Should use defaults
@@ -65,16 +63,8 @@ class TestConfigLoad:
         assert config["theme_dir"] == DEFAULT_CONFIG["theme_dir"]
 
     def test_load_with_config_file(self, tmp_path):
-        """Test loading config from _config.json."""
-        # Create a config file
-        config_data = {
-            "site_title": "My Custom Site",
-            "jpeg_quality": 95,
-        }
-
-        config_path = tmp_path / "_config.json"
-        with open(config_path, "w") as f:
-            json.dump(config_data, f)
+        """Test loading config from _config.yml."""
+        (tmp_path / "_config.yml").write_text("site_title: My Custom Site\njpeg_quality: 95\n")
 
         config = Config.load(tmp_path, tmp_path)
 
@@ -87,13 +77,7 @@ class TestConfigLoad:
 
     def test_load_with_partial_config(self, tmp_path):
         """Test loading config with partial overrides."""
-        config_data = {
-            "resolution": [1920, 1024],
-        }
-
-        config_path = tmp_path / "_config.json"
-        with open(config_path, "w") as f:
-            json.dump(config_data, f)
+        (tmp_path / "_config.yml").write_text("resolution:\n  - 1920\n  - 1024\n")
 
         config = Config.load(tmp_path, tmp_path)
 
@@ -228,18 +212,18 @@ class TestLegacyDefaults:
         assert all(config[k] == v for k, v in EXPOSE_DEFAULTS.items())
 
     def test_legacy_in_config_file(self, tmp_path):
-        (tmp_path / "_config.json").write_text(json.dumps({"legacy": True, "jpeg_quality": 80}))
+        (tmp_path / "_config.yml").write_text("legacy: true\njpeg_quality: 80\n")
         config = Config.load(tmp_path, tmp_path)
         assert config["video_formats"] == ["h264", "vp8"]
         assert config["jpeg_quality"] == 80  # explicit settings still win
 
     def test_no_legacy_overrides_config_file(self, tmp_path):
-        (tmp_path / "_config.json").write_text(json.dumps({"legacy": True}))
+        (tmp_path / "_config.yml").write_text("legacy: true\n")
         config = Config.load(tmp_path, tmp_path, overrides={"legacy": False})
         assert config["video_formats"] == ["h264", "vp9"]
 
     def test_explicit_settings_win_over_either_set(self, tmp_path):
-        (tmp_path / "_config.json").write_text(json.dumps({"sort": "capture"}))
+        (tmp_path / "_config.yml").write_text("sort: capture\n")
         assert Config.load(tmp_path, tmp_path)["sort"] == "capture"
         legacy = Config.load(tmp_path, tmp_path, overrides={"legacy": True})
         assert legacy["sort"] == "capture"
@@ -263,27 +247,22 @@ class TestLegacyDefaults:
 class TestConfigEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_load_with_invalid_json(self, tmp_path):
-        """Test loading config with invalid JSON."""
-        config_path = tmp_path / "_config.json"
-        config_path.write_text("{ invalid json }")
+    def test_load_with_invalid_yaml(self, tmp_path):
+        """A syntax error names the file and line (not silently fail)."""
+        (tmp_path / "_config.yml").write_text("site_title: Trip\nresolution: [1920, 640\n")
+        with pytest.raises(ConfigError, match=r"_config.yml line 3: expected ',' or ']'"):
+            Config.load(tmp_path, tmp_path)
 
-        # Should raise a readable error naming the file (not silently fail)
-        with pytest.raises(ConfigError, match="invalid JSON"):
+    def test_not_key_value_pairs(self, tmp_path):
+        (tmp_path / "_config.yml").write_text("- a list\n- of things\n")
+        with pytest.raises(ConfigError, match="expected `key: value` lines"):
             Config.load(tmp_path, tmp_path)
 
     def test_config_preserves_types(self, tmp_path):
         """Test that config preserves data types."""
-        config_data = {
-            "jpeg_quality": 95,  # int
-            "autorotate": True,  # bool
-            "resolution": [1920, 1024],  # list
-            "site_title": "Test",  # str
-        }
-
-        config_path = tmp_path / "_config.json"
-        with open(config_path, "w") as f:
-            json.dump(config_data, f)
+        (tmp_path / "_config.yml").write_text(
+            "jpeg_quality: 95\nautorotate: true\nresolution: [1920, 1024]\nsite_title: Test\n"
+        )
 
         config = Config.load(tmp_path, tmp_path)
 

@@ -78,16 +78,18 @@ class TestCaptionFiles:
         assert "A <em>markdown</em> caption" in html
         gen.cleanup()
 
-    def test_txt_wins_over_md(self, tmp_path):
+    @pytest.mark.parametrize("legacy,shown,hidden", [(False, "md", "txt"), (True, "txt", "md")])
+    def test_md_wins_over_txt(self, tmp_path, legacy, shown, hidden):
+        """.md over .txt (#52); expose.sh (--legacy) looks for the .txt first."""
         g = tmp_path / "g"
         g.mkdir()
         make_test_image(g / "photo.jpg", 1200, 900, "red")
         (g / "photo.txt").write_text("from txt", encoding="utf-8")
         (g / "photo.md").write_text("from md", encoding="utf-8")
-        gen = make_generator(tmp_path)
+        gen = make_generator(tmp_path, config_overrides={"legacy": legacy})
         gen.scan_directories()
         gen.read_files()
         gen.build_html()
         html = (tmp_path / "_site" / "g" / "index.html").read_text(encoding="utf-8")
-        assert "from txt" in html and "from md" not in html
+        assert f"from {shown}" in html and f"from {hidden}" not in html
         gen.cleanup()

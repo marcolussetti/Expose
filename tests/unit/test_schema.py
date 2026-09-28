@@ -100,7 +100,9 @@ def test_what_the_schema_rejects_fails_the_build(config):
 def test_unknown_keys():
     """Typos are flagged by the schema; Dorothea only warns about them."""
     assert schema_errors({"site_titel": "x"})
-    assert validate({"site_titel": "x"}) == ["Unknown config key ignored: site_titel"]
+    assert validate({"site_titel": "x"}) == [
+        "Unknown setting site_titel ignored; did you mean site_title?"
+    ]
 
 
 def test_schema_key_is_not_an_unknown_setting():

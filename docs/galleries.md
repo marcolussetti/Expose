@@ -29,51 +29,96 @@ Other orders are available with the [`sort`](configuration.md#dorothea-only) set
   galleries follow their earliest photo, so the whole site reads like the trip
 - add `-desc` to reverse any order, e.g. `capture-desc` for newest first
 
-A gallery can choose its own order with a `sort:` line in its `metadata.txt` (below).
+A gallery can choose its own order with a `sort:` line in its `gallery.yml` (below).
 
 ## Captions
 
-To add text to a photo, create a `.txt` or `.md` file with the same name: for `DSC0001.jpg`, put
-the text in `DSC0001.txt` or `DSC0001.md` (if both exist, the `.txt` wins). The text is Markdown
-either way.
+To add text to a photo, create a Markdown file with the same name: for `DSC0001.jpg`, write
+`DSC0001.md`. The photo's own settings go at the top, between two `---` lines (front matter, as
+in Jekyll, Hugo or Obsidian); the caption follows:
 
-A text file can start with a metadata section: `key: value` lines between two `---` lines.
-Everything after the second `---` is the caption:
-
-```
+```markdown
 ---
 title: Chimborazo
 top: 60
+textcolor: "#ff9518"
 ---
 The summit at dawn, **6,263 m** up.
 ```
 
-Without `---` lines the whole file is the caption. With a single `---`, the lines above it are
-metadata. The caption must come *after* the metadata: text placed before the first `---` counts
-as metadata and isn't shown, so Dorothea warns about it and names the file. Windows line endings
-and a byte-order mark (as Notepad saves) are fine.
+The front matter is YAML, like `_config.yml`: `key: value` lines and `#` comments (handy for
+switching a setting off: `# top: 60`). Quote text that starts with `#` (a colour) or contains
+`: `, or YAML reads it as something else. If Dorothea can't read the front matter as YAML, or
+YAML would lose a value (an unquoted colour reads as a comment), it reads that file the old way
+instead and tells you which line to fix; `dorothea check` lists them all. Without front matter,
+the whole file is the caption. Windows line endings and a byte-order mark (as Notepad saves)
+are fine.
 
-A `metadata.txt` in a gallery folder holds `key: value` lines that apply to every photo in it; a
-photo's own metadata wins. For example, a gallery-wide `width: 19` makes a grid in `theme2`:
+### expose.sh's `.txt` captions
+
+A `DSC0001.txt` works too, as in expose.sh (if a photo has both, the `.md` is used; with
+`--legacy`, the `.txt`, as expose.sh does): the caption
+is Markdown, and settings are `key: value` lines above a `---`, read line by line, with
+everything after the first colon as the value, so colours need no quotes there. The caption must
+come *after* the metadata: text placed before the `---` counts as metadata and isn't shown, so
+Dorothea warns about it and names the file. `dorothea --convert-config` turns `.txt` captions
+into `.md` ones. With `--legacy`, every caption is read line by line, as expose.sh does.
+
+## Gallery settings
+
+A `gallery.yml` in a gallery folder holds settings for every photo in it, and for the gallery
+itself (its feed date, download, order); a photo's own caption wins:
+
+```yaml
+# Iceland, summer 2022
+date: 2022-07-14
+description: Two weeks driving around the island.
+sort: capture
+textbackground: rgba(0,0,0,.4)
+```
+
+It's YAML, like `_config.yml`: `key: value` lines, `#` comments, and quotes only for text that
+starts with `#` or would read as something else. expose.sh's `metadata.txt` (plain `key: value`
+lines) works too; if a folder has both, `gallery.yml` is used. `dorothea --convert-config` turns
+every `metadata.txt` into a `gallery.yml`. For example, a gallery-wide
+`width: 19` makes a grid in `theme2`:
 
 ![image grid](grid.jpg)
+
+## Checking for mistakes
+
+`dorothea check` looks through every `gallery.yml`, `metadata.txt` and caption without building
+anything, and lists what's wrong, with the file and line:
+
+```
+Iceland/gallery.yml:2: sort: 'random' must be one of name, name-desc, natural, …
+Iceland/01 falls.md:3: unknown key textbackgroud; did you mean textbackground?
+Iceland/01 falls.md:4: sort only works for a whole gallery: put it in gallery.yml
+Iceland/02 road.md:2: 'textcolor: #ff9518' reads as empty in YAML; quote the value: …
+Iceland/03 geysir.md: no photo or video named 03 geysir.*, so this caption isn't shown
+Checked the settings, 4 galleries and 31 captions: 4 problems.
+```
+
+It also checks `_config.yml`, and knows which keys your theme reads (the `{{…}}` placeholders in
+its `post-template.html`), so it works for custom themes too. It exits with 1 when it finds
+something, so it can guard a build in CI.
 
 ## Metadata keys
 
 | Key | Description |
 |---|---|
 | `title` | In a photo's caption: its title in the gallery's own feed (default: the file name without its number). Themes may show it too. |
-| `textbackground` | A CSS colour drawn behind the caption text (with a little padding), e.g. `rgba(0,0,0,.5)` to keep white text readable over a bright photo. Works in all bundled themes; put it in `metadata.txt` to apply it to a whole gallery. Values containing `"`, `<`, `>`, `;`, `{`, `}` or `\` are ignored with a warning. |
-| `exif` | `false` to show no photo details for this photo (or, in `metadata.txt`, this gallery); `icon` or `caption` to show them that way instead of the [`exif_display`](configuration.md#site-and-theme) style. Only details the caption gives are shown where `exif_display` is `"off"`, since EXIF isn't read then. |
+| `textbackground` | A CSS colour drawn behind the caption text (with a little padding), e.g. `rgba(0,0,0,.5)` to keep white text readable over a bright photo. Works in all bundled themes; put it in `gallery.yml` to apply it to a whole gallery. Values containing `"`, `<`, `>`, `;`, `{`, `}` or `\` are ignored with a warning. |
+| `exif` | `false` to show no photo details for this photo (or, in `gallery.yml`, this gallery); `icon` or `caption` to show them that way instead of the [`exif_display`](configuration.md#site-and-theme) style. Only details the caption gives are shown where `exif_display` is `"off"`, since EXIF isn't read then. |
 | `camera`, `lens`, `focal_length`, `aperture`, `shutter_speed`, `iso` | Override (or supply) a photo detail shown with `exif_display`, e.g. `lens: Helios 44-2` for a manual lens that records no EXIF, or `aperture: f/2`; `-` hides it (`lens: -`). An `iso` that's just a number is shown as `ISO 400`. |
 | `image-options` | Extra ImageMagick `convert` arguments for this photo (needs ImageMagick installed; otherwise ignored with a warning). Not applied to video thumbnails. See [below](#image-options). |
 | `video-options` | Extra ffmpeg arguments, e.g. `-ss 10 -t 5` to cut a clip. See [below](#video-options). |
 | `video-filters` | ffmpeg filters appended after scaling, e.g. `hflip`. |
-| `date` | For the feeds ([`site_url`](configuration.md#site-and-theme)). In a gallery's `metadata.txt`: when the gallery was published, as `2022-07-14`, `2022-07-14 18:30` or full ISO 8601; without it, a gallery's date is when its newest photo was taken (EXIF), else its newest file's time. In a photo's caption: its date in the gallery's own feed, instead of when it was taken. |
-| `description` | Only in a gallery's `metadata.txt`, for the feed: the gallery's text in feed readers (Markdown). Without it, the first photo's caption is used. |
-| `feed` | Only in a gallery's `metadata.txt`: `false` to not give this gallery its own feed, or `true` to give it one when `gallery_feeds` is off. |
-| `download` | Only in a gallery's `metadata.txt`: `false` to not offer this gallery as one zip, or `true` to offer it when `download_album` is off. Doesn't affect the per-photo `download_button`. |
-| `sort` | Only in a gallery's `metadata.txt`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. |
+| `date` | For the feeds ([`site_url`](configuration.md#site-and-theme)). In a gallery's `gallery.yml`: when the gallery was published, as `2022-07-14`, `2022-07-14 18:30` or full ISO 8601; without it, a gallery's date is when its newest photo was taken (EXIF), else its newest file's time. In a photo's caption: its date in the gallery's own feed, instead of when it was taken. |
+| `description` | Only in a gallery's `gallery.yml`, for the feed: the gallery's text in feed readers (Markdown). Without it, the first photo's caption is used. |
+| `feed` | Only in a gallery's `gallery.yml`: `false` to not give this gallery its own feed, or `true` to give it one when `gallery_feeds` is off. |
+| `download` | Only in a gallery's `gallery.yml`: `false` to not offer this gallery as one zip, or `true` to offer it when `download_album` is off. Doesn't affect the per-photo `download_button`. |
+| `sort` | Only in a gallery's `gallery.yml`: the order of that gallery's photos (any `sort` mode, e.g. `natural-desc` for a newest-first log), overriding the site setting. |
 | anything else | Available to the theme as `{{key}}`; see [Themes](themes.md) for the keys each theme uses (layout, text colour, …). `color1`…`color7` come from the photo's extracted palette. |
 
 ## Video options
@@ -113,7 +158,7 @@ full list is in [ffmpeg's documentation](https://ffmpeg.org/ffmpeg-filters.html#
 ## Image options
 
 With ImageMagick installed, `image-options` applies its effects to a photo, non-destructively. Put
-it in `metadata.txt` to apply it to a whole gallery:
+it in `gallery.yml` to apply it to a whole gallery:
 
 ```
 ---

@@ -7,6 +7,13 @@ All notable changes to Dorothea are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `dorothea check` (#46): looks through the settings, every `gallery.yml` / `metadata.txt` and
+  every caption without building, and lists mistakes with their file and line: unknown keys
+  (suggesting the one you probably meant; the theme's keys are the placeholders in its
+  `post-template.html`, so custom themes are covered), gallery-only keys like `sort:` in a
+  caption, values Dorothea can't use (`sort: random`, `date: next tuesday`), keys set twice,
+  caption text before the metadata, captions that match no photo, and gallery files that are
+  ignored. Exits with 1 if it finds anything, so it can guard a build in CI.
 - Documentation site at [dorothea.readthedocs.io](https://dorothea.readthedocs.io/) (#25), with a
   configurator (#30): pick settings in a form and copy or download a `_config.json` that holds
   only what differs from the defaults (from Dorothea's or expose.sh's), or paste an existing one
@@ -76,6 +83,35 @@ All notable changes to Dorothea are documented here. The format follows
   unchanged. Captions from `<photo>.md` (as well as `.txt`) are now documented.
 
 ### Changed
+- **Settings are now in `_config.yml`** (#46), one `setting: value` per line with `#` comments,
+  instead of `_config.json`. A `_config.json` stops the build with a reminder to rename it
+  (JSON is valid YAML, so it works as it is); expose.sh's `_config.sh` is still read, and
+  `--convert-config` now writes `_config.yml`. Only `true`/`false` are yes/no values (YAML 1.2),
+  so `exif_display: off` means the "off" choice and dates stay as written. Mistakes are reported
+  with their line (`jpeg_quality must be an integer from 1 to 100, got 500 (_config.yml line 3)`),
+  unknown settings suggest the one you probably meant (`did you mean site_title?`), and a
+  setting with no value (`site_url:`) keeps its default, with a note. The docs' configurator
+  writes and reads `_config.yml`, and a `# yaml-language-server: $schema=…` line at the top
+  gives completion and checks in VS Code's YAML extension.
+- **Markdown captions** (#52): a `.md` caption can start with YAML front matter (settings
+  between `---` lines, as in Jekyll, Hugo or Obsidian), read like `_config.yml`. `.txt`
+  captions, and `.md` ones without front matter, are read line by line as before, and with
+  `--legacy` every caption is. Front matter YAML can't read, or where it would lose a value (an
+  unquoted `textcolor: #ff9518` reads as a comment), is read the old way, with a warning naming
+  the line to fix. `--convert-config` turns `.txt` captions into `.md` ones (quoting what needs
+  it, keeping comments, and checking the result reads the same before deleting the original);
+  `dorothea check` checks front matter keys with their lines. When a photo has both a `.md` and
+  a `.txt` caption, the `.md` is now used (the `.txt` was), except with `--legacy`, which keeps
+  expose.sh's order; `check` reports the one that isn't.
+- **Gallery settings can go in `gallery.yml`** (#46), YAML like `_config.yml`, instead of
+  `metadata.txt`, which still works (if a folder has both, `gallery.yml` is used). Lists such
+  as theme1's `polygon` reach the theme as JSON; multi-line `description:` text keeps its
+  paragraphs in the feed. Lines starting with `#` are now comments in `metadata.txt` and caption
+  metadata too, instead of being warned about as caption text; expose.sh ignored them as well,
+  so pages don't change. `--convert-config` now also turns every `metadata.txt` into a
+  `gallery.yml` (keeping comments, quoting values YAML would read differently), and deletes
+  each original, `_config.sh` included, once the new file gives exactly the same settings;
+  what it can't convert that way is left alone, with a note.
 - New defaults (#24; `--legacy` restores expose.sh's): `sort` is `natural` (was `name`),
   `video_formats` is `["h264", "vp9"]` (was vp8), `h264_encodespeed` is `slow` (was `veryslow`),
   and `social_button` is off (was on). Existing galleries without these settings pick them up

@@ -17,25 +17,32 @@ const tests = {
 	},
 	'the file only has what differs from the defaults'() {
 		const values = { theme_dir: 'photoessay', site_title: 'Iceland', jpeg_quality: 92 };
-		assert.deepStrictEqual(cfg.configFor(schema, false, values), {
-			$schema: cfg.SCHEMA_URL, site_title: 'Iceland',
-		});
+		assert.deepStrictEqual(cfg.configFor(schema, false, values), { site_title: 'Iceland' });
 	},
 	'starting from expose.sh adds legacy and compares with its defaults'() {
 		const values = { theme_dir: 'photoessay', sort: 'name' };
 		assert.deepStrictEqual(cfg.configFor(schema, true, values), {
-			$schema: cfg.SCHEMA_URL, legacy: true, theme_dir: 'photoessay',
+			legacy: true, theme_dir: 'photoessay',
 		});
 	},
 	'lists are compared by value'() {
 		const config = cfg.configFor(schema, false, { video_formats: ['h264', 'vp9'], resolution: [1920, 640] });
-		assert.deepStrictEqual(Object.keys(config), ['$schema', 'resolution']);
+		assert.deepStrictEqual(Object.keys(config), ['resolution']);
 	},
-	'output keeps short lists on one line'() {
-		const text = cfg.format({ $schema: 'x', resolution: [1920, 640], default_palette: ['#000', 'rgba(0, 0, 0, .5)'] });
-		assert.ok(text.includes('"resolution": [1920, 640]'), text);
-		assert.ok(text.includes('"default_palette": ["#000", "rgba(0, 0, 0, .5)"]'), text);
-		assert.deepStrictEqual(JSON.parse(text).default_palette, ['#000', 'rgba(0, 0, 0, .5)']);
+	'the file is YAML with the schema comment at the top'() {
+		const text = cfg.format({ site_title: 'Iceland 2022', resolution: [1920, 640] });
+		assert.ok(text.startsWith('# Dorothea settings: https://dorothea.readthedocs.io/configuration/\n'), text);
+		assert.ok(text.includes(`# yaml-language-server: $schema=${cfg.SCHEMA_URL}\n`), text);
+		assert.ok(text.endsWith('site_title: Iceland 2022\nresolution: [1920, 640]\n'), text);
+	},
+	'an empty file is just the header'() {
+		assert.ok(!cfg.format({}).includes('{}'));
+	},
+	'text that YAML would misread is quoted'() {
+		const text = cfg.format({ exif_display: 'off', backgroundcolor: '#000000', default_palette: ['#000', 'rgba(0, 0, 0, .5)'] });
+		assert.ok(text.includes("exif_display: 'off'\n"), text);
+		assert.ok(text.includes("backgroundcolor: '#000000'\n"), text);
+		assert.ok(text.includes("default_palette: ['#000', 'rgba(0, 0, 0, .5)']\n"), text);
 	},
 	'fields are parsed and checked'() {
 		assert.deepStrictEqual(cfg.parseField(prop('jpeg_quality'), ' 85 '), { value: 85 });
@@ -57,25 +64,35 @@ const tests = {
 		assert.deepStrictEqual(cfg.splitList('rgba(0,0,0,.5), #fff ,'), ['rgba(0,0,0,.5)', '#fff']);
 	},
 	'importing a config'() {
-		const loaded = cfg.importConfig(schema, JSON.stringify({
-			$schema: cfg.SCHEMA_URL, legacy: true, site_title: 'Iceland', site_titel: 'typo', jpeg_quality: 500,
-		}));
+		const loaded = cfg.importConfig(schema, [
+			'# my site', 'legacy: true', 'site_title: Iceland', 'site_titel: typo', 'jpeg_quality: 500',
+			'resolution:', '  - 2560', '  - 640', 'exif_display: off',
+		].join('\n'));
 		assert.strictEqual(loaded.legacy, true);
-		assert.deepStrictEqual(loaded.values, { site_title: 'Iceland' });
+		assert.deepStrictEqual(loaded.values, { site_title: 'Iceland', resolution: [2560, 640], exif_display: 'off' });
 		assert.strictEqual(loaded.warnings.length, 2);
 		assert.ok(loaded.warnings[0].includes('site_titel'));
 		assert.ok(loaded.warnings[1].includes('jpeg_quality must be at most 100'));
 	},
+	'yes is not true (YAML 1.2, like Dorothea)'() {
+		const loaded = cfg.importConfig(schema, 'download_album: yes\n');
+		assert.deepStrictEqual(loaded.values, {});
+		assert.ok(loaded.warnings[0].includes('download_album must be true or false'), loaded.warnings[0]);
+	},
 	'an import round-trips'() {
-		const values = { site_title: 'Iceland', resolution: [2560, 640], exif_display: 'caption' };
+		const values = { site_title: 'Iceland', resolution: [2560, 640], exif_display: 'off', backgroundcolor: '#101010' };
 		const text = cfg.format(cfg.configFor(schema, false, values));
 		const loaded = cfg.importConfig(schema, text);
 		assert.deepStrictEqual(loaded.values, values);
 		assert.deepStrictEqual(loaded.warnings, []);
 	},
+	'JSON still imports, being valid YAML'() {
+		assert.deepStrictEqual(cfg.importConfig(schema, '{"site_title": "Trip"}').values, { site_title: 'Trip' });
+	},
 	'importing something that is not a config'() {
-		assert.throws(() => cfg.importConfig(schema, '[1, 2]'), /JSON object/);
-		assert.throws(() => cfg.importConfig(schema, '{ site_title: x }'));
+		assert.throws(() => cfg.importConfig(schema, '- a\n- b\n'), /key: value/);
+		assert.throws(() => cfg.importConfig(schema, 'site_title: [unclosed\n'), /line/);
+		assert.deepStrictEqual(cfg.importConfig(schema, '# nothing yet\n').values, {});
 	},
 };
 

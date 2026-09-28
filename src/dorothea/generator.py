@@ -150,7 +150,7 @@ class ExposeGenerator:
             self.config["site_url"], self.config["resolution"],
             self.config.get("gallery_feeds", True), s.paths, s.nav_type, s.nav_count,
             s.nav_name, s.nav_url, s.gallery_files, s.gallery_type, s.gallery_url,
-            s.gallery_maxwidth, render_markdown,
+            s.gallery_maxwidth, render_markdown, not self.config.get("legacy", False),
         )  # fmt: skip
         own = [g for g in galleries if g.enabled]
         if self.dry_run:

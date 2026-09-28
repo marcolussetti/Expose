@@ -5,42 +5,51 @@ hide:
 
 # Configuration
 
-Site-wide settings go in a `_config.json` file in the top folder of your photos. Pick the
+Site-wide settings go in a `_config.yml` file in the top folder of your photos. Pick the
 settings you want to change below, then copy or download the file. It only contains what differs
 from the defaults, so improvements to the defaults in later versions still reach your site. To
-change a file you already have, paste it into "Edit an existing _config.json".
+change a file you already have, paste it into "Edit an existing _config.yml".
 
 <div id="configurator" data-schema="../schema/config.json">
 <p><em>Loading the configurator…</em> (it needs JavaScript; every setting is also described in
 the tables below)</p>
 </div>
 
-You can also write the file by hand. The `"$schema"` line is optional: it points editors like
-VS Code at the list of settings, so they complete and check `_config.json` as you type.
+You can also write the file by hand: one `setting: value` per line, `#` for comments.
 
-```json
-{
-  "$schema": "https://dorothea.readthedocs.io/schema/config.json",
-  "site_title": "Iceland 2022",
-  "theme_dir": "medium",
-  "site_url": "https://example.com/photos/"
-}
+```yaml
+# yaml-language-server: $schema=https://dorothea.readthedocs.io/schema/config.json
+site_title: Iceland 2022
+theme_dir: medium
+site_url: https://example.com/photos/
+resolution: [2560, 1920, 1280, 640]
+text_toggle: false
 ```
 
-Settings for a single photo or gallery go in its caption or `metadata.txt`; see
+The first line is optional: with it, editors like VS Code (with its YAML extension) complete
+and check settings as you type. Text needs quotes only when it starts with `#` or would read as
+something else: a colour is `backgroundcolor: "#101010"`. Only `true` and `false` are yes/no
+values, so `exif_display: off` means the "off" choice, as written.
+
+Settings for a single photo or gallery go in its caption or `gallery.yml`; see
 [Galleries and captions](galleries.md#metadata-keys).
 
 Settings are read, in increasing order of precedence, from:
 
-1. built-in defaults: Dorothea's, or expose.sh's with `--legacy` / `"legacy": true` (below)
-2. `_config.json` in the gallery folder, or `--config FILE` (`.json` or `.sh`). Without a
-   `_config.json`, expose.sh's `_config.sh` is read instead (see [Migrating](migrating.md#configuration))
+1. built-in defaults: Dorothea's, or expose.sh's with `--legacy` / `legacy: true` (below)
+2. `_config.yml` (or `_config.yaml`) in the gallery folder, or `--config FILE` (`.yml` or
+   `.sh`). Without one, expose.sh's `_config.sh` is read instead (see
+   [Migrating](migrating.md#configuration))
 3. `--set KEY=VALUE`, `-j N`, `--sort`, `--ffmpeg` and `--legacy` on the command line
 4. draft mode (`-d`), which forces `resolution=[1024]`, `bitrate=[4]`, `video_formats=["h264"]`
    and `download_button=false`, `download_album=false`
 
-Invalid values stop the build with a message naming each problem (exit code 2); unknown keys
-only print a warning, since they're usually typos.
+Invalid values stop the build with a message naming each problem and the line it's on (exit
+code 2); unknown settings only print a warning, suggesting the setting you probably meant.
+
+!!! note "Dorothea 1.9's `_config.json`"
+    Rename it to `_config.yml`: JSON is valid YAML, so it works as it is. Dorothea stops with that
+    reminder rather than ignoring the file.
 
 Changing a setting that affects image or video bytes (resolution, quality, bitrates, codec
 speed, per-post options...) re-encodes just the affected files on the next run. There's no need
@@ -48,10 +57,10 @@ to delete `_site`.
 
 ## Legacy (expose.sh) defaults
 
-Dorothea's defaults improve on expose.sh's in eight places. With `--legacy` (or `"legacy": true`
-in `_config.json`) the defaults are exactly expose.sh's, so a gallery builds the same site as
+Dorothea's defaults improve on expose.sh's in eight places. With `--legacy` (or `legacy: true`
+in `_config.yml`) the defaults are exactly expose.sh's, so a gallery builds the same site as
 expose.sh would. Anything you set explicitly still wins in both modes; `--no-legacy` overrides
-`"legacy": true` in the config file.
+`legacy: true` in the config file.
 
 | Key | Dorothea default | `--legacy` (expose.sh) |
 |---|---|---|
@@ -79,8 +88,8 @@ Bug fixes (hidden files, non-Latin names, colliding names, …) apply in both mo
 | `disqus_shortname` | `""` | Disqus forum name for comments; empty disables them. |
 | `link_index_html` | `false` | Link galleries to `…/gallery/index.html` instead of `…/gallery`. Gallery links point at folders, which a web server (or `dorothea serve`) answers with the folder's `index.html`; opened straight from disk, or on a host without directory indexes, they show a folder listing instead. Turn this on for a site browsed from disk (e.g. copied onto a USB stick). Dorothea-only. |
 | `site_url` | `""` | The site's public address, e.g. `"https://example.com/photos/"`. When set, the build also writes `feed.xml`, an Atom feed with one entry per gallery (newest first, with its first photo and text), so people can follow new galleries in a feed reader; `photoessay` and `medium` show a feed link and announce the feed to browsers and reader extensions. Feeds need absolute links, which is why this is needed; the rest of the site stays relative. See `date` and `description` under per-post metadata. Dorothea-only. |
-| `exif_display` | `"icon"` (legacy: `"off"`) | Show each photo's shooting details, read from the original's EXIF: camera, lens, focal length, aperture, shutter speed and ISO (never its location). `"icon"`: an ⓘ in a corner of the photo, in its colours; hovering or focusing it shows the details, and a click or tap keeps them open. `"caption"`: one line under the photo's text, like `Fujifilm X-T4 · 23mm · f/2 · 1/250s · ISO 160`. `"off"`: nothing. Photos without EXIF, videos and image sequences show nothing unless their caption gives details. Captions and `metadata.txt` can override it (see `exif` and `camera`… under per-post metadata). Shown by `photoessay` and `medium`; `theme1` and `theme2` are unchanged. A custom theme puts `{{exif_icon}}` / `{{exif_caption}}` in its `post-template.html`, or places `{{camera}}`, `{{lens}}`, `{{focal_length}}`, `{{aperture}}`, `{{shutter_speed}}`, `{{iso}}` and `{{exif_summary}}` (`23mm · f/2 · 1/250s · ISO 160`) itself. Works whatever `keep_metadata` is. Dorothea-only. |
-| `gallery_feeds` | `true` | With `site_url`, each gallery also gets its own `feed.xml` (e.g. `…/iceland/feed.xml`) with one entry per photo or video, for galleries that keep growing; its pages announce it next to the site feed. `false` turns them off; a gallery's `metadata.txt` can override either way with `feed: false` / `feed: true`. Dorothea-only. |
+| `exif_display` | `"icon"` (legacy: `"off"`) | Show each photo's shooting details, read from the original's EXIF: camera, lens, focal length, aperture, shutter speed and ISO (never its location). `"icon"`: an ⓘ in a corner of the photo, in its colours; hovering or focusing it shows the details, and a click or tap keeps them open. `"caption"`: one line under the photo's text, like `Fujifilm X-T4 · 23mm · f/2 · 1/250s · ISO 160`. `"off"`: nothing. Photos without EXIF, videos and image sequences show nothing unless their caption gives details. Captions and `gallery.yml` can override it (see `exif` and `camera`… under per-post metadata). Shown by `photoessay` and `medium`; `theme1` and `theme2` are unchanged. A custom theme puts `{{exif_icon}}` / `{{exif_caption}}` in its `post-template.html`, or places `{{camera}}`, `{{lens}}`, `{{focal_length}}`, `{{aperture}}`, `{{shutter_speed}}`, `{{iso}}` and `{{exif_summary}}` (`23mm · f/2 · 1/250s · ISO 160`) itself. Works whatever `keep_metadata` is. Dorothea-only. |
+| `gallery_feeds` | `true` | With `site_url`, each gallery also gets its own `feed.xml` (e.g. `…/iceland/feed.xml`) with one entry per photo or video, for galleries that keep growing; its pages announce it next to the site feed. `false` turns them off; a gallery's `gallery.yml` can override either way with `feed: false` / `feed: true`. Dorothea-only. |
 
 ## Images
 
@@ -162,18 +171,19 @@ videos print which ffmpeg they use.
 |---|---|
 | `-d`, `--draft` | Draft mode: one 1024px size, fast h264 only. |
 | `-n`, `--dry-run` | List what would be built (and why) without writing anything. |
-| `-c FILE`, `--config FILE` | Use this config file (`.json` or expose.sh `.sh`). |
+| `-c FILE`, `--config FILE` | Use this config file (`.yml` or expose.sh `.sh`). |
 | `-s KEY=VALUE`, `--set KEY=VALUE` | Override a setting; VALUE is JSON if it parses (`--set 'resolution=[1920,640]'`), else a string. Repeatable. |
 | `-j N`, `--jobs N` | Parallel workers (see `jobs`). |
 | `--ffmpeg auto\|bundled\|system\|PATH` | Which ffmpeg to use (see `ffmpeg`). |
 | `--sort MODE` | Order of galleries and photos (see `sort`). |
 | `--legacy`, `--no-legacy` | Use expose.sh's defaults (or not, overriding the config file); see `legacy`. |
-| `--convert-config` | Write `_config.json` from `_config.sh` and exit. |
+| `--convert-config` | Convert expose.sh's `_config.sh` to `_config.yml`, each `metadata.txt` to `gallery.yml` and each `.txt` caption to a `.md` with front matter, deleting the originals once the new files give the same settings; then exit. See [Migrating](migrating.md#configuration). |
 | `serve [--port N] [--bind ADDR] [--no-build]` | Build (with the flags above), then preview the site at `http://localhost:8000/`. See [Preview](index.md#preview). |
+| `check` | Check the settings, every `gallery.yml`/`metadata.txt` and every caption for mistakes, without building; exits with 1 if it finds any. See [Checking for mistakes](galleries.md#checking-for-mistakes). |
 | `--version` | Print the version. |
 | `-h`, `--help` | Show all options. |
 
-Photos and galleries have their own settings too, in captions and `metadata.txt`: see
+Photos and galleries have their own settings too, in captions and `gallery.yml`: see
 [Galleries and captions](galleries.md#metadata-keys).
 
 ## Build cache

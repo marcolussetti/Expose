@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from dorothea.cache import BuildCache, settings_hash, source_stat
+from dorothea.captions import gallery_file, gallery_metadata
 from dorothea.config import Config
 from dorothea.media.colors import ColorExtractor
 from dorothea.media.exif import read_photo_info
@@ -414,18 +415,13 @@ class Scanner:
             return float("inf")
 
     def _gallery_sort(self, gallery: Path) -> str:
-        """Sort mode for a gallery's photos: ``sort:`` in its metadata.txt, else the setting."""
+        """Sort mode for a gallery's photos: ``sort:`` in its gallery file, else the setting."""
         mode = self.config.get("sort", "name")
-        try:
-            text = (gallery / "metadata.txt").read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            return mode
-        for line in text.splitlines():
-            key, sep, value = line.partition(":")
-            if sep and key.strip() == "sort" and value.strip():
-                if value.strip() in SORT_MODES:
-                    return value.strip()
-                print(f"\n\tIgnoring 'sort: {value.strip()}' in {gallery.name}/metadata.txt")
+        value = gallery_metadata(gallery).get("sort")
+        if value is None or value in SORT_MODES:
+            return value or mode
+        where = gallery_file(gallery)
+        print(f"\n\tIgnoring 'sort: {value}' in {gallery.name}/{where.name if where else ''}")
         return mode
 
     def _unique_urls(self, gallery: list[GalleryEntry]) -> list[GalleryEntry]:
