@@ -225,10 +225,14 @@ class TestPages:
         assert 'style="color: #ffffff; background-color: "' in button
         assert "{{" not in html
 
-    def test_contactsheet_puts_the_details_on_the_tile(self, tmp_path):
-        html = build(tmp_path, theme="contactsheet")
+    @pytest.mark.parametrize("mode", ["icon", "caption"])
+    def test_contactsheet_keeps_the_details_for_its_lightbox(self, tmp_path, mode):
+        """The grid doesn't show them: they're in a hidden holder the lightbox copies from."""
+        html = build(tmp_path, mode=mode, theme="contactsheet")
         tile = html.split('<figure class="tile')[1]
-        assert '</a><div class="photo-info">' in tile  # over the photo, beside its link
+        holder = tile.split('<div class="lightbox-only" hidden>')[1].split("<figcaption")[0]
+        assert ("photo-info-button" if mode == "icon" else LINE) in holder
+        assert "Fujifilm" not in tile.split("<figcaption")[1]
 
     @pytest.mark.parametrize("theme", ["photoessay", "medium", "contactsheet"])
     def test_off(self, tmp_path, theme):

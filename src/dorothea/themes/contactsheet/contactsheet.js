@@ -227,6 +227,27 @@
 			return img;
 		}
 
+		// The details button sits in the photo's corner; when a photo reaches the screen's corner,
+		// that's under the close button, so it moves down
+		var closeButton = dialog.querySelector('.close');
+		function dodge() {
+			var info = stage.querySelector('.photo-info');
+			if (!info) {
+				return;
+			}
+			info.classList.remove('dodge');
+			var a = info.querySelector('.photo-info-button').getBoundingClientRect();
+			var b = closeButton.getBoundingClientRect();
+			if (a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom) {
+				info.classList.add('dodge');
+			}
+		}
+		root.addEventListener('resize', function () {
+			if (lightbox.isOpen()) {
+				dodge();
+			}
+		});
+
 		function preload(index) {
 			var tile = tiles[index];
 			if (tile && tile.getAttribute('data-type') !== 'video') {
@@ -257,12 +278,18 @@
 				stage.textContent = ''; // stops the previous video
 				stage.appendChild(shot);
 
+				// The caption, then the photo details line (exif_display: caption), which the
+				// grid doesn't show
 				details.textContent = '';
 				var caption = tile.querySelector('.caption');
 				if (caption) {
 					Array.prototype.forEach.call(caption.children, function (child) {
 						details.appendChild(child.cloneNode(true));
 					});
+				}
+				var line = tile.querySelector('.lightbox-only .photo-info-line');
+				if (line) {
+					details.appendChild(line.cloneNode(true));
 				}
 				previousButton.hidden = index === 0;
 				nextButton.hidden = index === tiles.length - 1;
@@ -281,6 +308,7 @@
 				} else {
 					root.history.replaceState(root.history.state, '', address(index));
 				}
+				dodge(); // now that the dialog is open and laid out
 				preload(index + 1);
 				preload(index - 1);
 			},
@@ -325,7 +353,7 @@
 		}
 		previousButton.addEventListener('click', function (event) { pressed('previous', event); });
 		nextButton.addEventListener('click', function (event) { pressed('next', event); });
-		dialog.querySelector('.close').addEventListener('click', function () { lightbox.close(); });
+		closeButton.addEventListener('click', function () { lightbox.close(); });
 		stage.addEventListener('click', function (event) {
 			if (event.target === stage) {
 				lightbox.close();

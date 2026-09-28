@@ -68,7 +68,9 @@ A gallery's photos and videos as a masonry grid: columns of tiles at the photos'
 as many columns as fit the window, down to one on phones. Tiles load the smallest size that's
 sharp enough, and only as they scroll into view.
 
-Clicking a photo opens it in a lightbox, as large as fits the screen, with its whole caption.
+Clicking a photo opens it in a lightbox, as large as fits the screen, with its whole caption
+and its [photo details](configuration.md#site-and-theme) (`exif_display`; the grid doesn't
+show them).
 Move between photos with the keys below, the ‹ › buttons or a swipe; Escape, × or a click
 beside the photo closes it. Videos show their first frame in the grid and play in the
 lightbox. The address follows the open photo (`…/iceland/#3` is the third), so a link to it

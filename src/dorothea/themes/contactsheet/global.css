@@ -308,12 +308,14 @@ a{ color: inherit; }
 	height: auto;
 }
 
+/* Photo details: in the photo's top right corner as in the other themes; below the close button
+   when a photo that fills the screen would put them under it */
 #lightbox .shot .photo-info{
-	left: 12px;
-	right: auto;
 	top: 12px;
-	text-align: left;
+	right: 12px;
 }
+
+#lightbox .shot .photo-info.dodge{ top: 72px; }
 
 #lightbox .details{
 	position: absolute;
@@ -352,7 +354,7 @@ a{ color: inherit; }
 
 #lightbox button.previous{ left: 12px; top: 50%; margin-top: -24px; }
 #lightbox button.next{ right: 12px; top: 50%; margin-top: -24px; }
-#lightbox button.close{ right: 12px; top: 12px; font-size: 30px; }
+#lightbox button.close{ right: 12px; top: 12px; z-index: 3; font-size: 30px; }
 
 #lightbox button[hidden]{ display: none; }
 

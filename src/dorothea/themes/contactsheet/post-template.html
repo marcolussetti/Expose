@@ -1,8 +1,9 @@
 <figure class="tile caption-{{caption_position}}" id="{{index}}" data-type="{{type}}" data-url="{{imageurl}}" data-maxwidth="{{imagewidth}}" data-maxheight="{{imageheight}}" data-textcolor="{{textcolor}}" data-backgroundcolor="{{backgroundcolor}}" style="color: {{textcolor}}; background-color: {{backgroundcolor}}">
 	<a class="frame" href="#{{index}}" style="aspect-ratio: {{imagewidth}} / {{imageheight}}">
 		<img src="{{resourcepath}}{{imageurl}}/{{imagewidth}}.jpg" srcset="{{srcset}}" sizes="(max-width: 560px) 100vw, (max-width: 1100px) 50vw, (max-width: 1600px) 33vw, 25vw" width="{{imagewidth}}" height="{{imageheight}}" loading="lazy" alt="" />
-	</a>{{exif_icon}}
+	</a>
+	<div class="lightbox-only" hidden>{{exif_icon}}{{exif_caption}}</div>
 	<figcaption class="caption{{textbackground_attr}}">
-		{{post}}{{exif_caption}}
+		{{post}}
 	</figcaption>
 </figure>
