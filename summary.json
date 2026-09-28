@@ -1,0 +1,67 @@
+{
+  "tests": {
+    "tests": 927,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "passed": 927
+  },
+  "coverage": {
+    "percent": 96.1,
+    "covered": 2985,
+    "statements": 3105,
+    "files": {
+      "__init__.py": 71.4,
+      "__main__.py": 0.0,
+      "album.py": 100.0,
+      "builder.py": 98.6,
+      "cache.py": 94.7,
+      "captions.py": 99.3,
+      "check.py": 96.7,
+      "cli.py": 98.0,
+      "config.py": 99.6,
+      "convert.py": 94.0,
+      "encoder.py": 91.4,
+      "feed.py": 99.2,
+      "generator.py": 99.3,
+      "media/__init__.py": 100.0,
+      "media/base.py": 83.3,
+      "media/colors.py": 100.0,
+      "media/colors_imagemagick.py": 93.8,
+      "media/colors_pillow.py": 100.0,
+      "media/exif.py": 96.1,
+      "media/ffmpeg.py": 96.7,
+      "media/image.py": 93.3,
+      "media/imagemagick.py": 100.0,
+      "media/markdown.py": 100.0,
+      "media/metadata.py": 94.8,
+      "media/video.py": 100.0,
+      "progress.py": 100.0,
+      "scanner.py": 95.4,
+      "serve.py": 88.4,
+      "sorting.py": 100.0,
+      "template.py": 100.0,
+      "themes.py": 80.0,
+      "utils.py": 100.0,
+      "yamlfile.py": 100.0
+    }
+  },
+  "loc": {
+    "src": {
+      "code": 8763,
+      "languages": {
+        "CSS": 2284,
+        "HTML": 376,
+        "JavaScript": 1932,
+        "Python": 4171
+      }
+    },
+    "tests": {
+      "code": 6564,
+      "languages": {
+        "JavaScript": 469,
+        "Python": 6095
+      }
+    }
+  }
+}
