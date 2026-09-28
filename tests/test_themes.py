@@ -54,6 +54,21 @@ def test_themes_share_one_keyboard_script():
     assert photoessay == (BUNDLED_THEMES_DIR / "medium" / "keyboard.js").read_bytes()
 
 
+@pytest.mark.parametrize("theme", ["photoessay", "medium"])
+def test_icons_use_standard_css_masks(theme):
+    """Sidebar icons are standard CSS masks: theme1's -webkit-mask-box-image draws plain squares
+    in browsers that dropped it, and the $.browser sniffing that chose it is gone too."""
+    folder = BUNDLED_THEMES_DIR / theme
+    css = (folder / "global.css").read_text(encoding="utf-8")
+    js = (folder / "global.js").read_text(encoding="utf-8")
+    assert not any(
+        "-webkit-mask-box-image:" in line for line in css.splitlines() if "/*" not in line
+    )
+    assert "$.browser" not in js and "jQuery.browser" not in js
+    if theme == "photoessay":
+        assert "mask-image: url(img/feed_mask.png)" in css
+
+
 def test_photoessay_is_the_default_theme(tmp_path):
     html = build(tmp_path)
     assert '<script src="../keyboard.js" data-slides=".slide"></script>' in html

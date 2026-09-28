@@ -7,6 +7,11 @@ All notable changes to Dorothea are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Captions from the photo itself (#51): the title and description Lightroom, Capture One, Apple
+  Photos, darktable and others store in the file (XMP, else IPTC) become the photo's caption,
+  the title as a heading above the description, and its title in the gallery's feed, when the
+  photo has no caption file; a `.md` or `.txt` caption replaces them entirely. On by default (`embedded_captions`), off with `--legacy`; read once per photo and
+  cached. EXIF's ImageDescription isn't used, since cameras fill it with their model name.
 - `dorothea check` (#46): looks through the settings, every `gallery.yml` / `metadata.txt` and
   every caption without building, and lists mistakes with their file and line: unknown keys
   (suggesting the one you probably meant; the theme's keys are the placeholders in its
@@ -125,6 +130,12 @@ All notable changes to Dorothea are documented here. The format follows
   clearer `--help`, `-h` works too.
 
 ### Fixed
+- `photoessay`: the sidebar icons (site camera, resolution, hide text, feed, download, share)
+  showed as plain squares in browsers that no longer support the old
+  `-webkit-mask-box-image` property. They now use standard CSS masks, still tinted with the
+  photo's colours, and the browser sniffing that chose between the two is gone. The sidebar is
+  wider (200px instead of 170px) so a site title or gallery name no longer runs into its edge,
+  and a single word too long for it breaks instead. `theme1` is unchanged.
 - `photoessay`: opening a link to a particular photo (`gallery/#4`, as gallery feed entries
   use) scrolls to that photo in Firefox too; it stayed at the top, because the slides only get
   their height once the page's script runs.

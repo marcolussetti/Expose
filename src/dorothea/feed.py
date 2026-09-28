@@ -21,13 +21,15 @@ from pathlib import Path
 
 from dorothea import __version__
 from dorothea.captions import (
+    Caption,
     caption_file,
+    embedded_as_caption,
     gallery_file,
     gallery_metadata,
     metadata_flag,
     read_caption,
 )
-from dorothea.media.exif import read_photo_info
+from dorothea.media.exif import EmbeddedCaption, read_photo_info
 from dorothea.utils import href, strip_numeric_prefix
 
 ATOM = "http://www.w3.org/2005/Atom"
@@ -182,10 +184,12 @@ def collect_galleries(
     gallery_maxwidth: Sequence[int],
     render_markdown: Callable[[str], str],
     front_matter: bool = True,
+    gallery_captions: Sequence[EmbeddedCaption] = (),
 ) -> list[GalleryFeed]:
     """Every gallery's feed data, from the scanner's arrays (galleries' items are consecutive).
 
     ``front_matter``: read ``.md`` captions' YAML front matter (off with ``--legacy``).
+    ``gallery_captions``: photos' own titles/descriptions, where caption files leave them out.
     """
     _capture_time.cache_clear()  # shared by the gallery and item dates of this build only
     base = site_url.rstrip("/") + "/"
@@ -205,12 +209,14 @@ def collect_galleries(
         items = []
         captions = []
         for number, k in enumerate(positions, 1):
-            item_meta: dict[str, str] = {}
-            caption_html = ""
+            caption = Caption()
             if (textfile := caption_file(gallery_files[k], legacy=not front_matter)) is not None:
                 caption = read_caption(textfile, front_matter)  # (the builder prints warnings)
-                item_meta = caption.values
-                caption_html = render_markdown(caption.body) if caption.body.strip() else ""
+            elif k < len(gallery_captions):  # the photo's own, when it has no caption file
+                own = gallery_captions[k]
+                caption = embedded_as_caption(own.title, own.description)
+            item_meta = caption.values
+            caption_html = render_markdown(caption.body) if caption.body.strip() else ""
             captions.append(caption_html)
             width = thumbnail_width(resolutions, gallery_maxwidth[k])
             # item URLs are relative to their gallery's page

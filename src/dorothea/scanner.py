@@ -17,7 +17,7 @@ from dorothea.cache import BuildCache, settings_hash, source_stat
 from dorothea.captions import gallery_file, gallery_metadata
 from dorothea.config import Config
 from dorothea.media.colors import ColorExtractor
-from dorothea.media.exif import read_photo_info
+from dorothea.media.exif import EmbeddedCaption, embedded_caption, read_photo_info
 from dorothea.media.image import ImageProcessor
 from dorothea.media.video import VideoProcessor
 from dorothea.progress import Reporter
@@ -132,6 +132,8 @@ class Scanner:
         self.gallery_video_filters: list[str] = []
         # Shooting details from EXIF (#20), filled only when exif_display is on
         self.gallery_details: list[dict[str, str]] = []
+        # A photo's own title/description (#51), filled only when embedded_captions is on
+        self.gallery_captions: list[EmbeddedCaption] = []
 
         # Initialize media processors
         self.image_processor = ImageProcessor()
@@ -325,9 +327,11 @@ class Scanner:
         # Colours and dimensions (the slow part on a first run): a bar under progress display
         bar = self.progress.task(f"Reading {len(entries)} files", total=len(entries))
 
-        def analyze(k: int, entry: GalleryEntry) -> tuple[list[str], int, int, dict[str, str]]:
+        def analyze(
+            k: int, entry: GalleryEntry
+        ) -> tuple[list[str], int, int, dict[str, str], EmbeddedCaption]:
             try:
-                return *self._analyze(k, entry), self._details(entry)
+                return *self._analyze(k, entry), self._details(entry), self._caption(entry)
             finally:
                 bar.advance()
 
@@ -342,7 +346,8 @@ class Scanner:
             results = [analyze(k, e) for k, e in enumerate(entries)]
 
         counts: dict[int, int] = {}
-        for entry, (palette, maxwidth, maxheight, details) in zip(entries, results, strict=True):
+        for entry, result in zip(entries, results, strict=True):
+            palette, maxwidth, maxheight, details, caption = result
             counts[entry.nav_index] = counts.get(entry.nav_index, 0) + 1
 
             self.gallery_files.append(entry.file_path)
@@ -356,6 +361,7 @@ class Scanner:
             self.gallery_video_options.append("")
             self.gallery_video_filters.append("")
             self.gallery_details.append(details)
+            self.gallery_captions.append(caption)
 
         for i in range(len(self.paths)):
             if self.nav_type[i] >= 1:
@@ -566,6 +572,21 @@ class Scanner:
         if self.cache is not None and not self.dry_run:
             self.cache.put_details(entry.file_path, stat, details)
         return details
+
+    def _caption(self, entry: GalleryEntry) -> EmbeddedCaption:
+        """A photo's own title and description (#51), from the cache when unchanged. Only
+        photos have them, and nothing is read when ``embedded_captions`` is off."""
+        if entry.gallery_type != 0 or not self.config.get("embedded_captions", False):
+            return EmbeddedCaption()
+        stat = source_stat(entry.file_path)
+        if self.cache is not None:
+            hit = self.cache.get_caption(entry.file_path, stat)
+            if hit is not None:
+                return EmbeddedCaption(*hit)
+        caption = embedded_caption(entry.file_path)
+        if self.cache is not None and not self.dry_run:
+            self.cache.put_caption(entry.file_path, stat, caption.title, caption.description)
+        return caption
 
     def _analyze(self, k: int, entry: GalleryEntry) -> tuple[list[str], int, int]:
         """Extract (palette, maxwidth, maxheight) for one entry. Safe to run in threads."""

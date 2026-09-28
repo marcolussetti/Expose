@@ -54,6 +54,14 @@ instead and tells you which line to fix; `dorothea check` lists them all. Withou
 the whole file is the caption. Windows line endings and a byte-order mark (as Notepad saves)
 are fine.
 
+### Captions from Lightroom and other editors
+
+If you fill in a photo's **title** and **caption** in Lightroom (or Capture One, Apple Photos,
+darktable…), they're saved in the exported file, and Dorothea shows them as the photo's caption:
+the title as a heading, then the description. No text file needed. A caption file (`.md` or
+`.txt`) replaces them entirely, title included, so write the whole caption there when you add
+one. Turn this off with [`embedded_captions: false`](configuration.md#site-and-theme).
+
 ### expose.sh's `.txt` captions
 
 A `DSC0001.txt` works too, as in expose.sh (if a photo has both, the `.md` is used; with

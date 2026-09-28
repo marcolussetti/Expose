@@ -16,6 +16,7 @@ from dorothea.cache import BuildCache
 from dorothea.config import Config
 from dorothea.encoder import MediaEncoder
 from dorothea.feed import FEED_NAME, build_feed, collect_galleries
+from dorothea.media.exif import EmbeddedCaption
 from dorothea.media.ffmpeg import set_ffmpeg
 from dorothea.media.image import ImageProcessor
 from dorothea.progress import Reporter
@@ -133,6 +134,7 @@ class ExposeGenerator:
             self.scanner.gallery_video_filters,
             draft=self.draft,
             gallery_details=self.scanner.gallery_details,
+            gallery_captions=self.scanner.gallery_captions,
         )
         self.planned_pages = builder.build_html(
             write=not self.dry_run, dots=not self.progress.active
@@ -151,6 +153,7 @@ class ExposeGenerator:
             self.config.get("gallery_feeds", True), s.paths, s.nav_type, s.nav_count,
             s.nav_name, s.nav_url, s.gallery_files, s.gallery_type, s.gallery_url,
             s.gallery_maxwidth, render_markdown, not self.config.get("legacy", False),
+            s.gallery_captions,
         )  # fmt: skip
         own = [g for g in galleries if g.enabled]
         if self.dry_run:
@@ -290,6 +293,7 @@ class ExposeGenerator:
     gallery_video_options = _ScannerField[list[str]]()
     gallery_video_filters = _ScannerField[list[str]]()
     gallery_details = _ScannerField[list[dict[str, str]]]()
+    gallery_captions = _ScannerField[list[EmbeddedCaption]]()
     video_enabled = _ScannerField[bool]()
 
     @property
