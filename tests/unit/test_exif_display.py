@@ -203,7 +203,7 @@ LINE = '<p class="photo-info-line">Fujifilm X-T4 · 23mm · f/2 · 1/250s · ISO
 
 
 class TestPages:
-    @pytest.mark.parametrize("theme", ["photoessay", "medium"])
+    @pytest.mark.parametrize("theme", ["photoessay", "medium", "contactsheet"])
     def test_icon(self, tmp_path, theme):
         html = build(tmp_path, theme=theme)
         assert html.count('<div class="photo-info">') == 1  # not for the photo without EXIF
@@ -212,7 +212,7 @@ class TestPages:
         assert "photo-info-line" not in html
         assert '<script src="../photo-info.js"></script>' in html
 
-    @pytest.mark.parametrize("theme", ["photoessay", "medium"])
+    @pytest.mark.parametrize("theme", ["photoessay", "medium", "contactsheet"])
     def test_caption(self, tmp_path, theme):
         html = build(tmp_path, mode="caption", theme=theme)
         assert html.count(LINE) == 1
@@ -225,7 +225,12 @@ class TestPages:
         assert 'style="color: #ffffff; background-color: "' in button
         assert "{{" not in html
 
-    @pytest.mark.parametrize("theme", ["photoessay", "medium"])
+    def test_contactsheet_puts_the_details_on_the_tile(self, tmp_path):
+        html = build(tmp_path, theme="contactsheet")
+        tile = html.split('<figure class="tile')[1]
+        assert '</a><div class="photo-info">' in tile  # over the photo, beside its link
+
+    @pytest.mark.parametrize("theme", ["photoessay", "medium", "contactsheet"])
     def test_off(self, tmp_path, theme):
         html = build(tmp_path, mode="off", theme=theme)
         assert 'photo-info"' not in html and "photo-info-line" not in html

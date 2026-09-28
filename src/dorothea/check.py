@@ -29,7 +29,7 @@ from dorothea.captions import (
     read_caption,
     read_text_file,
 )
-from dorothea.config import Config
+from dorothea.config import CAPTION_POSITIONS, Config
 from dorothea.feed import parse_date
 from dorothea.scanner import Scanner
 from dorothea.sorting import SORT_MODES
@@ -82,6 +82,7 @@ DOROTHEA_KEYS = {
     "feed": Key(gallery_only=True, check=_flag),
     "download": Key(gallery_only=True, check=_flag),
     "sort": Key(gallery_only=True, check=_one_of(SORT_MODES)),
+    "caption_position": Key(check=_one_of(CAPTION_POSITIONS)),
 }
 # From the photo's palette, but a caption can set them too
 PALETTE_KEYS = {f"color{n}" for n in range(1, 8)} | {"textcolor", "backgroundcolor"}

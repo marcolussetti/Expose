@@ -1,0 +1,404 @@
+/*
+ * contactsheet (#28): a gallery's photos and videos as a masonry grid, opened in a lightbox.
+ *
+ * The grid is a CSS grid of 4px rows; contactsheet.js gives each tile the rows its height needs
+ * (grid-row-end: span N) once #sheet has the "masonry" class. Without JavaScript it's a plain grid
+ * of tiles at their own aspect ratios. Browsers with native masonry lay it out themselves.
+ */
+
+:root{
+	--sidebar: 230px;
+	--gap: 8px;
+	--row: 4px;
+	--page: #111;
+	--panel: #181818;
+	--text: #ddd;
+	--muted: #888;
+	--accent: #fff;
+	color-scheme: dark;
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+
+html{ background: var(--page); }
+
+body{
+	margin: 0;
+	background: var(--page);
+	color: var(--text);
+	font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+a{ color: inherit; }
+
+/* Sidebar: site and gallery title, the galleries, feed and download links */
+
+#sidebar{
+	position: fixed;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	width: var(--sidebar);
+	padding: 24px 20px;
+	overflow-y: auto;
+	background: var(--panel);
+}
+
+.sitetitle{
+	margin: 0;
+	color: var(--muted);
+	font-size: 13px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.gallerytitle{
+	margin: 4px 0 24px 0;
+	color: var(--accent);
+	font-size: 22px;
+	font-weight: 600;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
+}
+
+#menubutton{ display: none; }
+
+#nav, #nav ul, #links{
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+#nav ul{ padding-left: 12px; }
+
+#nav li{ margin: 2px 0; }
+
+#nav .label{
+	display: block;
+	margin-top: 12px;
+	color: var(--muted);
+	font-size: 12px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+#nav a, #links a{
+	display: block;
+	padding: 3px 8px;
+	border-left: 2px solid transparent;
+	color: var(--text);
+	text-decoration: none;
+}
+
+#nav a:hover, #nav a:focus-visible, #links a:hover, #links a:focus-visible{
+	color: var(--accent);
+	border-left-color: var(--muted);
+}
+
+#nav li.active > a{
+	color: var(--accent);
+	border-left-color: var(--accent);
+}
+
+#links{ margin-top: 24px; font-size: 13px; }
+
+#links a{ color: var(--muted); }
+
+/* The grid */
+
+#sheet, #comments{ margin-left: var(--sidebar); }
+
+#sheet{
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: var(--gap);
+	padding: var(--gap);
+	align-items: start;
+}
+
+#sheet.masonry{ grid-auto-rows: var(--row); }
+
+@supports (grid-template-rows: masonry){
+	#sheet{ grid-template-rows: masonry; }
+}
+
+@supports (display: grid-lanes){
+	#sheet{ display: grid-lanes; }
+}
+
+.tile{
+	position: relative;
+	margin: 0;
+	overflow: hidden;
+	border-radius: 3px;
+}
+
+.frame{
+	display: block;
+	position: relative;
+	width: 100%;
+	cursor: zoom-in;
+}
+
+.frame img{
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: opacity 0.2s;
+}
+
+.frame:hover img{ opacity: 0.9; }
+
+.frame:focus-visible{
+	outline: 3px solid var(--accent);
+	outline-offset: -3px;
+}
+
+/* Videos: a play mark over the poster */
+.tile[data-type="video"] .frame::after{
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 52px;
+	height: 52px;
+	margin: -26px 0 0 -26px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.55) no-repeat 55% 50% / 20px 20px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 0l9 5-9 5z' fill='%23fff'/%3E%3C/svg%3E");
+	pointer-events: none;
+}
+
+/* Captions: over the photo on hover (caption_position: overlay), or below it */
+
+.caption{
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.caption > :first-child{ margin-top: 0; }
+.caption > :last-child{ margin-bottom: 0; }
+
+.caption-overlay .caption{
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	max-height: 70%;
+	overflow: hidden;
+	padding: 32px 12px 10px 12px;
+	background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+	opacity: 0;
+	transition: opacity 0.2s;
+	pointer-events: none;
+}
+
+.caption-overlay:hover .caption, .caption-overlay:focus-within .caption{ opacity: 1; }
+
+.caption-below .caption{ padding: 8px 10px 10px 10px; }
+
+/* Touch screens can't hover: overlay captions wait for the lightbox, and a mark says there's text */
+@media (hover: none){
+	.caption-overlay .caption{ display: none; }
+	.caption-overlay.has-text .frame::before{
+		content: "\2026";
+		position: absolute;
+		left: 8px;
+		bottom: 8px;
+		padding: 0 7px;
+		border-radius: 10px;
+		background: rgba(0, 0, 0, 0.55);
+		color: #fff;
+		font-size: 14px;
+		line-height: 20px;
+	}
+}
+
+/* Photo details (exif_display: icon); hover or focus shows the panel, and photo-info.js pins it
+   open on click or tap */
+.photo-info{
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 2;
+	text-align: right;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.photo-info-button{
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: 1px solid;
+	border-radius: 50%;
+	background-color: #222;
+	color: #fff;
+	font: italic 700 14px/24px Georgia, serif;
+	cursor: pointer;
+	opacity: 0.7;
+	transition: opacity 0.2s;
+}
+
+.photo-info-button:hover, .photo-info-button:focus, .photo-info.pinned .photo-info-button{ opacity: 1; }
+
+.photo-info-panel{
+	display: none;
+	margin: 6px 0 0 0;
+	padding: 8px 12px;
+	border-radius: 4px;
+	background-color: #222;
+	color: #fff;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.photo-info-panel span{ display: block; }
+
+.photo-info:focus-within .photo-info-panel, .photo-info.pinned .photo-info-panel{ display: block; }
+
+@media (hover: hover){
+	.photo-info:hover .photo-info-panel{ display: block; }
+}
+
+.photo-info-line{
+	margin: 0.6em 0 0 0;
+	font-size: 0.85em;
+	opacity: 0.8;
+}
+
+/* Lightbox */
+
+#lightbox{
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	background: #000;
+	color: #eee;
+}
+
+#lightbox::backdrop{ background: #000; }
+
+#lightbox .stage{
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	touch-action: pan-y pinch-zoom;
+}
+
+#lightbox:focus{ outline: none; }
+
+/* As large as fits the screen: --ratio is the photo's width / height, set by contactsheet.js */
+#lightbox .shot{
+	position: relative;
+	width: min(100vw, calc(100vh * var(--ratio, 1.5)));
+	width: min(100dvw, calc(100dvh * var(--ratio, 1.5)));
+}
+
+#lightbox .shot img, #lightbox .shot video{
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+#lightbox .shot .photo-info{
+	left: 12px;
+	right: auto;
+	top: 12px;
+	text-align: left;
+}
+
+#lightbox .details{
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	max-height: 40%;
+	overflow-y: auto;
+	padding: 40px max(24px, calc(50% - 360px)) 20px max(24px, calc(50% - 360px));
+	background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 40px);
+	color: #eee;
+}
+
+#lightbox .details:empty{ display: none; }
+
+#lightbox .details > :first-child{ margin-top: 0; }
+#lightbox .details > :last-child{ margin-bottom: 0; }
+
+#lightbox button.previous, #lightbox button.next, #lightbox button.close{
+	position: absolute;
+	width: 48px;
+	height: 48px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.45);
+	color: #fff;
+	font-size: 34px;
+	line-height: 44px;
+	cursor: pointer;
+	opacity: 0.75;
+	transition: opacity 0.2s;
+}
+
+#lightbox button:hover, #lightbox button:focus-visible{ opacity: 1; }
+
+#lightbox button.previous{ left: 12px; top: 50%; margin-top: -24px; }
+#lightbox button.next{ right: 12px; top: 50%; margin-top: -24px; }
+#lightbox button.close{ right: 12px; top: 12px; font-size: 30px; }
+
+#lightbox button[hidden]{ display: none; }
+
+/* Comments */
+
+#comments{ padding: 0 var(--gap); }
+
+/* Phones and narrow windows: the sidebar is a bar across the top, with a menu of galleries */
+@media only screen and (max-width: 700px) {
+	body{ min-width: 0; }
+	#sidebar{
+		position: static;
+		width: auto;
+		padding: 14px 16px;
+	}
+	.masthead{
+		display: grid;
+		grid-template-columns: 1fr auto;
+		align-items: center;
+		column-gap: 12px;
+	}
+	.sitetitle{ grid-column: 1; }
+	.gallerytitle{ grid-column: 1; margin: 2px 0 0 0; font-size: 19px; }
+	#menubutton{
+		display: block;
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		padding: 6px 12px;
+		border: 1px solid var(--muted);
+		border-radius: 4px;
+		background: transparent;
+		color: var(--text);
+		font: inherit;
+		font-size: 13px;
+		cursor: pointer;
+	}
+	#menu{ display: none; padding-top: 12px; }
+	#sidebar.open #menu{ display: block; }
+	#sheet, #comments{ margin-left: 0; }
+	#lightbox button.previous, #lightbox button.next{ display: none; }
+}
+
+@media only screen and (max-width: 560px) {
+	#sheet{ grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce){
+	.frame img, .caption-overlay .caption, #lightbox button{ transition: none; }
+}

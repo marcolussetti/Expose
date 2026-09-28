@@ -88,6 +88,7 @@ class TestValues:
             ("download: sometimes", "download: 'sometimes' must be true or false"),
             ("exif: maybe", "exif: 'maybe' must be false, icon or caption"),
             ("textbackground: red; x", "textbackground: 'red; x' isn't a CSS colour"),
+            ("caption_position: side", "caption_position: 'side' must be one of overlay, below"),
         ],
     )
     def test_invalid_values(self, tmp_path, line, message):
@@ -96,7 +97,14 @@ class TestValues:
         assert len(found) == 1 and found[0].startswith(f"g/metadata.txt:1: {message}"), found
 
     @pytest.mark.parametrize(
-        "line", ["feed: no", "download: On", "exif: false", "date: 2022-07-14 18:30"]
+        "line",
+        [
+            "feed: no",
+            "download: On",
+            "exif: false",
+            "date: 2022-07-14 18:30",
+            "caption_position: below",
+        ],
     )
     def test_valid_values(self, tmp_path, line):
         site(tmp_path, {"g/metadata.txt": f"{line}\n"})

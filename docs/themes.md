@@ -1,8 +1,9 @@
 # Themes
 
-Two themes are included, each in two versions: Dorothea's (`photoessay` and `medium`), which get
-new features, and Exposé's originals (`theme1` and `theme2`), kept exactly as they were. Pick one
-with [`theme_dir`](configuration.md#site-and-theme); the default is `photoessay`.
+Two themes are included in two versions: Dorothea's (`photoessay` and `medium`), which get
+new features, and Exposé's originals (`theme1` and `theme2`), kept exactly as they were. A third,
+`contactsheet`, is Dorothea's own. Pick one with [`theme_dir`](configuration.md#site-and-theme);
+the default is `photoessay`.
 
 ## photoessay (and the original theme1)
 
@@ -61,10 +62,34 @@ width: 32.5
 
 `class` adds CSS classes to the post, e.g. `class: textafter` puts the text after its photo.
 
-## What photoessay and medium add
+## contactsheet
+
+A gallery's photos and videos as a masonry grid: columns of tiles at the photos' own shapes,
+as many columns as fit the window, down to one on phones. Tiles load the smallest size that's
+sharp enough, and only as they scroll into view.
+
+Clicking a photo opens it in a lightbox, as large as fits the screen, with its whole caption.
+Move between photos with the keys below, the ‹ › buttons or a swipe; Escape, × or a click
+beside the photo closes it. Videos show their first frame in the grid and play in the
+lightbox. The address follows the open photo (`…/iceland/#3` is the third), so a link to it
+opens it, and Back closes the lightbox.
+
+Captions show over the bottom of a photo while the pointer is on it. On touch screens they
+show only in the lightbox, and a small … marks photos that have one. To show them under the
+photos instead, use [`caption_position`](configuration.md#site-and-theme):
+
+```yaml
+caption_position: below
+```
+
+in `_config.yml` for the whole site, in `gallery.yml` for a gallery, or in a caption's front
+matter for one photo.
+
+## What photoessay, medium and contactsheet add
 
 - **Keyboard navigation**: ↓, Page Down, →, Space or j for the next photo; ↑, Page Up, ←,
-  Shift+Space or k for the previous one; Home and End for the first and last.
+  Shift+Space or k for the previous one; Home and End for the first and last. In
+  `contactsheet` these keys work in the lightbox, and the grid scrolls as usual.
 - **Phones**: a layout for narrow screens, with captions below their photo.
 - **Photo details** ([`exif_display`](configuration.md#site-and-theme)): an ⓘ on each photo
   showing its camera, lens and exposure, or a line under its caption.
@@ -101,6 +126,11 @@ is the easiest start.
   `640.jpg`, `1024.jpg`, … (one per width); videos are `640-h264.mp4`, `640-vp9.webm`, …, plus
   `640.jpg`, … as posters
 - `{{imagewidth}}`, `{{imageheight}}`: the largest size generated
+- `{{srcset}}`: every width generated, ready for `<img srcset="{{srcset}}" sizes="…">` (these
+  URLs also work on the top-level `index.html`; with `{{imageurl}}`, put `{{resourcepath}}`
+  in front)
+- `{{caption_position}}`: `overlay` or `below`, from
+  [`caption_position`](configuration.md#site-and-theme) or the caption's or `gallery.yml`'s own
 - `{{type}}`: `image` or `video`
 - `{{textcolor}}`, `{{backgroundcolor}}`, `{{color1}}`…`{{color7}}`: from the photo's palette,
   or the config

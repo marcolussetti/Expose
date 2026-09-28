@@ -7,6 +7,15 @@ All notable changes to Dorothea are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- A `contactsheet` theme (#28), with `theme_dir: contactsheet`. It shows a gallery as a masonry
+  grid of its photos and videos at their own shapes, with as many columns as fit, down to one
+  on phones. Tiles load the smallest size that's sharp enough, lazily. Clicking one opens a
+  lightbox with the photo as large as fits the screen, its caption and its photo details.
+  Move with the keyboard.js keys, the buttons or a swipe; Escape closes. Videos play there.
+  The address follows the open photo (`#3`), so feed links open it, and Back closes it. It
+  uses plain JavaScript, no jQuery. Captions show over a photo on hover, or under it with the
+  new `caption_position: below` setting, which a gallery or caption can override. Custom
+  themes get `{{srcset}}` (every width generated) and `{{caption_position}}`.
 - Captions from the photo itself (#51): the title and description Lightroom, Capture One, Apple
   Photos, darktable and others store in the file (XMP, else IPTC) become the photo's caption,
   the title as a heading above the description, and its title in the gallery's feed, when the

@@ -24,7 +24,7 @@ If you're a photographer, you probably come back home from a trip and end up wit
 
 ![a bunch of images in a single folder](https://raw.githubusercontent.com/marcolussetti/dorothea/main/docs/folder.jpg)
 
-Dorothea turns those folders into a website, resizing the photos and encoding the videos for the web. Sub-folders become galleries, and a text file next to a photo becomes its caption. Two themes are included: `photoessay`, with full-screen photos and text over them, and `medium`, with text in a column between the photos ([themes](https://dorothea.readthedocs.io/themes/)).
+Dorothea turns those folders into a website, resizing the photos and encoding the videos for the web. Sub-folders become galleries, and a text file next to a photo becomes its caption. Three themes are included: `photoessay`, with full-screen photos and text over them; `medium`, with text in a column between the photos; and `contactsheet`, a grid of photos that open in a lightbox ([themes](https://dorothea.readthedocs.io/themes/)).
 
 ## Quick start
 

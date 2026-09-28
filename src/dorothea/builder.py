@@ -350,6 +350,12 @@ class HTMLBuilder:
 
                 post = self._apply_details(post, gallery_index, metadata, file_path)
 
+                # Themes with tiles (#28): the caption's or gallery's own value was put in above
+                post = TemplateEngine.substitute(
+                    post, "caption_position", self.config.get("caption_position", "overlay")
+                )
+                post = TemplateEngine.substitute(post, "srcset", self._srcset(gallery_index))
+
                 # Set image parameters
                 post = TemplateEngine.substitute(
                     post, "imageurl", href(self.gallery_url[gallery_index])
@@ -507,6 +513,18 @@ class HTMLBuilder:
         return TemplateEngine.substitute(
             post, "exif_summary", html_escape(exposure_summary(details))
         )
+
+    def _srcset(self, index: int) -> str:
+        """``{{srcset}}``: every width made for an item, as an ``<img srcset>`` value (#28).
+
+        Widths up to the item's largest (``{{imagewidth}}``) are made, and the smallest always;
+        a video's are its posters. Each URL starts with ``{{resourcepath}}``, which the page fills
+        in, so they also work on the top-level index.html.
+        """
+        resolutions = self.config["resolution"]
+        url = "{{resourcepath}}" + href(self.gallery_url[index])
+        widths = [r for r in resolutions if r <= self.gallery_maxwidth[index]]
+        return ", ".join(f"{url}/{r}.jpg {r}w" for r in sorted(widths or [min(resolutions)]))
 
     def _page_feed_links(self, nav_idx: int, path: Path) -> str:
         """``{{feed_link}}`` for a gallery page: the site feed, then the gallery's own feed."""
